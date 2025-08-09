@@ -1,5 +1,5 @@
-import { config } from "@/shared/config";
-import type { BookModel } from "../model/BookModel";
+import type { BookModel } from "@/entities/book";
+import {axiosInstance} from "@/shared";
 
 export interface UpdateBookRequest {
   title?: string;
@@ -13,20 +13,8 @@ export async function updateBook(
   request: UpdateBookRequest
 ): Promise<BookModel> {
   try {
-    const response = await fetch(`${config.backendUrl}/books/${id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(request),
-    });
-
-    if (!response.ok) {
-      throw new Error("Network response was not ok");
-    }
-
-    const data: BookModel = await response.json();
-    return data;
+    return await axiosInstance.put(`/books/${id}`, request)
+        .then((response) => response.data);
   } catch (error) {
     console.error("Failed to update book:", error);
     throw error; // Re-throw the error for further handling

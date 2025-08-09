@@ -3,9 +3,6 @@
 export { BookCard } from "./ui/BookCard";
 export { AddBookButton } from "./ui/AddBookButton";
 
-/// Store
-export { useBookStore } from "./store/useBookStore";
-
 // Model
 export type { BookModel } from "./model/BookModel";
 

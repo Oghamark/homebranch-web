@@ -2,6 +2,7 @@ import type { Route } from "./+types/create-book";
 import { toaster } from "@/components/ui/toaster";
 import { type CreateBookRequest, createBook } from "@/entities/book";
 import Epub from "epubjs";
+import {axiosInstance} from "@/shared";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -21,8 +22,8 @@ export async function clientAction({request}: Route.ClientActionArgs) {
     const coverImageUrl = await epub.coverUrl();
     let coverImageBlob: Blob | undefined = undefined;
     if (coverImageUrl) {
-      const coverImageResponse = await fetch(coverImageUrl);
-      coverImageBlob = await coverImageResponse.blob();
+      coverImageBlob = await axiosInstance.get<Blob>(coverImageUrl, { responseType: 'blob' })
+          .then(response => response.data);
     }
 
     const createBookRequest: CreateBookRequest = {

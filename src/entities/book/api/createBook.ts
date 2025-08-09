@@ -1,5 +1,5 @@
-import { config } from "@/shared/config";
-import type { BookModel } from "../model/BookModel";
+import type {BookModel} from "@/entities/book";
+import {axiosInstance} from "@/shared";
 
 export interface CreateBookRequest {
   title: string;
@@ -23,17 +23,7 @@ export async function createBook(
     formData.append("coverImage", request.coverImage, `${request.title}.jpg`);
   }
   try {
-    const response = await fetch(`${config.backendUrl}/books`, {
-      method: "POST",
-      body: formData,
-    });
-
-    if (!response.ok) {
-      throw new Error("Network response was not ok");
-    }
-
-    const data: BookModel = await response.json();
-    return data;
+    return (await axiosInstance.postForm('/books', formData)).data;
   } catch (error) {
     console.error("Failed to create book:", error);
     throw error; // Re-throw the error for further handling

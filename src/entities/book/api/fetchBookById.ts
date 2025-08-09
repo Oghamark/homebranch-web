@@ -1,19 +1,18 @@
-import { config } from "@/shared/config";
-import type { BookModel } from "../model/BookModel";
+import type { BookModel } from "@/entities/book";
+import {axiosInstance} from "@/shared";
 
 export async function fetchBookById(bookId: string): Promise<BookModel> {
   console.log("Fetching book by ID from backend...");
   try {
-    const response = await fetch(`${config.backendUrl}/books/${bookId}`);
-    if (!response.ok) {
-      if (response.status === 404) {
-        throw new Error(`Book with ID ${bookId} not found`);
-      }
-      throw new Error('Network response was not ok');
-    }
-    const data: BookModel = await response.json();
-    return data;
+      return await axiosInstance.get(`/books/${bookId}`)
+          .then(response => response.data);
   } catch (error) {
+    // Check for Axios 404 error
+    if (error && error.response && error.response.status === 404) {
+      const message = `Book not found (ID: ${bookId})`;
+      console.error(message);
+      throw new Error(message);
+    }
     console.error('Failed to fetch books:', error);
     throw error; // Re-throw the error for further handling
   }
