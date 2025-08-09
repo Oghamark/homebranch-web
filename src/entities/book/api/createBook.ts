@@ -23,7 +23,7 @@ export async function createBook(
     formData.append("coverImage", request.coverImage, `${request.title}.jpg`);
   }
   try {
-    return await axiosInstance.postForm('/books', formData);
+    return (await axiosInstance.postForm('/books', formData)).data;
   } catch (error) {
     console.error("Failed to create book:", error);
     throw error; // Re-throw the error for further handling
