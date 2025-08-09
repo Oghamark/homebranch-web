@@ -8,7 +8,7 @@ export async function deleteBook(
   request: DeleteBookRequest
 ): Promise<void> {
   try {
-    await axiosInstance.delete(`/api/books/${request.id}`);
+    await axiosInstance.delete(`/books/${request.id}`);
 
     localStorage.getItem(`currentlyReading`);
     const currentlyReading = JSON.parse(
