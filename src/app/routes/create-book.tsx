@@ -22,7 +22,7 @@ export async function clientAction({request}: Route.ClientActionArgs) {
     const coverImageUrl = await epub.coverUrl();
     let coverImageBlob: Blob | undefined = undefined;
     if (coverImageUrl) {
-      coverImageBlob = await axiosInstance.get<Blob>(coverImageUrl)
+      coverImageBlob = await axiosInstance.get<Blob>(coverImageUrl, { responseType: 'blob' })
           .then(response => response.data);
     }
 
