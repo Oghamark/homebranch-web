@@ -2,7 +2,6 @@ import TextField from "@/components/ui/TextField";
 import {
   Button,
   Field,
-  FileUpload,
   Flex,
   Heading,
   HStack,
@@ -11,18 +10,13 @@ import {
   Textarea,
   VStack,
 } from "@chakra-ui/react";
-import Epub from "epubjs";
-import type { PackagingMetadataObject } from "epubjs/types/packaging";
-import { useState } from "react";
-import { HiUpload } from "react-icons/hi";
 import { Form } from "react-router";
 
 export default function CreateBookPage() {
   return (
     <Stack>
-      
       <Heading alignSelf={"Center"}>Edit Book Metadata</Heading>
-      <Form method="post" action="/books">
+      <Form method="post" action={"/create-book"}>
         <Stack>
           <HStack align={"start"} gap={8} mb={2}>
             <Image

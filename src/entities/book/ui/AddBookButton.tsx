@@ -1,6 +1,6 @@
 import { FileUpload, type ButtonProps } from "@chakra-ui/react";
 import { HiPlus } from "react-icons/hi";
-import { type ChangeEvent, useEffect, useRef } from "react";
+import { type ChangeEvent, useEffect } from "react";
 import SubmitButton from "@/components/ui/SubmitButton";
 import { toaster } from "@/components/ui/toaster";
 import { useFetcher } from "react-router";
