@@ -1,6 +1,6 @@
 import { FileUpload, type ButtonProps } from "@chakra-ui/react";
 import { HiPlus } from "react-icons/hi";
-import { type ChangeEvent, useEffect, useRef } from "react";
+import { type ChangeEvent, useEffect } from "react";
 import SubmitButton from "@/components/ui/SubmitButton";
 import { toaster } from "@/components/ui/toaster";
 import { useFetcher } from "react-router";
@@ -18,7 +18,7 @@ export function AddBookButton(buttonProps : ButtonProps) {
     const formData = new FormData();
     formData.append("files", files[0]);
     
-    fetcher.submit(formData, {
+    await fetcher.submit(formData, {
       method: "POST",
       action: "/create-book",
       encType: "multipart/form-data",

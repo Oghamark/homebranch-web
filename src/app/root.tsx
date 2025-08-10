@@ -6,6 +6,7 @@ import {Toaster} from "@/components/ui/toaster";
 import {config} from "@/shared";
 
 import "@/app/styles/app.css";
+import React, {type ReactNode} from "react";
 
 export const links: Route.LinksFunction = () => [
     {rel: "preconnect", href: "https://fonts.googleapis.com"},
@@ -20,7 +21,7 @@ export const links: Route.LinksFunction = () => [
     },
 ];
 
-export function Layout({children}: { children: React.ReactNode }) {
+export function Layout({children}: { children: ReactNode }) {
     console.log(config);
     return (
         <html lang="en">
