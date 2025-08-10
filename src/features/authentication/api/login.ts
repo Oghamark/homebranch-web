@@ -10,5 +10,5 @@ export async function login(formData: FormData) {
 
     await authenticationAxiosInstance.post("/login", loginDto).catch(axiosErrorHandler);
 
-    redirect("/");
+    return redirect("/");
 }

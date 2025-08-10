@@ -15,7 +15,7 @@ export default function PasswordTextField({
   return (
     <Field.Root invalid={error}>
       <Field.Label>{label}</Field.Label>
-      <Input {...props}/>
+      <Input type="password" {...props}/>
       <Field.ErrorText>{errorText}</Field.ErrorText>
     </Field.Root>
   );

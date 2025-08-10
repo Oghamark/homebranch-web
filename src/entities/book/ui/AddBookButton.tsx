@@ -18,7 +18,7 @@ export function AddBookButton(buttonProps : ButtonProps) {
     const formData = new FormData();
     formData.append("files", files[0]);
     
-    await fetcher.submit(formData, {
+    fetcher.submit(formData, {
       method: "POST",
       action: "/create-book",
       encType: "multipart/form-data",

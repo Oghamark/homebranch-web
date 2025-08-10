@@ -19,11 +19,10 @@ export async function clientAction({ request }: Route.ClientActionArgs) {
       } else {
         toaster.error({ description: "An unexpected error occurred" });
       }
-      console.error("Login error:", error);
+      console.error("Sign-up error:", error);
       return null;
     });
-  redirect("/");
-  return null;
+  return redirect("/");
 }
 
 export default function SignUp() {
