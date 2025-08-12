@@ -11,10 +11,8 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export async function clientAction({request}: Route.ClientActionArgs) {
-  console.log("clientAction called");
   const formData = await request.formData();
   const files = formData.getAll("files") as File[] | null
-  console.log("files", files);
   if (files && files.length > 0) {
     const epub = Epub(await files[0].arrayBuffer());
     const metadata = await epub.loaded.metadata;
