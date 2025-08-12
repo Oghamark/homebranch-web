@@ -3,7 +3,7 @@ import {replace} from "react-router";
 
 export async function logout() {
     return await authenticationAxiosInstance.post("/logout").then(response => {
-        sessionStorage.removeItem('access_token');
+        sessionStorage.removeItem('user_id');
         return replace('/login');
     }).catch(axiosErrorHandler);
 }

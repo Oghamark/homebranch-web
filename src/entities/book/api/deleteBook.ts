@@ -10,7 +10,6 @@ export async function deleteBook(
 ): Promise<void> {
     await axiosInstance.delete(`/books/${request.id}`).catch(axiosErrorHandler);
 
-    localStorage.getItem(`currentlyReading`);
     const currentlyReading = JSON.parse(
       localStorage.getItem("currentlyReading") ?? "{}"
     );
