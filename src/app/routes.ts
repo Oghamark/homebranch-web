@@ -12,6 +12,7 @@ export default [
         route("settings", "routes/dashboard/settings.tsx"),
         route("statistics", "routes/dashboard/statistics.tsx")
     ]),
+    route('logout', 'routes/dashboard/logout.tsx'),
     route("login", "routes/login.tsx"),
     route("sign-up", "routes/sign-up.tsx"),
 
