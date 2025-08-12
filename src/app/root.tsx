@@ -1,12 +1,19 @@
-import {isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration,} from "react-router";
+import {
+    isRouteErrorResponse,
+    Links,
+    Meta,
+    Outlet,
+    Scripts,
+    ScrollRestoration,
+} from "react-router";
 
 import type {Route} from "./+types/root";
 import {Provider} from "@/components/ui/provider";
 import {Toaster} from "@/components/ui/toaster";
-import {config} from "@/shared";
 
 import "@/app/styles/app.css";
 import React, {type ReactNode} from "react";
+import {AuthContextProvider} from "@/shared/api/context";
 
 export const links: Route.LinksFunction = () => [
     {rel: "preconnect", href: "https://fonts.googleapis.com"},
@@ -22,7 +29,7 @@ export const links: Route.LinksFunction = () => [
 ];
 
 export function Layout({children}: { children: ReactNode }) {
-    console.log(config);
+
     return (
         <html lang="en">
         <head>
@@ -32,12 +39,14 @@ export function Layout({children}: { children: ReactNode }) {
             <Links/>
         </head>
         <Provider>
+            <AuthContextProvider>
             <Toaster/>
             <body>
             {children}
             <ScrollRestoration/>
             <Scripts/>
             </body>
+            </AuthContextProvider>
         </Provider>
         </html>
     );

@@ -2,18 +2,12 @@ import type {Route} from "./+types/login";
 
 import TextField from "@/components/ui/TextField";
 import {Button, Card, Center, Spinner} from "@chakra-ui/react";
-import {Link, redirect, useFetcher} from "react-router";
-import {toaster} from "@/components/ui/toaster";
+import {Link, useFetcher} from "react-router";
 import {login} from "@/features/authentication/api/login";
 
 export async function clientAction({request}: Route.ClientActionArgs) {
-    try {
-        const formData = await request.formData();
-        await login(formData);
-    } catch (error) {
-        console.error(error);
-        toaster.error({description: "Something went wrong, please try again later"});
-    }
+    const formData = await request.formData();
+    return await login(formData);
 }
 
 export default function Login() {

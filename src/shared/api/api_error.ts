@@ -6,19 +6,22 @@ type ApiError = {
 }
 
 export interface ApiErrorResponseDto {
-    success: boolean;
-    error: ApiError;
+    message: string[];
+    error: string;
+    statusCode: number;
 }
 
 /**
  * Ensures type safety of error responses from axios
  */
 export class ApiErrorResponse {
-    constructor({success, error}: ApiErrorResponseDto) {
-        this.success = success;
+    constructor({message, error, statusCode}: ApiErrorResponseDto) {
+        this.message = message;
         this.error = error;
+        this.statusCode = statusCode;
     }
 
-    success: boolean;
-    error: ApiError;
+    message: string[];
+    error: string;
+    statusCode: number;
 }

@@ -1,6 +1,6 @@
 import {LoginDto} from "@/features/authentication/dtos";
 import {authenticationAxiosInstance, axiosErrorHandler} from "@/features/authentication/api/axios";
-import {redirect} from "react-router";
+import { replace } from "react-router";
 
 export async function login(formData: FormData) {
     const email = formData.get('email') as string;
@@ -8,7 +8,14 @@ export async function login(formData: FormData) {
 
     const loginDto = new LoginDto(email, password);
 
-    await authenticationAxiosInstance.post("/login", loginDto).catch(axiosErrorHandler);
+    return await authenticationAxiosInstance.post("/login", loginDto)
+        .then(response => {
+            const responseData = response.data;
+            if(responseData.success){
+                sessionStorage.setItem('user_id', responseData.data.userId);
+                return replace('/');
+            }
 
-    return redirect("/");
+        })
+        .catch(axiosErrorHandler);
 }
