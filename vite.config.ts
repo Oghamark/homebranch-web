@@ -6,4 +6,10 @@ export default defineConfig({
   envDir: ".",
   envPrefix: "VITE_",
   plugins: [reactRouter(), tsconfigPaths()],
+  server: {
+    allowedHosts: [process.env.ALLOWED_HOST ?? "localhost"],
+    cors: {
+        origin: process.env.CORS_ORIGIN,
+    },
+  }
 });
