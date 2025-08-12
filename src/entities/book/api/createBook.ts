@@ -1,5 +1,6 @@
 import type {BookModel} from "@/entities/book";
 import {axiosInstance} from "@/shared";
+import {axiosErrorHandler} from "@/features/authentication/api";
 
 export interface CreateBookRequest {
   title: string;
@@ -12,7 +13,7 @@ export interface CreateBookRequest {
 
 export async function createBook(
   request: CreateBookRequest
-): Promise<BookModel> {
+): Promise<BookModel | null> {
   const formData = new FormData();
   formData.append("title", request.title);
   formData.append("author", request.author);
@@ -22,10 +23,6 @@ export async function createBook(
   if(request.coverImage){
     formData.append("coverImage", request.coverImage, `${request.title}.jpg`);
   }
-  try {
-    return (await axiosInstance.postForm('/books', formData)).data;
-  } catch (error) {
-    console.error("Failed to create book:", error);
-    throw error; // Re-throw the error for further handling
-  }
+  return await axiosInstance.postForm<BookModel>('/books', formData)
+      .then(response => response.data).catch(axiosErrorHandler) ?? null;
 }

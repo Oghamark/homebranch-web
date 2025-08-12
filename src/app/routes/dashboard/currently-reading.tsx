@@ -1,8 +1,8 @@
-import { fetchBookById } from "@/entities/book";
-import type { Route } from "./+types/currently-reading";
-import { LibraryPage } from "@/pages/library";
-import { Button, Heading, Stack } from "@chakra-ui/react";
-import { Link } from "react-router";
+import {fetchBookById} from "@/entities/book";
+import type {Route} from "./+types/currently-reading";
+import {LibraryPage} from "@/pages/library";
+import {Button, Heading, Stack} from "@chakra-ui/react";
+import {Link} from "react-router";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -18,11 +18,11 @@ export async function clientLoader({}: Route.LoaderArgs) {
 
   const ids = Object.keys(currentlyReading ?? {});
 
-  return await Promise.all(
-    ids.map((id) => {
-      return fetchBookById(id);
-    })
-  );
+  return (await Promise.all(
+      ids.map((id) => {
+          return fetchBookById(id);
+      })
+  )).filter((book) => !!book);
 }
 
 export default function CurrentlyReading({ loaderData }: Route.ComponentProps) {

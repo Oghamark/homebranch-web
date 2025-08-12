@@ -11,15 +11,17 @@ import { Box, CloseButton } from "@chakra-ui/react";
 import { redirect, useNavigate } from "react-router";
 import { config } from "@/shared";
 import { useMediaQuery } from "@chakra-ui/react";
+import ToastFactory from "@/app/utils/toast_handler";
 
 export async function clientLoader({ params }: Route.LoaderArgs) {
-  try {
     const { bookId } = params;
-    return await fetchBookById(bookId);
-  } catch (error) {
-    console.error("Error fetching book:", error);
-    return redirect("/");
-  }
+    const book = await fetchBookById(bookId);
+    if (!book) {
+        ToastFactory({message: "Failed to open book", type: "error"});
+        return redirect("/");
+    }
+
+    return book;
 }
 
 function getInitialLocation(bookId: string): string | number {

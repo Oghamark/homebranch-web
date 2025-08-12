@@ -1,4 +1,5 @@
 import {axiosInstance} from "@/shared";
+import {axiosErrorHandler} from "@/features/authentication/api";
 
 export interface DeleteBookRequest {
   id: string;
@@ -7,18 +8,11 @@ export interface DeleteBookRequest {
 export async function deleteBook(
   request: DeleteBookRequest
 ): Promise<void> {
-  try {
-    await axiosInstance.delete(`/books/${request.id}`);
+    await axiosInstance.delete(`/books/${request.id}`).catch(axiosErrorHandler);
 
-    localStorage.getItem(`currentlyReading`);
     const currentlyReading = JSON.parse(
       localStorage.getItem("currentlyReading") ?? "{}"
     );
     delete currentlyReading[request.id];
     localStorage.setItem("currentlyReading", JSON.stringify(currentlyReading));
-
-  } catch (error) {
-    console.error("Failed to delete book:", error);
-    throw error; // Re-throw the error for further handling
-  }
 }
