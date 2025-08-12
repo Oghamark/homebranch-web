@@ -1,5 +1,5 @@
-import { Box, Card, Image, Stack, Text } from "@chakra-ui/react";
-import type { BookModel } from "../model/BookModel";
+import { Box, Image, Stack, Text } from "@chakra-ui/react";
+import type { BookModel } from "@/entities/book";
 import { Link } from "react-router";
 import { config } from "@/shared";
 

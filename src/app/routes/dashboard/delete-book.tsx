@@ -7,7 +7,6 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export async function clientAction({ params }: Route.ClientActionArgs) {
-  try {
     return await deleteBook({id: params.id})
       .then(() => {
         toaster.create({
@@ -15,15 +14,4 @@ export async function clientAction({ params }: Route.ClientActionArgs) {
           type: "success",
         });
       })
-      .catch((error) => {
-        console.error("Error deleting book:", error);
-        toaster.create({
-          title: "Failed to delete book",
-          type: "error",
-        });
-      });
-  } catch (error) {
-    console.error("Action failed:", error);
-    throw error; // Re-throw the error for further handling
-  }
 }

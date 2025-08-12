@@ -12,11 +12,6 @@ export async function updateBook(
   id: string,
   request: UpdateBookRequest
 ): Promise<BookModel> {
-  try {
     return await axiosInstance.put(`/books/${id}`, request)
         .then((response) => response.data);
-  } catch (error) {
-    console.error("Failed to update book:", error);
-    throw error; // Re-throw the error for further handling
-  }
 }

@@ -1,22 +1,30 @@
 import { AddBookButton } from "@/entities/book";
 import {
-  Card, Flex,
-  For,
-  Heading,
-  Separator,
-  Tabs
+    Button,
+    Card, Flex,
+    For,
+    Heading,
+    Separator, Spacer, Spinner,
+    Tabs
 } from "@chakra-ui/react";
 import { LuBookOpen } from "react-icons/lu";
-import { Link, useLocation } from "react-router";
+import {Link, useFetcher, useLocation} from "react-router";
+import {CiLogout} from "react-icons/ci";
+
+
 
 export function NavigationCard() {
   const location = useLocation();
+  const fetcher = useFetcher();
+  let busy = fetcher.state !== 'idle';
+
   const links = [
     { to: "/", label: "Library" },
     { to: "/currently-reading", label: "Currently Reading" },
     { to: "/favorites", label: "Favorites" },
     // { to: "/statistics", label: "Statistics" }, // TODO: Implement statistics page
   ];
+
   return (
     <Card.Root
       borderRadius="md"
@@ -53,7 +61,6 @@ export function NavigationCard() {
         </Tabs.List>
       </Tabs.Root>
       {/* TODO: Implement settings page */}
-      {/* 
       <Separator my={4} />
       <Tabs.Root
         orientation="vertical"
@@ -65,7 +72,9 @@ export function NavigationCard() {
             <Link to={"/settings"}>Settings</Link>
           </Tabs.Trigger>
         </Tabs.List>
-      </Tabs.Root> */}
+      </Tabs.Root>
+        <Spacer/>
+        <Button variant={"outline"} onClick={() => fetcher.submit('', {method: 'post', action: '/logout' })}>{busy ? <Spinner/> : <><CiLogout/> Log out</>}</Button>
     </Card.Root>
   );
 }
