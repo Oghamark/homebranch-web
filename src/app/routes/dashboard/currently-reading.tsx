@@ -23,7 +23,7 @@ export async function clientLoader({}: Route.LoaderArgs) {
             return fetchBookById(id);
         }));
     const books = results.map((result) => result?.data)
-        .filter((book) => !!book);
+    const books = results.filter((book) => !!book);
     return {data: books, total: books.length};
 }
 

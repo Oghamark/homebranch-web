@@ -8,10 +8,11 @@ export function LibraryPage({books: initialBooks, total}: { books: BookModel[], 
     const booksRef = useRef<BookModel[]>(initialBooks);
 
     const getNextPage = async () => {
-        const {data} = await fetchBooks({limit: (50).toString(), offset: page.toString()});
+        const {data} = await fetchBooks({limit: (50).toString(), offset: (page * 50).toString()});
         setPage(prev => prev + 1);
         booksRef.current = [...booksRef.current, ...data];
-        return booksRef.current;
+        setPage(prev => prev + 1);
+        
     }
     return (
         <InfiniteScroll

@@ -10,7 +10,7 @@ export async function clientLoader({ params }: Route.LoaderArgs) {
 }
 
 export default function Book({ loaderData }: Route.ComponentProps) {
-    const { data: book } = loaderData;
+    const book = loaderData;
   return (
     loaderData ? <BookDetailsPage book={book} /> : null
   );
