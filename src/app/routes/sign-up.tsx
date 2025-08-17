@@ -2,7 +2,7 @@ import type {Route} from "./+types/sign-up";
 
 import TextField from "@/components/ui/TextField";
 import {Button, Card, Center, Spinner} from "@chakra-ui/react";
-import {Link, redirect, useFetcher} from "react-router";
+import {Link, useFetcher} from "react-router";
 import signUp from "@/features/authentication/api/signUp";
 
 export async function clientAction({request}: Route.ClientActionArgs) {

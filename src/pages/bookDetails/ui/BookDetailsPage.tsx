@@ -26,15 +26,15 @@ function isBookOpened(bookId: string): Boolean {
 }
 
 export default function BookDetailsPage({ book }: BookDetailsPageProps) {
-  const [isFavorited, setIsFavorited] = useState(book.isFavorited);
+  const [isFavorited, setIsFavorited] = useState(book.isFavorite);
 
   const favoriteHandler = async () => {
     try {
       setIsFavorited(!isFavorited);
       const updatedBook = await updateBook(book.id, {
-        isFavorited: !isFavorited,
+        isFavorite: !isFavorited,
       });
-      setIsFavorited(updatedBook.isFavorited);
+      setIsFavorited(updatedBook?.isFavorite ?? !isFavorited);
     } catch (error) {
       console.error("Failed to update book:", error);
       setIsFavorited(!isFavorited); // Revert state on error

@@ -1,19 +1,36 @@
-import { BookCard, type BookModel } from "@/entities/book";
-import { Flex, For } from "@chakra-ui/react";
+import {BookCard, type BookModel, fetchBooks} from "@/entities/book";
+import {Flex, For, Loader} from "@chakra-ui/react";
+import InfiniteScroll from "react-infinite-scroll-component";
+import {useRef, useState} from "react";
 
-export function LibraryPage({books}: { books: BookModel[] }) {
-  const sortedBooks = books.sort((a, b) => {
-    return a.title.localeCompare(b.title);
-  });
-  return (
-    <Flex wrap={"wrap"} width={"100%"} ml={4} gap={4}>
-      <For each={sortedBooks}>
-        {(book, _index) => (
-          <BookCard
-            book={book}
-          />
-        )}
-      </For>
-    </Flex>
-  );
+export function LibraryPage({books: initialBooks, total}: { books: BookModel[], total: number }) {
+    const [page, setPage] = useState(0);
+    const booksRef = useRef<BookModel[]>(initialBooks);
+
+    const getNextPage = async () => {
+        const {data} = await fetchBooks({limit: (50).toString(), offset: (page * 50).toString()});
+        setPage(prev => prev + 1);
+        booksRef.current = [...booksRef.current, ...data];
+        setPage(prev => prev + 1);
+        
+    }
+    return (
+        <InfiniteScroll
+            next={getNextPage}
+            hasMore={booksRef.current.length < total}
+            loader={<Loader/>}
+            dataLength={booksRef.current.length}
+        >
+
+        <Flex wrap={"wrap"} gap={8} justify={{base: 'center', md: 'start'}}>
+            <For each={booksRef.current}>
+                {(book, _index) => (
+                    <BookCard
+                        book={book}
+                    />
+                )}
+            </For>
+        </Flex>
+        </InfiniteScroll>
+    );
 }

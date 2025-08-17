@@ -3,7 +3,7 @@ export type BookModel = {
     title: string;
     author: string;
     fileName: string;
-    isFavorited: boolean;
+    isFavorite: boolean;
     publishedYear: string;
     coverImageFileName: string;
 }
