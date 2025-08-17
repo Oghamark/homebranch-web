@@ -1,7 +1,7 @@
 import { Button, Heading, Stack } from "@chakra-ui/react";
 import { Link } from "react-router";
 import type { Route } from "./+types/favorites";
-import { fetchFavoritedBooks } from "@/entities/book/api/fetchFavoritedBooks";
+import { fetchFavoriteBooks } from "@/entities/book/api/fetchFavoriteBooks";
 import { LibraryPage } from "@/pages/library";
 
 export function meta({}: Route.MetaArgs) {
@@ -12,7 +12,7 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export async function clientLoader({}: Route.LoaderArgs) {
-  return fetchFavoritedBooks();
+  return fetchFavoriteBooks();
 }
 
 export default function Favorites({ loaderData }: Route.ComponentProps) {

@@ -1,9 +1,4 @@
-type ApiError = {
-    code: number;
-    message: string;
-    timestamp: string;
-    path: string;
-}
+import {isArray} from "@zag-js/utils";
 
 export interface ApiErrorResponseDto {
     message: string[];
@@ -16,7 +11,7 @@ export interface ApiErrorResponseDto {
  */
 export class ApiErrorResponse {
     constructor({message, error, statusCode}: ApiErrorResponseDto) {
-        this.message = message;
+        this.message = isArray(message) ? message : [message];
         this.error = error;
         this.statusCode = statusCode;
     }

@@ -1,6 +1,7 @@
 import type {BookModel} from "@/entities/book";
-import {axiosInstance} from "@/shared";
+import {axiosInstance, type Result} from "@/shared";
 import {axiosErrorHandler} from "@/features/authentication/api";
+import ToastFactory from "@/app/utils/toast_handler";
 
 export interface CreateBookRequest {
   title: string;
@@ -15,6 +16,9 @@ export async function createBook(
   request: CreateBookRequest
 ): Promise<BookModel | null> {
   const formData = new FormData();
+  if(!request.title || !request.author) {
+      ToastFactory({message: "Failed parsing metadata from file", type: 'warning'});
+  }
   formData.append("title", request.title);
   formData.append("author", request.author);
   formData.append("isFavorited", String(request.isFavorited));
@@ -23,6 +27,6 @@ export async function createBook(
   if(request.coverImage){
     formData.append("coverImage", request.coverImage, `${request.title}.jpg`);
   }
-  return await axiosInstance.postForm<BookModel>('/books', formData)
-      .then(response => response.data).catch(axiosErrorHandler) ?? null;
+  return await axiosInstance.postForm<Result<BookModel>>('/books', formData)
+      .then(response => response.data.value).catch(axiosErrorHandler) ?? null;
 }

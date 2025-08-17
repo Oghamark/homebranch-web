@@ -16,9 +16,7 @@ export const axiosInstance = axios.create({
 })
 
 axiosInstance.interceptors.response.use(
-    response => {
-        return response
-    },
+    response => response,
     async (error) => {
         const prevRequest = error?.config;
         if (error.response.status === 401) {
