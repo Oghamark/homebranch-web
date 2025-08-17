@@ -10,9 +10,10 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export async function clientLoader({}: Route.LoaderArgs) {
-    return await fetchBooks();
+    return await fetchBooks({limit: '50', offset: '0'});
 }
 
 export default function Library({loaderData}: Route.ComponentProps) {
-  return <LibraryPage books={loaderData}/>;
+    const { data: books, total } = loaderData;
+    return <LibraryPage books={books} total={total} />;
 }
