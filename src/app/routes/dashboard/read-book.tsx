@@ -27,11 +27,10 @@ function getInitialLocation(bookId: string): string | number {
 }
 
 export default function ReadBook({loaderData}: Route.ComponentProps) {
-    const {data} = loaderData;
     const navigate = useNavigate();
 
     const [location, setLocation] = useState<string | number>(
-        getInitialLocation(data.id)
+        getInitialLocation(loaderData.id)
     );
 
     const readerTheme = useResponsiveReaderTheme();
@@ -40,7 +39,7 @@ export default function ReadBook({loaderData}: Route.ComponentProps) {
         const currentlyReading = JSON.parse(
             localStorage.getItem("currentlyReading") ?? "{}"
         );
-        currentlyReading[data.id] = location;
+        currentlyReading[loaderData.id] = location;
         localStorage.setItem("currentlyReading", JSON.stringify(currentlyReading));
     }, [location]);
 
@@ -55,8 +54,8 @@ export default function ReadBook({loaderData}: Route.ComponentProps) {
                 zIndex={1000}
             >
                 <ReactReader
-                    url={`${config.backendUrl}/uploads/books/${data.fileName}`}
-                    title={data.title}
+                    url={`${config.backendUrl}/uploads/books/${loaderData.fileName}`}
+                    title={loaderData.title}
                     location={location}
                     locationChanged={setLocation}
                     readerStyles={readerTheme}

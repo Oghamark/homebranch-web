@@ -21,7 +21,7 @@ export async function createBook(
   }
   formData.append("title", request.title);
   formData.append("author", request.author);
-  formData.append("isFavorite", String(request.isFavorite));
+  formData.append("isFavorite", String(request.isFavorited));
   formData.append("publishedYear", request.publishedYear);
   formData.append("file", request.file, `${request.title}.epub`);
   if(request.coverImage){
