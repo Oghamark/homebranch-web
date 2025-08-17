@@ -5,7 +5,7 @@ import {axiosErrorHandler} from "@/features/authentication/api";
 export interface UpdateBookRequest {
   title?: string;
   author?: string;
-  isFavorited?: boolean;
+  isFavorite?: boolean;
   publishedYear?: string;
 }
 

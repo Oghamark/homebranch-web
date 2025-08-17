@@ -52,11 +52,6 @@ export default function CreateBookPage() {
                 label={"Published Year"}
                 name="publishedYear"
                 variant={"subtle"}
-                // value={
-                //   metadata
-                    // ? new Date(metadata?.pubdate).getFullYear().toString()
-                    // : ""
-                // }
               />
               <TextField label={"Tags"} name="tags" variant={"subtle"} />
             </VStack>
