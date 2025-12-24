@@ -51,11 +51,11 @@ export function NavigationCard() {
       >
         <Tabs.List width={"100%"}>
           <For each={links}>
-              {(link) => (
-                  <Tabs.Trigger value={link.to} asChild>
-                      <Link to={link.to}>{link.label}</Link>
-                  </Tabs.Trigger>
-              )}
+            {(link) => (
+              <Tabs.Trigger value={link.to} asChild>
+                <Link to={link.to}>{link.label}</Link>
+              </Tabs.Trigger>
+            )}
           </For>
         </Tabs.List>
       </Tabs.Root>

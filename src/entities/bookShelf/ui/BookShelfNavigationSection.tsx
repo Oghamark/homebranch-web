@@ -10,7 +10,7 @@ export function BookShelfNavigationSection() {
     useEffect(() => {
         getBookShelves().then(result => {
             if (result) {
-                setBookShelves(result ?? []);
+                setBookShelves(result);
             }
         })
     }, []);
@@ -41,10 +41,18 @@ function BookShelfTab({id, title}: {id: string, title: string}) {
 
     return (
         <Flex justify={"space-between"} onMouseEnter={()=>setHovered(true)} onMouseLeave={()=>setHovered(false)}>
-            <Tabs.Trigger value={id} asChild>
+            <Tabs.Trigger value={`/book-shelves/${id}`} asChild>
                 <Link to={`/book-shelves/${id}`}>{title}</Link>
             </Tabs.Trigger>
-            {hovered && <IconButton variant={"subtle"} size={"sm"}><HiTrash /></IconButton>}
+            {hovered && (
+                <IconButton
+                    variant={"subtle"}
+                    size={"sm"}
+                    aria-label={`Delete ${title}`}
+                >
+                    <HiTrash />
+                </IconButton>
+            )}
         </Flex>
     )
 }
