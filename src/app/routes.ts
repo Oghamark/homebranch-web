@@ -3,6 +3,7 @@ import {type RouteConfig, index, route, layout} from "@react-router/dev/routes";
 export default [
     layout("routes/dashboard/layout.tsx", [
         route("books/:bookId", "routes/dashboard/book.tsx"),
+        route("/book-shelves/:bookShelfId", "routes/dashboard/book-shelf.tsx"),
         route("books/:bookId/read", "routes/dashboard/read-book.tsx"),
         route("create-book", "routes/dashboard/create-book.tsx"),
         route("delete-book/:id", "routes/dashboard/delete-book.tsx"),
