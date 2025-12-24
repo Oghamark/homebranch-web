@@ -11,7 +11,7 @@ import {
 import { LuBookOpen } from "react-icons/lu";
 import {Link, useFetcher, useLocation} from "react-router";
 import {CiLogout} from "react-icons/ci";
-import {AddBookShelfButton, BookShelfNavigationSection} from "@/entities/bookShelf";
+import {BookShelfNavigationSection} from "@/entities/bookShelf";
 
 
 
