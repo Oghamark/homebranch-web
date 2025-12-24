@@ -5,11 +5,13 @@ import {
     For,
     Heading,
     Separator, Spacer, Spinner,
-    Tabs
+    Tabs,
+    Text
 } from "@chakra-ui/react";
 import { LuBookOpen } from "react-icons/lu";
 import {Link, useFetcher, useLocation} from "react-router";
 import {CiLogout} from "react-icons/ci";
+import {AddBookShelfButton, BookShelfNavigationSection} from "@/entities/bookShelf";
 
 
 
@@ -49,19 +51,20 @@ export function NavigationCard() {
       >
         <Tabs.List width={"100%"}>
           <For each={links}>
-            {(link) => (
-              <Tabs.Trigger value={link.to} asChild>
-                <Link to={link.to}>{link.label}</Link>
-              </Tabs.Trigger>
-            )}
+              {(link) => (
+                  <Tabs.Trigger value={link.to} asChild>
+                      <Link to={link.to}>{link.label}</Link>
+                  </Tabs.Trigger>
+              )}
           </For>
-          <Tabs.Trigger value={"create-book"} asChild>
-            <AddBookButton mt={2} />
-          </Tabs.Trigger>
         </Tabs.List>
       </Tabs.Root>
+        <AddBookButton mt={2} />
       {/* TODO: Implement settings page */}
-      <Separator my={4} />
+        <Separator my={4} />
+        <Text mb={2}>Book Shelves</Text>
+        <BookShelfNavigationSection />
+        <Separator my={4} />
       <Tabs.Root
         orientation="vertical"
         variant={"subtle"}
