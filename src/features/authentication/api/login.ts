@@ -12,7 +12,7 @@ export async function login(formData: FormData) {
         .then(response => {
             const responseData = response.data;
             if(responseData.success){
-                sessionStorage.setItem('user_id', responseData.data.userId);
+                sessionStorage.setItem('user_id', responseData.value.userId);
                 return replace('/');
             }
 
