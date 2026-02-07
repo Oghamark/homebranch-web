@@ -1,21 +1,21 @@
 import { DeleteConfirmationDialog } from "@/components/ui/modals/DeleteConfirmationDialog";
-import { updateBook, type BookModel } from "@/entities/book";
+import {type BookModel, useDeleteBookMutation, useUpdateBookMutation} from "@/entities/book";
 import { config } from "@/shared";
 import {
-  Box,
-  HStack,
-  IconButton,
-  Heading,
-  Separator,
-  Image,
-  Text,
+    Box,
+    HStack,
+    IconButton,
+    Heading,
+    Separator,
+    Image,
+    Text,
 } from "@chakra-ui/react";
-import { useState } from "react";
+import {useState} from "react";
 import { HiHeart, HiBookOpen, HiX } from "react-icons/hi";
-import { Link } from "react-router";
+import {Link, useNavigate} from "react-router";
 
 export interface BookDetailsPageProps {
-  book: BookModel;
+  book: BookModel
 }
 
 function isBookOpened(bookId: string): Boolean {
@@ -26,20 +26,9 @@ function isBookOpened(bookId: string): Boolean {
 }
 
 export default function BookDetailsPage({ book }: BookDetailsPageProps) {
-  const [isFavorited, setIsFavorited] = useState(book.isFavorite);
-
-  const favoriteHandler = async () => {
-    try {
-      setIsFavorited(!isFavorited);
-      const updatedBook = await updateBook(book.id, {
-        isFavorite: !isFavorited,
-      });
-      setIsFavorited(updatedBook?.isFavorite ?? !isFavorited);
-    } catch (error) {
-      console.error("Failed to update book:", error);
-      setIsFavorited(!isFavorited); // Revert state on error
-    }
-  };
+  const [updateBook] = useUpdateBookMutation();
+  const [deleteBook, { isLoading: pendingDelete }] = useDeleteBookMutation();
+  const navigate = useNavigate();
 
   const [isCurrentlyReading, setIsCurrentlyReading] = useState(
     isBookOpened(book.id)
@@ -67,14 +56,17 @@ export default function BookDetailsPage({ book }: BookDetailsPageProps) {
             <HStack mt={2}>
               <DeleteConfirmationDialog
                 title={`Delete book: ${book.title}`}
-                action={`/delete-book/${book.id}`}
+                loading={pendingDelete}
+                onSubmit={() => {
+                    deleteBook(book.id).then(result => !result.error && navigate("/"))
+                }}
               />
               {/*TODO: Implement edit book functionality */}
               {/* <IconButton variant={"subtle"}>
               <HiPencil />
             </IconButton> */}
-              <IconButton variant={"subtle"} onClick={favoriteHandler}>
-                <HiHeart color={isFavorited ? "red" : undefined} />
+              <IconButton variant={"subtle"} onClick={() => updateBook({...book, isFavorite: !book.isFavorite})}>
+                <HiHeart color={book.isFavorite ? "red" : undefined} />
               </IconButton>
               <IconButton variant={"subtle"} asChild>
                 <Link to={`/books/${book.id}/read`}>

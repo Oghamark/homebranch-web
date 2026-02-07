@@ -1,4 +1,3 @@
-
 // UI Components
 export { BookCard } from "./ui/BookCard";
 export { AddBookButton } from "./ui/AddBookButton";
@@ -7,7 +6,14 @@ export { AddBookButton } from "./ui/AddBookButton";
 export type { BookModel } from "./model/BookModel";
 
 // API
-export { createBook, type CreateBookRequest } from "./api/createBook";
-export { updateBook, type UpdateBookRequest } from "./api/updateBook";
-export { fetchBooks } from "./api/fetchBooks";
-export { fetchBookById } from "./api/fetchBookById";
+export {
+    useGetBooksQuery,
+    useGetFavoriteBooksQuery,
+    useGetBookByIdQuery,
+    useGetBooksByIdsQuery,
+    useCreateBookMutation,
+    useUpdateBookMutation,
+    useDeleteBookMutation,
+} from "./api/api";
+
+export type {CreateBookRequest} from "./api/dtos";

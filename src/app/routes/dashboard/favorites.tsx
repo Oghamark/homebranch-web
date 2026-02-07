@@ -1,8 +1,9 @@
 import {Button, Heading, Stack} from "@chakra-ui/react";
 import {Link} from "react-router";
 import type {Route} from "./+types/favorites";
-import {fetchFavoriteBooks} from "@/entities/book/api/fetchFavoriteBooks";
 import {LibraryPage} from "@/pages/library";
+import {useGetFavoriteBooksQuery} from "@/entities/book";
+import {useState} from "react";
 
 export function meta({}: Route.MetaArgs) {
     return [
@@ -11,13 +12,10 @@ export function meta({}: Route.MetaArgs) {
     ];
 }
 
-export async function clientLoader({}: Route.LoaderArgs) {
-    return fetchFavoriteBooks({limit: '50', offset: '0'});
-}
-
-export default function Favorites({loaderData}: Route.ComponentProps) {
-    const {data, total} = loaderData;
-    return total === 0 ? _noBooks() : <LibraryPage books={data} total={total}/>;
+export default function Favorites() {
+    const [page, setPage] = useState(0);
+    const {result, isLoading, error} = useGetFavoriteBooksQuery(page);
+    return (!result || result?.total === 0) ? _noBooks() : <LibraryPage result={result} page={page} setPage={setPage} />;
 }
 
 function _noBooks() {

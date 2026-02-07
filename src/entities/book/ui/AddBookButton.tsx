@@ -1,62 +1,62 @@
-import { FileUpload, type ButtonProps } from "@chakra-ui/react";
-import { HiPlus } from "react-icons/hi";
-import { type ChangeEvent, useEffect } from "react";
+import {type ButtonProps, FileUpload} from "@chakra-ui/react";
+import {HiPlus} from "react-icons/hi";
 import SubmitButton from "@/components/ui/SubmitButton";
-import { toaster } from "@/components/ui/toaster";
-import { useFetcher } from "react-router";
+import {toaster} from "@/components/ui/toaster";
+import {type CreateBookRequest, useCreateBookMutation} from "@/entities/book";
+import {handleRtkError} from "@/shared/api/rtk-query";
+import Epub from "epubjs";
+import axios from "axios";
+import type {FileAcceptDetails} from "@zag-js/file-upload";
 
-export function AddBookButton(buttonProps : ButtonProps) {
-  const fetcher = useFetcher();
+export function AddBookButton(buttonProps: ButtonProps) {
+    const [createBook, {isLoading}] = useCreateBookMutation();
 
-  const _handleSubmit = async (event: ChangeEvent<HTMLInputElement>) => {
-    
-    const files = event.target.files;
-    if (!files || files.length === 0) {
-      return;
-    }
+    const _handleSubmit = async ({files}: FileAcceptDetails) => {
+        if (!files || files.length === 0) {
+            return;
+        }
 
-    const formData = new FormData();
-    formData.append("files", files[0]);
-    
-    await fetcher.submit(formData, {
-      method: "POST",
-      action: "/create-book",
-      encType: "multipart/form-data",
-    });
+        const epub = Epub(await files[0].arrayBuffer());
+        const metadata = await epub.loaded.metadata;
 
-    event.target.value = '';
-  };
+        const coverImageUrl = await epub.coverUrl();
+        let coverImageBlob: Blob | undefined = undefined;
+        if (coverImageUrl) {
+            coverImageBlob = await axios.get<Blob>(coverImageUrl, {responseType: 'blob'})
+                .then(response => response.data);
+        }
 
-  useEffect(() => {
-    if (fetcher.state === "idle" && fetcher.data) {
-      if (fetcher.data.success) {
-        toaster.create({
-          title: "Book added successfully!",
-          type: "success",
-        });
-      } else {
-        toaster.create({
-          title: "Failed to add book",
-          type: "error",
-        });
-      }
-    }
-  }, [fetcher.state, fetcher.data]);
+        const createBookRequest: CreateBookRequest = {
+            title: metadata.title,
+            author: metadata.creator,
+            isFavorite: false,
+            publishedYear: new Date(metadata.pubdate).getFullYear().toString(),
+            file: files[0],
+            coverImage: coverImageBlob,
+        }
 
-  return (
-    <FileUpload.Root>
-      <FileUpload.HiddenInput onChange={_handleSubmit} accept=".epub" />
-      <FileUpload.Trigger asChild>
-        <SubmitButton 
-          variant={"outline"} 
-          size="sm" 
-          width={"100%"}
-          loading={fetcher.state === "submitting"}
-          {...buttonProps}
-        >
-          <HiPlus /> Add Book
-        </SubmitButton>
-      </FileUpload.Trigger>
-    </FileUpload.Root>
-  );
+        try {
+            await createBook(createBookRequest).unwrap();
+            toaster.create({title: "Book added successfully!", type: "success"});
+        } catch (e) {
+            handleRtkError(e);
+        }
+    };
+
+    return (
+        <FileUpload.Root accept={".epub"} onFileAccept={_handleSubmit}>
+            <FileUpload.HiddenInput accept=".epub"/>
+            <FileUpload.Trigger asChild>
+                <SubmitButton
+                    variant={"outline"}
+                    size="sm"
+                    width={"100%"}
+                    loading={isLoading}
+                    {...buttonProps}
+                >
+                    <HiPlus/> Add Book
+                </SubmitButton>
+            </FileUpload.Trigger>
+        </FileUpload.Root>
+    );
 }

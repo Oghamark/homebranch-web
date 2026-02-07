@@ -1,23 +1,12 @@
 import type {Route} from "./+types/read-book";
 
-import {fetchBookById} from "@/entities/book";
 import {type IReactReaderStyle, ReactReader, ReactReaderStyle,} from "react-reader";
 import {useMemo, useState} from "react";
 import {Box, CloseButton, useMediaQuery} from "@chakra-ui/react";
-import {redirect, useNavigate} from "react-router";
+import {Navigate, redirect, useNavigate} from "react-router";
 import {config} from "@/shared";
 import ToastFactory from "@/app/utils/toast_handler";
-
-export async function clientLoader({params}: Route.LoaderArgs) {
-    const {bookId} = params;
-    const book = await fetchBookById(bookId);
-    if (!book) {
-        ToastFactory({message: "Failed to open book", type: "error"});
-        return redirect("/");
-    }
-
-    return book;
-}
+import {useGetBookByIdQuery} from "@/entities/book";
 
 function getInitialLocation(bookId: string): string | number {
     const savedLocation = JSON.parse(
@@ -26,12 +15,13 @@ function getInitialLocation(bookId: string): string | number {
     return savedLocation ?? 0;
 }
 
-export default function ReadBook({loaderData}: Route.ComponentProps) {
+export default function ReadBook({params}: Route.ComponentProps) {
+    const {bookId} = params;
+    const {data: book, isLoading, error} = useGetBookByIdQuery(bookId);
+
     const navigate = useNavigate();
 
-    const [location, setLocation] = useState<string | number>(
-        getInitialLocation(loaderData.id)
-    );
+    const [location, setLocation] = useState<string | number>(getInitialLocation(bookId));
 
     const readerTheme = useResponsiveReaderTheme();
 
@@ -39,9 +29,14 @@ export default function ReadBook({loaderData}: Route.ComponentProps) {
         const currentlyReading = JSON.parse(
             localStorage.getItem("currentlyReading") ?? "{}"
         );
-        currentlyReading[loaderData.id] = location;
+        currentlyReading[bookId] = location;
         localStorage.setItem("currentlyReading", JSON.stringify(currentlyReading));
     }, [location]);
+
+    if (!book) {
+        ToastFactory({message: "Failed to open book", type: "error"});
+        return <Navigate to={"/"} />;
+    }
 
     return (
         <>
@@ -54,8 +49,8 @@ export default function ReadBook({loaderData}: Route.ComponentProps) {
                 zIndex={1000}
             >
                 <ReactReader
-                    url={`${config.backendUrl}/uploads/books/${loaderData.fileName}`}
-                    title={loaderData.title}
+                    url={`${config.backendUrl}/uploads/books/${book.fileName}`}
+                    title={book.title}
                     location={location}
                     locationChanged={setLocation}
                     readerStyles={readerTheme}

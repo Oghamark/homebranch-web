@@ -1,45 +1,33 @@
-import {BookCard} from "@/entities/book";
+import {BookCard, type BookModel, useGetBooksQuery} from "@/entities/book";
 import {Flex, For, Loader} from "@chakra-ui/react";
 import InfiniteScroll from "react-infinite-scroll-component";
-import {useCallback, useEffect} from "react";
-import {useAppDispatch, useAppSelector} from "@/app/hooks";
-import {fetchBooksThunk, selectAll, selectBookStatus} from "@/entities/book/model/booksSlice";
+import {type Dispatch, type SetStateAction, useState} from "react";
+import type {Result} from "@/shared";
+import type {PaginationResult} from "@/shared/api/api_response";
 
-export function LibraryPage() {
-    const dispatch = useAppDispatch();
-    const books = useAppSelector(state => selectAll(state.books));
-    const total = useAppSelector(state => state.books.total);
-    const status = useAppSelector(selectBookStatus);
+interface LibraryPageProps {
+    result: PaginationResult<BookModel[]>;
+    page: number;
+    setPage: Dispatch<SetStateAction<number>>;
+}
 
-    useEffect(() => {
-        if (status === 'idle') {
-            dispatch(fetchBooksThunk());
-        }
-    }, [dispatch, status]);
-
-    const getNextPage = useCallback(async () => {
-        const offset = books.length;
-        // TODO: Uncomment after implementing pagination in redux
-        // dispatch(fetchBooks({limit: '50', offset: offset.toString() }));
-    }, [dispatch, books.length]);
-
+export function LibraryPage({result, page, setPage}: LibraryPageProps) {
     return (
         <InfiniteScroll
-            next={getNextPage}
-            hasMore={books.length < total}
+            next={() => setPage(prev => prev + 1)}
+            hasMore={!!result && (result.data.length < result.total)}
             loader={<Loader/>}
-            dataLength={books.length}
+            dataLength={result?.data.length ?? 0}
         >
-
-        <Flex wrap={"wrap"} gap={8} justify={{base: 'center', md: 'start'}}>
-            <For each={books}>
-                {(book, _index) => (
-                    <BookCard
-                        book={book}
-                    />
-                )}
-            </For>
-        </Flex>
+            <Flex wrap={"wrap"} gap={8} justify={{base: 'center', md: 'start'}}>
+                <For each={result?.data ?? []}>
+                    {(book, _index) => (
+                        <BookCard
+                            book={book}
+                        />
+                    )}
+                </For>
+            </Flex>
         </InfiniteScroll>
     );
 }
