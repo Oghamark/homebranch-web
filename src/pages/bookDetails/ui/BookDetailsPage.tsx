@@ -49,7 +49,7 @@ export default function BookDetailsPage({ book }: BookDetailsPageProps) {
         <HStack align={"start"}>
           <Box>
             <Image
-              src={`${config.backendUrl}/uploads/cover-images/${book.coverImageFileName}`}
+              src={`${config.apiUrl}/uploads/cover-images/${book.coverImageFileName}`}
               alt={book.title}
               w={"200px"}
             />

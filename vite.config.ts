@@ -1,6 +1,8 @@
 import { reactRouter } from "@react-router/dev/vite";
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
+
+const env = loadEnv(process.env.NODE_ENV as string, process.cwd(), 'VITE_')
 
 export default defineConfig({
   envDir: ".",
@@ -13,12 +15,12 @@ export default defineConfig({
     },
       proxy: {
         '/api': {
-            target: process.env.BACKEND_URL,
+            target: env.VITE_API_ROOT,
             changeOrigin: true,
             secure: false,
         },
           '/auth': {
-            target: process.env.AUTHENTICATION_URL,
+            target: env.VITE_AUTHENTICATION_ROOT,
             changeOrigin: true,
             secure: false
           }

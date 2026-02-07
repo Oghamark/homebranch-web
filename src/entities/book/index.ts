@@ -7,8 +7,8 @@ export type { BookModel } from "./model/BookModel";
 
 // API
 export {
-    useGetBooksQuery,
-    useGetFavoriteBooksQuery,
+    useGetBooksInfiniteQuery,
+    useGetFavoriteBooksInfiniteQuery,
     useGetBookByIdQuery,
     useGetBooksByIdsQuery,
     useCreateBookMutation,

@@ -1,7 +1,7 @@
-import {useState} from "react";
+import {useMemo} from "react";
 import {Button, Heading, Loader, Stack} from "@chakra-ui/react";
 import {Link, useParams} from "react-router";
-import {useGetBookShelfBooksQuery} from "@/entities/bookShelf";
+import {useGetBookShelfBooksInfiniteQuery} from "@/entities/bookShelf";
 import {LibraryPage} from "@/pages/library";
 import type {Route} from "./+types/book-shelf";
 
@@ -19,14 +19,17 @@ export default function BookShelf() {
 }
 
 function BookShelfContent({bookShelfId}: {bookShelfId: string}) {
-    const [page, setPage] = useState(0);
-    const {data: result, isLoading} = useGetBookShelfBooksQuery({bookShelfId, page});
+    const {data, isLoading, hasNextPage, fetchNextPage} = useGetBookShelfBooksInfiniteQuery(bookShelfId);
+
+    const books = useMemo(() => {
+        return data?.pages.flatMap(page => page.data) ?? []
+    }, [data])
 
     if (isLoading) {
         return <Loader />;
     }
 
-    if (!result || result.data.length === 0) {
+    if (!data || data.pages.length === 0) {
         return (
             <Stack
                 height={"100%"}
@@ -43,5 +46,7 @@ function BookShelfContent({bookShelfId}: {bookShelfId: string}) {
         );
     }
 
-    return <LibraryPage result={result} page={page} setPage={setPage} />;
+
+
+    return <LibraryPage books={books} fetchMore={fetchNextPage} hasMore={hasNextPage} />;
 }

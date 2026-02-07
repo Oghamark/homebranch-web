@@ -21,7 +21,7 @@ const baseQueryWithResultUnwrap: BaseQueryFn<
     // wait until the mutex is available without locking it
     await refreshTokenMutex.waitForUnlock();
     let result = await fetchBaseQuery({
-        baseUrl: config.backendUrl,
+        baseUrl: config.apiUrl,
         credentials: 'include',
     })(args, api, extraOptions);
 
@@ -38,7 +38,7 @@ const baseQueryWithResultUnwrap: BaseQueryFn<
 
                 if (refreshResult.data) {
                     result = await fetchBaseQuery({
-                        baseUrl: config.backendUrl,
+                        baseUrl: config.apiUrl,
                         credentials: 'include',
                     })(args, api, extraOptions);
                 } else {
@@ -53,7 +53,7 @@ const baseQueryWithResultUnwrap: BaseQueryFn<
             await refreshTokenMutex.waitForUnlock();
             // Retry the original query (token should be refreshed now)
             result = await fetchBaseQuery({
-                baseUrl: config.backendUrl,
+                baseUrl: config.apiUrl,
                 credentials: 'include',
             })(args, api, extraOptions);
         }

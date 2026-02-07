@@ -1,8 +1,8 @@
 import {LibraryPage} from "@/pages/library";
 import type {Route} from "./+types/library";
-import {useState} from "react";
-import {useGetBooksQuery} from "@/entities/book";
+import {useMemo} from "react";
 import {Heading, Stack} from "@chakra-ui/react";
+import {useGetBooksInfiniteQuery} from "@/entities/book";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -12,9 +12,17 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export default function Library() {
-    const [page, setPage] = useState(0);
-    const {result} = useGetBooksQuery(page);
-    return (!result || result?.total === 0) ? _noBooks() : <LibraryPage result={result} page={page} setPage={setPage} />;
+    const {data, hasNextPage, fetchNextPage} = useGetBooksInfiniteQuery();
+
+    const books = useMemo(() => {
+        return data?.pages.flatMap(page => page.data) ?? []
+    }, [data])
+
+    if (!data || data.pages.length === 0) {
+        return _noBooks()
+    }
+
+    return <LibraryPage books={books} fetchMore={fetchNextPage} hasMore={hasNextPage}/>;
 }
 
 function _noBooks() {

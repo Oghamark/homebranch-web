@@ -32,9 +32,9 @@ export default function CurrentlyReading() {
 
     return (
         <LibraryPage
-            result={{data: books, total: books.length}}
-            page={0}
-            setPage={() => {}}
+            books={books}
+            fetchMore={() => {}}
+            hasMore={false}
         />
     );
 }

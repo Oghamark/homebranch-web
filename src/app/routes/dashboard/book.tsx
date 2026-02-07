@@ -6,21 +6,32 @@ import {Loader} from "@chakra-ui/react";
 import ToastFactory from "@/app/utils/toast_handler";
 import {Navigate} from "react-router";
 import {handleRtkError} from "@/shared/api/rtk-query";
+import {useEffect} from "react";
 
 export default function Book({ params }: Route.ComponentProps) {
   const { data, isLoading, error } = useGetBookByIdQuery(params.bookId);
 
-  if (error) {
-      handleRtkError(error);
-      return <Navigate to={"/"}/>;
-  }
+    useEffect(() => {
+        if (error) {
+            handleRtkError(error);
+        }
+    }, [error]);
+
+    useEffect(() => {
+        if (!data) {
+            ToastFactory({message: "Something went wrong", type: "error"});
+        }
+    }, [data]);
+
+    if (error) {
+        return <Navigate to={"/"}/>;
+    }
 
   if (isLoading) {
       return <Loader />;
   }
 
   if (!data) {
-      ToastFactory({message: "Something went wrong", type: "error"});
       return <Navigate to={"/"}/>
   }
 

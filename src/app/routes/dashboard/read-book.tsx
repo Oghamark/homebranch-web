@@ -1,7 +1,7 @@
 import type {Route} from "./+types/read-book";
 
 import {type IReactReaderStyle, ReactReader, ReactReaderStyle,} from "react-reader";
-import {useMemo, useState} from "react";
+import {useEffect, useMemo, useState} from "react";
 import {Box, CloseButton, useMediaQuery} from "@chakra-ui/react";
 import {Navigate, useNavigate} from "react-router";
 import {config} from "@/shared";
@@ -17,7 +17,7 @@ function getInitialLocation(bookId: string): string | number {
 
 export default function ReadBook({params}: Route.ComponentProps) {
     const {bookId} = params;
-    const {data: book, error} = useGetBookByIdQuery(bookId);
+    const {data: book, error, isLoading} = useGetBookByIdQuery(bookId);
 
     const navigate = useNavigate();
 
@@ -25,7 +25,7 @@ export default function ReadBook({params}: Route.ComponentProps) {
 
     const readerTheme = useResponsiveReaderTheme();
 
-    useMemo(() => {
+    useEffect(() => {
         const currentlyReading = JSON.parse(
             localStorage.getItem("currentlyReading") ?? "{}"
         );
@@ -53,7 +53,7 @@ export default function ReadBook({params}: Route.ComponentProps) {
                 zIndex={1000}
             >
                 <ReactReader
-                    url={`${config.backendUrl}/uploads/books/${book.fileName}`}
+                    url={`${config.apiUrl}/uploads/books/${book.fileName}`}
                     title={book.title}
                     location={location}
                     locationChanged={setLocation}

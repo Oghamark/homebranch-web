@@ -1,7 +1,7 @@
 // API
 export {
     useGetBookShelvesQuery,
-    useGetBookShelfBooksQuery,
+    useGetBookShelfBooksInfiniteQuery,
     useCreateBookShelfMutation,
 } from './api/api';
 

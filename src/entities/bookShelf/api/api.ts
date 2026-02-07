@@ -2,6 +2,7 @@ import {homebranchApi} from "@/shared/api/rtk-query";
 import type {BookShelfModel} from "@/entities/bookShelf";
 import type {BookModel} from "@/entities/book";
 import type {PaginationResult} from "@/shared/api/api_response";
+import {config} from "@/shared";
 
 export const bookShelvesApi = homebranchApi.injectEndpoints({
     endpoints: (build) => ({
@@ -13,9 +14,36 @@ export const bookShelvesApi = homebranchApi.injectEndpoints({
                     ? [...result.map(({id}) => ({type: 'BookShelf' as const, id})), {type: 'BookShelf', id: 'LIST'}]
                     : [{type: 'BookShelf', id: 'LIST'}]
         }),
-        getBookShelfBooks: build.query<PaginationResult<BookModel[]>, {bookShelfId: string; page: number}>({
-            query: ({bookShelfId, page}) => ({url: `/book-shelves/${bookShelfId}/books?limit=${50}&offset=${page * 50}`}),
-            providesTags: (_result, _error, {bookShelfId}) => [{type: 'BookShelf', id: bookShelfId}]
+        getBookShelfBooks: build.infiniteQuery<PaginationResult<BookModel[]>, string, number>({
+            infiniteQueryOptions: {
+                initialPageParam: 0,
+                getNextPageParam: (
+                    lastPage,
+                    _allPages,
+                    lastPageParam,
+                    _allPageParams,
+                    _queryArg,
+                ) => {
+                    const nextPage = lastPageParam + 1
+                    const remainingPages = Math.ceil(lastPage?.total / config.itemsPerPage) - nextPage
+
+                    if (remainingPages <= 0) {
+                        return undefined;
+                    }
+
+                    return nextPage;
+                }
+            },
+            query: ({queryArg: bookShelfId, pageParam }) => {
+                return {url: `/book-shelves/${bookShelfId}/books?limit=${config.itemsPerPage}&offset=${pageParam * config.itemsPerPage}`};
+            },
+            providesTags: (
+                _result,
+                _error,
+                bookShelfId
+            ) => {
+                return [{type: 'BookShelf', id: bookShelfId}]
+            }
         }),
         createBookShelf: build.mutation<BookShelfModel, {title: string}>({
             query: (body) => ({url: `/book-shelves`, method: 'POST', body}),
@@ -26,6 +54,6 @@ export const bookShelvesApi = homebranchApi.injectEndpoints({
 
 export const {
     useGetBookShelvesQuery,
-    useGetBookShelfBooksQuery,
+    useGetBookShelfBooksInfiniteQuery,
     useCreateBookShelfMutation,
 } = bookShelvesApi;
