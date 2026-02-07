@@ -77,12 +77,27 @@ export const booksApi = homebranchApi.injectEndpoints({
         getBooksByIds: build.query<BookModel[], string[]>({
             async queryFn(ids, _queryApi, _extraOptions, fetchWithBQ) {
                 const results = await Promise.all(
-                    ids.map(id => fetchWithBQ({url: `/books/${id}`}))
+                    ids.map(id => fetchWithBQ({ url: `/books/${id}` }))
                 );
+
                 const books = results
-                    .filter(r => r.data)
-                    .map(r => r.data as BookModel);
-                return {data: books};
+                    .filter((r) => r.data)
+                    .map((r) => r.data as BookModel);
+
+                const errors = results.filter((r) => r.error).map((r) => r.error);
+
+                // If at least one request succeeded, return the successful books
+                if (books.length > 0) {
+                    return { data: books };
+                }
+
+                // If all requests failed (no books, at least one error), surface an error
+                if (errors.length > 0) {
+                    return { error: errors[0] as any };
+                }
+
+                // Fallback: no data and no error – return an empty array to keep behavior defined
+                return { data: [] };
             },
             providesTags: (result) =>
                 result ? result.map(({id}) => ({type: 'Book' as const, id})) : []

@@ -18,10 +18,10 @@ export default function Book({ params }: Route.ComponentProps) {
     }, [error]);
 
     useEffect(() => {
-        if (!data) {
+        if (!isLoading && !error && !data) {
             ToastFactory({message: "Something went wrong", type: "error"});
         }
-    }, [data]);
+    }, [data, isLoading, error]);
 
     if (error) {
         return <Navigate to={"/"}/>;
