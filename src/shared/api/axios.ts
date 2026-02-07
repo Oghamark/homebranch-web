@@ -10,7 +10,7 @@ export const setNavigateCallback = (navigate: ((path: string) => void) | null) =
 }
 
 export const axiosInstance = axios.create({
-    baseURL: config.backendUrl,
+    baseURL: config.apiUrl,
     headers: { 'Content-Type': 'application/json' },
     withCredentials: true,
 })

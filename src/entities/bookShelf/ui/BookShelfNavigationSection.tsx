@@ -1,19 +1,11 @@
-import {useEffect, useState} from "react";
-import {AddBookShelfButton, type BookShelfModel, getBookShelves} from "@/entities/bookShelf";
+import {useState} from "react";
+import {AddBookShelfButton, useGetBookShelvesQuery} from "@/entities/bookShelf";
 import {Flex, For, IconButton, Tabs} from "@chakra-ui/react";
 import {Link} from "react-router";
 import {HiTrash} from "react-icons/hi";
 
 export function BookShelfNavigationSection() {
-    const [bookShelves, setBookShelves] = useState<BookShelfModel[]>([]);
-
-    useEffect(() => {
-        getBookShelves().then(result => {
-            if (result) {
-                setBookShelves(result);
-            }
-        })
-    }, []);
+    const {data: bookShelves = []} = useGetBookShelvesQuery();
 
     return (
         <>
@@ -30,7 +22,7 @@ export function BookShelfNavigationSection() {
                     </For>
                 </Tabs.List>
             </Tabs.Root>
-            <AddBookShelfButton onBookShelfAdded={(bookShelf) => setBookShelves(prev => [...prev, bookShelf])} />
+            <AddBookShelfButton />
         </>
 
     )

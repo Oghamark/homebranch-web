@@ -5,8 +5,6 @@ export default [
         route("books/:bookId", "routes/dashboard/book.tsx"),
         route("/book-shelves/:bookShelfId", "routes/dashboard/book-shelf.tsx"),
         route("books/:bookId/read", "routes/dashboard/read-book.tsx"),
-        route("create-book", "routes/dashboard/create-book.tsx"),
-        route("delete-book/:id", "routes/dashboard/delete-book.tsx"),
         route("currently-reading", "routes/dashboard/currently-reading.tsx"),
         route("favorites", "routes/dashboard/favorites.tsx"),
         index("routes/dashboard/library.tsx"),

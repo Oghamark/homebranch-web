@@ -1,7 +1,9 @@
 // API
-export { createBookShelf } from './api/createBookShelf';
-export { getBookShelves } from './api/getBookShelves';
-export { getBookShelfBooks } from './api/getBookShelfBooks';
+export {
+    useGetBookShelvesQuery,
+    useGetBookShelfBooksInfiniteQuery,
+    useCreateBookShelfMutation,
+} from './api/api';
 
 // Model
 export type { BookShelfModel } from './model/BookShelfModel';

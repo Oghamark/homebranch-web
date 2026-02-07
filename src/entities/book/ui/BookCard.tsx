@@ -8,7 +8,7 @@ export function BookCard({ book }: { book: BookModel }) {
     <Stack w={"220px"}>
       <Link to={`/books/${book.id}`}>
           <Image
-            src={`${config.backendUrl}/uploads/cover-images/${
+            src={`${config.apiUrl}/uploads/cover-images/${
               book.coverImageFileName
             }`}
             h={"250px"}

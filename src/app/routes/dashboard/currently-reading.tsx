@@ -1,37 +1,41 @@
-import {fetchBookById} from "@/entities/book";
 import type {Route} from "./+types/currently-reading";
-import {LibraryPage} from "@/pages/library";
-import {Button, Heading, Stack} from "@chakra-ui/react";
+import {Button, Heading, Loader, Stack} from "@chakra-ui/react";
 import {Link} from "react-router";
+import {useMemo} from "react";
+import {useGetBooksByIdsQuery} from "@/entities/book";
+import {LibraryPage} from "@/pages/library";
 
 export function meta({}: Route.MetaArgs) {
     return [
         {title: "Homebranch - Currently Reading"},
-        {name: "description", content: "Welcome to React Router!"},
+        {name: "description", content: "Currently reading books"},
     ];
 }
 
-export async function clientLoader({}: Route.LoaderArgs) {
-    const currentlyReading = JSON.parse(
-        localStorage.getItem("currentlyReading") ?? "{}"
-    );
+export default function CurrentlyReading() {
+    const ids = useMemo(() => {
+        const currentlyReading = JSON.parse(
+            localStorage.getItem("currentlyReading") ?? "{}"
+        );
+        return Object.keys(currentlyReading ?? {});
+    }, []);
 
-    const ids = Object.keys(currentlyReading ?? {});
+    const {data: books, isLoading} = useGetBooksByIdsQuery(ids, {skip: ids.length === 0});
 
-    const results = await Promise.all(
-        ids.map((id) => {
-            return fetchBookById(id);
-        }));
-    const books = results.filter((book) => !!book);
-    return {data: books, total: books.length};
-}
+    if (isLoading) {
+        return <Loader />;
+    }
 
-export default function CurrentlyReading({loaderData}: Route.ComponentProps) {
-    const {data, total} = loaderData;
-    return data.length === 0 ? (
-        _noBooks()
-    ) : (
-        <LibraryPage books={data} total={total}/>
+    if (!books || books.length === 0) {
+        return _noBooks();
+    }
+
+    return (
+        <LibraryPage
+            books={books}
+            fetchMore={() => {}}
+            hasMore={false}
+        />
     );
 }
 

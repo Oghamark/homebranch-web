@@ -3,35 +3,23 @@ import {Button} from "@chakra-ui/react";
 import {HiPlus} from "react-icons/hi";
 import TextField from "@/components/ui/TextField";
 import {toaster} from "@/components/ui/toaster";
-import {type BookShelfModel, createBookShelf} from "@/entities/bookShelf";
+import {useCreateBookShelfMutation} from "@/entities/bookShelf";
+import {handleRtkError} from "@/shared/api/rtk-query";
 
-interface AddBookShelfButtonProps {
-    onBookShelfAdded?: (bookShelf: BookShelfModel) => void;
-}
-
-export function AddBookShelfButton({onBookShelfAdded}: AddBookShelfButtonProps) {
+export function AddBookShelfButton() {
+    const [createBookShelf] = useCreateBookShelfMutation();
     const [isEditing, setIsEditing] = useState(false);
     const [bookShelfName, setBookShelfName] = useState("");
 
     const onSubmit = async () => {
         setIsEditing(false);
         if (bookShelfName && bookShelfName.length > 0) {
-            const loadingToaster = toaster.create({type: "loading", title: "Creating Book Shelf"});
             try {
-                const result = await createBookShelf({title: bookShelfName});
-                if (result?.success && result.value) {
-                    toaster.create({type: 'success', title: 'Successfully Added!', duration:3000});
-                    if (onBookShelfAdded) {
-                        onBookShelfAdded(result.value);
-                    }
-                    setBookShelfName("");
-                } else {
-                    toaster.create({type: 'error', title: 'Failed to create Book Shelf', duration: 3000});
-                }
+                await createBookShelf({title: bookShelfName}).unwrap();
+                toaster.create({type: 'success', title: 'Successfully Added!', duration: 3000});
+                setBookShelfName("");
             } catch (error) {
-                toaster.create({type: 'error', title: 'Failed to create Book Shelf', duration: 3000});
-            } finally {
-                toaster.dismiss(loadingToaster);
+                handleRtkError(error);
             }
         }
     }
