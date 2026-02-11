@@ -29,7 +29,7 @@ function BookShelfContent({bookShelfId}: {bookShelfId: string}) {
         return <Loader />;
     }
 
-    if (!data || data.pages.length === 0) {
+    if (books.length === 0) {
         return (
             <Stack
                 height={"100%"}
