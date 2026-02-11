@@ -12,13 +12,13 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export default function Library() {
-    const {data, hasNextPage, fetchNextPage} = useGetBooksInfiniteQuery();
+    const {data, hasNextPage, fetchNextPage, isLoading} = useGetBooksInfiniteQuery();
 
     const books = useMemo(() => {
         return data?.pages.flatMap(page => page.data) ?? []
     }, [data])
 
-    if (!data || data.pages.length === 0) {
+    if (!isLoading && books.length === 0) {
         return _noBooks()
     }
 
