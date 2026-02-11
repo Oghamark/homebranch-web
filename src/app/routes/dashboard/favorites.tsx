@@ -4,6 +4,7 @@ import type {Route} from "./+types/favorites";
 import {LibraryPage} from "@/pages/library";
 import {useGetFavoriteBooksInfiniteQuery} from "@/entities/book";
 import {useMemo} from "react";
+import {useLibrarySearch} from "@/features/library";
 
 export function meta({}: Route.MetaArgs) {
     return [
@@ -13,7 +14,8 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export default function Favorites() {
-    const {data, hasNextPage, fetchNextPage} = useGetFavoriteBooksInfiniteQuery();
+    const query = useLibrarySearch()
+    const {data, hasNextPage, fetchNextPage} = useGetFavoriteBooksInfiniteQuery({query: query});
 
     const books = useMemo(() => {
         return data?.pages.flatMap(page => page.data) ?? []

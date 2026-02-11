@@ -8,8 +8,8 @@ import {Navigate} from "react-router";
 import {handleRtkError} from "@/shared/api/rtk-query";
 import {useEffect} from "react";
 
-export default function Book({ params }: Route.ComponentProps) {
-  const { data, isLoading, error } = useGetBookByIdQuery(params.bookId);
+export default function Book({params}: Route.ComponentProps) {
+    const {data, isLoading, error} = useGetBookByIdQuery(params.bookId);
 
     useEffect(() => {
         if (error) {
@@ -27,15 +27,15 @@ export default function Book({ params }: Route.ComponentProps) {
         return <Navigate to={"/"}/>;
     }
 
-  if (isLoading) {
-      return <Loader />;
-  }
+    if (isLoading) {
+        return <Loader/>;
+    }
 
-  if (!data) {
-      return <Navigate to={"/"}/>
-  }
+    if (!data) {
+        return <Navigate to={"/"}/>
+    }
 
-  return <BookDetailsPage book={data} />;
+    return <BookDetailsPage book={data}/>;
 }
 
 

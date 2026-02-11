@@ -1,9 +1,9 @@
 // UI Components
-export { BookCard } from "./ui/BookCard";
-export { AddBookButton } from "./ui/AddBookButton";
+export {BookCard} from "./ui/BookCard";
+export {AddBookButton} from "./ui/AddBookButton";
 
 // Model
-export type { BookModel } from "./model/BookModel";
+export type {BookModel} from "./model/BookModel";
 
 // API
 export {

@@ -10,13 +10,13 @@ export interface ApiErrorResponseDto {
  * Ensures type safety of error responses from axios
  */
 export class ApiErrorResponse {
+    message: string[];
+    error: string;
+    statusCode: number;
+
     constructor({message, error, statusCode}: ApiErrorResponseDto) {
         this.message = isArray(message) ? message : [message];
         this.error = error;
         this.statusCode = statusCode;
     }
-
-    message: string[];
-    error: string;
-    statusCode: number;
 }

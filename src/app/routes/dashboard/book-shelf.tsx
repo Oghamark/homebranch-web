@@ -15,10 +15,10 @@ export function meta({}: Route.MetaArgs) {
 export default function BookShelf() {
     const {bookShelfId} = useParams();
     if (!bookShelfId) return null;
-    return <BookShelfContent key={bookShelfId} bookShelfId={bookShelfId} />;
+    return <BookShelfContent key={bookShelfId} bookShelfId={bookShelfId}/>;
 }
 
-function BookShelfContent({bookShelfId}: {bookShelfId: string}) {
+function BookShelfContent({bookShelfId}: { bookShelfId: string }) {
     const {data, isLoading, hasNextPage, fetchNextPage} = useGetBookShelfBooksInfiniteQuery(bookShelfId);
 
     const books = useMemo(() => {
@@ -26,7 +26,7 @@ function BookShelfContent({bookShelfId}: {bookShelfId: string}) {
     }, [data])
 
     if (isLoading) {
-        return <Loader />;
+        return <Loader/>;
     }
 
     if (books.length === 0) {
@@ -47,6 +47,5 @@ function BookShelfContent({bookShelfId}: {bookShelfId: string}) {
     }
 
 
-
-    return <LibraryPage books={books} fetchMore={fetchNextPage} hasMore={hasNextPage} />;
+    return <LibraryPage books={books} fetchMore={fetchNextPage} hasMore={hasNextPage}/>;
 }

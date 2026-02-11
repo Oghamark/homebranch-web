@@ -18,10 +18,10 @@ export default async function signUp(formData: FormData) {
     }
     const signUpDto: SignUpDto = new SignUpDto(name, email, password, password_confirmation);
 
-   return authenticationAxiosInstance.post('/sign-up', signUpDto)
+    return authenticationAxiosInstance.post('/sign-up', signUpDto)
         .then(response => {
             const responseData = response.data;
-            if(responseData.success){
+            if (responseData.success) {
                 sessionStorage.setItem('user_id', responseData.value.userId);
                 return redirect("/")
             }

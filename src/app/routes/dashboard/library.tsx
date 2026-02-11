@@ -3,16 +3,18 @@ import type {Route} from "./+types/library";
 import {useMemo} from "react";
 import {Heading, Stack} from "@chakra-ui/react";
 import {useGetBooksInfiniteQuery} from "@/entities/book";
+import {useLibrarySearch} from "@/features/library";
 
 export function meta({}: Route.MetaArgs) {
-  return [
-    { title: "Homebranch - Library" },
-    { name: "description", content: "Welcome to React Router!" },
-  ];
+    return [
+        {title: "Homebranch - Library"},
+        {name: "description", content: "Welcome to React Router!"},
+    ];
 }
 
 export default function Library() {
-    const {data, hasNextPage, fetchNextPage, isLoading} = useGetBooksInfiniteQuery();
+    const query = useLibrarySearch();
+    const {data, hasNextPage, fetchNextPage, isLoading} = useGetBooksInfiniteQuery({query: query});
 
     const books = useMemo(() => {
         return data?.pages.flatMap(page => page.data) ?? []

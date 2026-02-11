@@ -34,7 +34,7 @@ export const bookShelvesApi = homebranchApi.injectEndpoints({
                     return nextPage;
                 }
             },
-            query: ({queryArg: bookShelfId, pageParam }) => {
+            query: ({queryArg: bookShelfId, pageParam}) => {
                 return {url: `/book-shelves/${bookShelfId}/books?limit=${config.itemsPerPage}&offset=${pageParam * config.itemsPerPage}`};
             },
             providesTags: (
@@ -45,7 +45,7 @@ export const bookShelvesApi = homebranchApi.injectEndpoints({
                 return [{type: 'BookShelf', id: bookShelfId}]
             }
         }),
-        createBookShelf: build.mutation<BookShelfModel, {title: string}>({
+        createBookShelf: build.mutation<BookShelfModel, { title: string }>({
             query: (body) => ({url: `/book-shelves`, method: 'POST', body}),
             invalidatesTags: [{type: 'BookShelf', id: 'LIST'}]
         }),

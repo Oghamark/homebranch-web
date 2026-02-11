@@ -2,7 +2,8 @@ import {
     type BaseQueryFn,
     createApi,
     type FetchArgs,
-    type FetchBaseQueryError, type FetchBaseQueryMeta,
+    type FetchBaseQueryError,
+    type FetchBaseQueryMeta,
     type QueryReturnValue
 } from "@reduxjs/toolkit/query/react";
 import {fetchBaseQuery} from "@reduxjs/toolkit/query";
@@ -64,7 +65,10 @@ const baseQueryWithResultUnwrap: BaseQueryFn<
 
         if (response.success) {
             // Success - unwrap the value
-            return {...result, data: response.value} as QueryReturnValue<unknown, FetchBaseQueryError, FetchBaseQueryMeta>;
+            return {
+                ...result,
+                data: response.value
+            } as QueryReturnValue<unknown, FetchBaseQueryError, FetchBaseQueryMeta>;
         } else {
             // Backend returned success: false - treat as error
             return {
@@ -87,7 +91,7 @@ export const homebranchApi = createApi({
 })
 
 export const authenticationApi = createApi({
-    baseQuery: fetchBaseQuery({ baseUrl: config.authenticationUrl }),
+    baseQuery: fetchBaseQuery({baseUrl: config.authenticationUrl}),
     endpoints: () => ({})
 })
 

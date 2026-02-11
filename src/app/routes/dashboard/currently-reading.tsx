@@ -4,6 +4,7 @@ import {Link} from "react-router";
 import {useMemo} from "react";
 import {useGetBooksByIdsQuery} from "@/entities/book";
 import {LibraryPage} from "@/pages/library";
+import {useLibrarySearch} from "@/features/library";
 
 export function meta({}: Route.MetaArgs) {
     return [
@@ -20,10 +21,11 @@ export default function CurrentlyReading() {
         return Object.keys(currentlyReading ?? {});
     }, []);
 
-    const {data: books, isLoading} = useGetBooksByIdsQuery(ids, {skip: ids.length === 0});
+    const query = useLibrarySearch()
+    const {data: books, isLoading} = useGetBooksByIdsQuery({bookIds: ids, query: query}, {skip: ids.length === 0});
 
     if (isLoading) {
-        return <Loader />;
+        return <Loader/>;
     }
 
     if (!books || books.length === 0) {

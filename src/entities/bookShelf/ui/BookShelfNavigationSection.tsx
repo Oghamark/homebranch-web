@@ -1,7 +1,7 @@
 import {useState} from "react";
 import {AddBookShelfButton, useDeleteBookShelfMutation, useGetBookShelvesQuery} from "@/entities/bookShelf";
 import {Flex, For, IconButton, Loader, Tabs} from "@chakra-ui/react";
-import {Link, useMatch, useNavigate, useResolvedPath} from "react-router";
+import {Link, useMatch, useNavigate} from "react-router";
 import {HiTrash} from "react-icons/hi";
 import ToastFactory from "@/app/utils/toast_handler";
 
@@ -23,13 +23,13 @@ export function BookShelfNavigationSection() {
                     </For>
                 </Tabs.List>
             </Tabs.Root>}
-            <AddBookShelfButton />
+            <AddBookShelfButton/>
         </>
 
     )
 }
 
-function BookShelfTab({id, title}: {id: string, title: string}) {
+function BookShelfTab({id, title}: { id: string, title: string }) {
     const isBookShelfMatch = useMatch(`/book-shelves/${id}`);
     const navigate = useNavigate();
     const [hovered, setHovered] = useState(false);

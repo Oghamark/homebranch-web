@@ -1,12 +1,12 @@
 import {Box} from "@chakra-ui/react";
 import {NavigationCard} from "@/components/navigation/NavigationCard";
 import React from "react";
-import { Outlet, redirect} from "react-router";
+import {Outlet, redirect} from "react-router";
 
 export async function clientLoader() {
     let user_id = sessionStorage.getItem("user_id");
 
-    if(!user_id) {
+    if (!user_id) {
         return redirect("/login");
     }
 }

@@ -2,10 +2,12 @@ import {homebranchApi} from "@/shared/api/rtk-query";
 import type {BookModel, CreateBookRequest} from "@/entities/book";
 import type {PaginationResult} from "@/shared/api/api_response";
 import {config} from "@/shared";
+import type {QueriedSearch} from "@/entities/book/api/types";
+import type {GetBooksByIdsRequest} from "@/entities/book/api/dtos";
 
 export const booksApi = homebranchApi.injectEndpoints({
     endpoints: (build) => ({
-        getBooks: build.infiniteQuery<PaginationResult<BookModel[]>, void, number>({
+        getBooks: build.infiniteQuery<PaginationResult<BookModel[]>, QueriedSearch, number>({
             infiniteQueryOptions: {
                 initialPageParam: 0,
                 getNextPageParam: (
@@ -18,15 +20,15 @@ export const booksApi = homebranchApi.injectEndpoints({
                     const nextPage = lastPageParam + 1
                     const remainingPages = Math.ceil(lastPage?.total / config.itemsPerPage) - nextPage
 
-                    if(remainingPages <= 0) {
+                    if (remainingPages <= 0) {
                         return undefined;
                     }
 
                     return nextPage;
                 }
             },
-            query: ({pageParam}) =>
-                ({url: `/books?limit=${config.itemsPerPage}&offset=${pageParam * config.itemsPerPage}`}),
+            query: ({queryArg, pageParam}) =>
+                ({url: `/books?title=${encodeURIComponent(queryArg.query)}&limit=${config.itemsPerPage}&offset=${pageParam * config.itemsPerPage}`}),
             providesTags: (result) =>
                 result?.pages.flatMap(page =>
                     [
@@ -40,10 +42,10 @@ export const booksApi = homebranchApi.injectEndpoints({
             query: (id) => ({url: `/books/${id}`}),
             providesTags: result =>
                 result
-                    ? [{ type: 'Book' as const, id: result.id}]
+                    ? [{type: 'Book' as const, id: result.id}]
                     : []
         }),
-        getFavoriteBooks: build.infiniteQuery<PaginationResult<BookModel[]>, void, number>({
+        getFavoriteBooks: build.infiniteQuery<PaginationResult<BookModel[]>, QueriedSearch, number>({
             infiniteQueryOptions: {
                 initialPageParam: 0,
                 getNextPageParam: (
@@ -56,15 +58,15 @@ export const booksApi = homebranchApi.injectEndpoints({
                     const nextPage = lastPageParam + 1
                     const remainingPages = Math.ceil(lastPage?.total / config.itemsPerPage) - nextPage
 
-                    if(remainingPages <= 0) {
+                    if (remainingPages <= 0) {
                         return undefined;
                     }
 
                     return nextPage;
                 }
             },
-            query: ({pageParam}) =>
-                ({url: `/books/favorite?limit=${config.itemsPerPage}&offset=${pageParam * config.itemsPerPage}`}),
+            query: ({queryArg, pageParam}) =>
+                ({url: `/books/favorite?title=${encodeURIComponent(queryArg.query)}&limit=${config.itemsPerPage}&offset=${pageParam * config.itemsPerPage}`}),
             providesTags: (result) =>
                 result?.pages.flatMap(page =>
                     [
@@ -74,10 +76,10 @@ export const booksApi = homebranchApi.injectEndpoints({
                     ]
                 ) ?? [{type: 'Book', id: 'LIST'}, 'Book']
         }),
-        getBooksByIds: build.query<BookModel[], string[]>({
-            async queryFn(ids, _queryApi, _extraOptions, fetchWithBQ) {
+        getBooksByIds: build.query<BookModel[], QueriedSearch<GetBooksByIdsRequest>>({
+            async queryFn({query, bookIds}, _queryApi, _extraOptions, fetchWithBQ) {
                 const results = await Promise.all(
-                    ids.map(id => fetchWithBQ({ url: `/books/${id}` }))
+                    bookIds.map(id => fetchWithBQ({url: `/books/${id}?title=${encodeURIComponent(query)}`}))
                 );
 
                 const books = results
@@ -88,16 +90,16 @@ export const booksApi = homebranchApi.injectEndpoints({
 
                 // If at least one request succeeded, return the successful books
                 if (books.length > 0) {
-                    return { data: books };
+                    return {data: books};
                 }
 
                 // If all requests failed (no books, at least one error), surface an error
                 if (errors.length > 0) {
-                    return { error: errors[0] as any };
+                    return {error: errors[0] as any};
                 }
 
                 // Fallback: no data and no error – return an empty array to keep behavior defined
-                return { data: [] };
+                return {data: []};
             },
             providesTags: (result) =>
                 result ? result.map(({id}) => ({type: 'Book' as const, id})) : []
