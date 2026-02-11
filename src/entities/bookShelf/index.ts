@@ -3,6 +3,7 @@ export {
     useGetBookShelvesQuery,
     useGetBookShelfBooksInfiniteQuery,
     useCreateBookShelfMutation,
+    useDeleteBookShelfMutation,
 } from './api/api';
 
 // Model

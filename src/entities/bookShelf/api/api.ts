@@ -49,6 +49,10 @@ export const bookShelvesApi = homebranchApi.injectEndpoints({
             query: (body) => ({url: `/book-shelves`, method: 'POST', body}),
             invalidatesTags: [{type: 'BookShelf', id: 'LIST'}]
         }),
+        deleteBookShelf: build.mutation<BookShelfModel, string>({
+            query: (id: string) => ({url: `/book-shelves/${id}`, method: 'DELETE'}),
+            invalidatesTags: [{type: 'BookShelf', id: 'LIST'}],
+        })
     }),
 });
 
@@ -56,4 +60,5 @@ export const {
     useGetBookShelvesQuery,
     useGetBookShelfBooksInfiniteQuery,
     useCreateBookShelfMutation,
+    useDeleteBookShelfMutation,
 } = bookShelvesApi;
