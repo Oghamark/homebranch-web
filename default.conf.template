@@ -9,6 +9,8 @@ server {
         try_files $uri $uri/ /index.html;
     }
 
+    client_max_body_size 50m;
+
     location /api/ {
         proxy_pass ${API_BACKEND}/;
         proxy_set_header Host $host;
