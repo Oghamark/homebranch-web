@@ -11,6 +11,7 @@ export {
     useGetFavoriteBooksInfiniteQuery,
     useGetBookByIdQuery,
     useGetBooksByIdsQuery,
+    useSearchBooksQuery,
     useCreateBookMutation,
     useUpdateBookMutation,
     useDeleteBookMutation,

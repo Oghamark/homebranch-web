@@ -14,6 +14,13 @@ export const bookShelvesApi = homebranchApi.injectEndpoints({
                     ? [...result.map(({id}) => ({type: 'BookShelf' as const, id})), {type: 'BookShelf', id: 'LIST'}]
                     : [{type: 'BookShelf', id: 'LIST'}]
         }),
+        getBookShelfById: build.query<BookShelfModel, string>({
+            query: (id) => ({url: `/book-shelves/${id}`}),
+            providesTags: result =>
+                result
+                    ? [{type: 'BookShelf' as const, id: result.id}]
+                    : []
+        }),
         getBookShelfBooks: build.infiniteQuery<PaginationResult<BookModel[]>, string, number>({
             infiniteQueryOptions: {
                 initialPageParam: 0,
@@ -45,6 +52,12 @@ export const bookShelvesApi = homebranchApi.injectEndpoints({
                 return [{type: 'BookShelf', id: bookShelfId}]
             }
         }),
+        getBookShelvesByBook: build.query<BookShelfModel[], string>({
+            query: (bookId) => ({url: `/book-shelves/by-book/${bookId}`}),
+            providesTags: (_result, _error, bookId) => [
+                {type: 'BookShelf', id: `book-${bookId}`},
+            ],
+        }),
         createBookShelf: build.mutation<BookShelfModel, { title: string }>({
             query: (body) => ({url: `/book-shelves`, method: 'POST', body}),
             invalidatesTags: [{type: 'BookShelf', id: 'LIST'}]
@@ -52,13 +65,41 @@ export const bookShelvesApi = homebranchApi.injectEndpoints({
         deleteBookShelf: build.mutation<BookShelfModel, string>({
             query: (id: string) => ({url: `/book-shelves/${id}`, method: 'DELETE'}),
             invalidatesTags: [{type: 'BookShelf', id: 'LIST'}],
-        })
+        }),
+        addBookToBookShelf: build.mutation<BookShelfModel, { shelfId: string; bookId: string }>({
+            query: ({shelfId, bookId}) => ({
+                url: `/book-shelves/${shelfId}/add-book`,
+                method: 'PUT',
+                body: {bookId},
+            }),
+            invalidatesTags: (_result, _error, {shelfId, bookId}) => [
+                {type: 'BookShelf', id: shelfId},
+                {type: 'BookShelf', id: 'LIST'},
+                {type: 'BookShelf', id: `book-${bookId}`},
+            ],
+        }),
+        removeBookFromBookShelf: build.mutation<BookShelfModel, { shelfId: string; bookId: string }>({
+            query: ({shelfId, bookId}) => ({
+                url: `/book-shelves/${shelfId}/remove-book`,
+                method: 'PUT',
+                body: {bookId},
+            }),
+            invalidatesTags: (_result, _error, {shelfId, bookId}) => [
+                {type: 'BookShelf', id: shelfId},
+                {type: 'BookShelf', id: 'LIST'},
+                {type: 'BookShelf', id: `book-${bookId}`},
+            ],
+        }),
     }),
 });
 
 export const {
     useGetBookShelvesQuery,
+    useGetBookShelfByIdQuery,
     useGetBookShelfBooksInfiniteQuery,
+    useGetBookShelvesByBookQuery,
     useCreateBookShelfMutation,
     useDeleteBookShelfMutation,
+    useAddBookToBookShelfMutation,
+    useRemoveBookFromBookShelfMutation,
 } = bookShelvesApi;

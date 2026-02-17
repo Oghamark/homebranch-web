@@ -104,6 +104,14 @@ export const booksApi = homebranchApi.injectEndpoints({
             providesTags: (result) =>
                 result ? result.map(({id}) => ({type: 'Book' as const, id})) : []
         }),
+        searchBooks: build.query<BookModel[], string>({
+            query: (query) => ({url: `/books?query=${encodeURIComponent(query)}&limit=20&offset=0`}),
+            transformResponse: (response: PaginationResult<BookModel[]>) => response.data,
+            providesTags: (result) =>
+                result
+                    ? [...result.map(({id}) => ({type: 'Book' as const, id})), {type: 'Book', id: 'LIST'}]
+                    : [{type: 'Book', id: 'LIST'}]
+        }),
         deleteBook: build.mutation<BookModel, string>({
             query: (id: string) => ({url: `/books/${id}`, method: 'DELETE'}),
             invalidatesTags: [{type: 'Book', id: 'LIST'}],
@@ -171,6 +179,7 @@ export const {
     useGetFavoriteBooksInfiniteQuery,
     useGetBookByIdQuery,
     useGetBooksByIdsQuery,
+    useSearchBooksQuery,
     useCreateBookMutation,
     useUpdateBookMutation,
     useDeleteBookMutation,
