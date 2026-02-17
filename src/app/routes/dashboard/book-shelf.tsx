@@ -38,7 +38,7 @@ function BookShelfContent({bookShelfId}: { bookShelfId: string }) {
     }, [data])
 
     const bookIds = useMemo(() => books.map(b => b.id), [books]);
-    const filteredBooks = useMemo(() => books.filter(book => book.title.toLowerCase().includes(query)), [books, query])
+    const filteredBooks = useMemo(() => books.filter(book => book.title.toLowerCase().includes(query.toLowerCase())), [books, query])
 
     if (isLoading || isLoadingBookShelf) {
         return <Loader/>;

@@ -43,7 +43,7 @@ export const bookShelvesApi = homebranchApi.injectEndpoints({
                 }
             },
             query: ({queryArg, pageParam}) => {
-                return {url: `/book-shelves/${queryArg.bookShelfId}/books?query=${queryArg.query}&limit=${config.itemsPerPage}&offset=${pageParam * config.itemsPerPage}`};
+                return {url: `/book-shelves/${encodeURIComponent(queryArg.bookShelfId)}/books?query=${queryArg.query}&limit=${config.itemsPerPage}&offset=${pageParam * config.itemsPerPage}`};
             },
             providesTags: (
                 _result,
