@@ -5,6 +5,7 @@ import {Box, Heading, HStack, IconButton, Image, Separator, Text,} from "@chakra
 import {useState} from "react";
 import {HiBookOpen, HiHeart, HiX} from "react-icons/hi";
 import {Link, useNavigate} from "react-router";
+import {ManageBookShelvesButton} from "@/entities/bookShelf";
 
 export interface BookDetailsPageProps {
     book: BookModel
@@ -61,6 +62,7 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
                                         onClick={() => updateBook({...book, isFavorite: !book.isFavorite})}>
                                 <HiHeart color={book.isFavorite ? "red" : undefined}/>
                             </IconButton>
+                            <ManageBookShelvesButton bookId={book.id}/>
                             <IconButton variant={"subtle"} asChild>
                                 <Link to={`/books/${book.id}/read`}>
                                     <HiBookOpen/>

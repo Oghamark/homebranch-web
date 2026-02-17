@@ -18,6 +18,7 @@ export default defineConfig({
             target: env.VITE_API_ROOT,
             changeOrigin: true,
             secure: false,
+            rewrite: (path) => path.replace(/^\/api/, '')
         },
           '/auth': {
             target: env.VITE_AUTHENTICATION_ROOT,
