@@ -23,6 +23,12 @@ export default async function signUp(formData: FormData) {
             const responseData = response.data;
             if (responseData.success) {
                 sessionStorage.setItem('user_id', responseData.value.userId);
+                try {
+                    const payload = JSON.parse(atob(responseData.value.accessToken.split('.')[1]));
+                    sessionStorage.setItem('user_role', payload.roles?.[0] ?? 'USER');
+                } catch {
+                    sessionStorage.setItem('user_role', 'USER');
+                }
                 return redirect("/")
             }
         })

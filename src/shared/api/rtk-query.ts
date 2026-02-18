@@ -86,11 +86,12 @@ const baseQueryWithResultUnwrap: BaseQueryFn<
 
 export const homebranchApi = createApi({
     baseQuery: baseQueryWithResultUnwrap,
-    tagTypes: ['Book', 'BookShelf'],
+    tagTypes: ['Book', 'BookShelf', 'User'],
     endpoints: () => ({})
 })
 
 export const authenticationApi = createApi({
+    reducerPath: 'authentication',
     baseQuery: fetchBaseQuery({baseUrl: config.authenticationUrl}),
     endpoints: () => ({})
 })

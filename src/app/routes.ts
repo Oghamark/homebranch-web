@@ -9,7 +9,8 @@ export default [
         route("favorites", "routes/dashboard/favorites.tsx"),
         index("routes/dashboard/library.tsx"),
         route("settings", "routes/dashboard/settings.tsx"),
-        route("statistics", "routes/dashboard/statistics.tsx")
+        route("statistics", "routes/dashboard/statistics.tsx"),
+        route("users", "routes/dashboard/users.tsx")
     ]),
     route('logout', 'routes/dashboard/logout.tsx'),
     route("login", "routes/login.tsx"),

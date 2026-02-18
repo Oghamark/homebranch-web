@@ -66,8 +66,11 @@ export function NavigationCard() {
                 value={location.pathname}
             >
                 <Tabs.List width={"100%"}>
-                    <Tabs.Trigger value={"settings"} asChild>
+                    <Tabs.Trigger value={"/settings"} asChild>
                         <Link to={"/settings"}>Settings</Link>
+                    </Tabs.Trigger>
+                    <Tabs.Trigger value={"/users"} asChild>
+                        <Link to={"/users"}>User Management</Link>
                     </Tabs.Trigger>
                 </Tabs.List>
             </Tabs.Root>

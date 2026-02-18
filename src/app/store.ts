@@ -1,18 +1,20 @@
 import {type Action, configureStore, type ThunkAction} from '@reduxjs/toolkit';
 
 import {listenerMiddleware} from "@/app/listenerMiddleware";
-import {homebranchApi} from "@/shared/api/rtk-query";
+import {authenticationApi, homebranchApi} from "@/shared/api/rtk-query";
 import libraryReducer from "@/features/library/store/librarySlice";
 
 export const store = configureStore({
     reducer: {
         [homebranchApi.reducerPath]: homebranchApi.reducer,
+        [authenticationApi.reducerPath]: authenticationApi.reducer,
         library: libraryReducer
     },
     middleware: getDefaultMiddleware =>
         getDefaultMiddleware()
             .prepend(listenerMiddleware.middleware)
             .concat(homebranchApi.middleware)
+            .concat(authenticationApi.middleware)
 })
 
 export type RootState = ReturnType<typeof store.getState>;
