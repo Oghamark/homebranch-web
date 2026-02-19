@@ -1,11 +1,12 @@
 import type {Route} from "./+types/currently-reading";
-import {Button, Flex, Heading, Stack} from "@chakra-ui/react";
+import {Button, Flex, For, Grid, Heading, Stack} from "@chakra-ui/react";
 import {Link} from "react-router";
 import {useMemo} from "react";
-import {useGetBooksByIdsQuery} from "@/entities/book";
-import {BookGridSkeletons, LibraryPage} from "@/pages/library";
+import {BookCard, useGetBooksByIdsQuery} from "@/entities/book";
+import {BookGridSkeletons} from "@/pages/library";
 import {useLibrarySearch} from "@/features/library";
 import {LuBookOpen} from "react-icons/lu";
+import {StorageIndicator, useStorageLocations} from "@/features/reader";
 
 export function meta({}: Route.MetaArgs) {
     return [
@@ -22,8 +23,10 @@ export default function CurrentlyReading() {
         return Object.keys(currentlyReading ?? {});
     }, []);
 
+    const {locations, allBookIds} = useStorageLocations(ids);
+
     const query = useLibrarySearch()
-    const {data: books, isLoading} = useGetBooksByIdsQuery({bookIds: ids, query: query}, {skip: ids.length === 0});
+    const {data: books, isLoading} = useGetBooksByIdsQuery({bookIds: allBookIds, query: query}, {skip: allBookIds.length === 0});
 
     if (!isLoading && (!books || books.length === 0)) {
         return _noBooks();
@@ -37,11 +40,19 @@ export default function CurrentlyReading() {
             </Flex>
             {isLoading
                 ? <BookGridSkeletons count={ids.length || 6}/>
-                : <LibraryPage
-                    books={books!}
-                    fetchMore={() => {}}
-                    hasMore={false}
-                />
+                : <Grid gridTemplateColumns="repeat(auto-fill, minmax(160px, 1fr))" gap={6} p={1} pb={3}>
+                    <For each={books!}>
+                        {(book) => (
+                            <BookCard
+                                key={book.id}
+                                book={book}
+                                badge={locations[book.id] && (
+                                    <StorageIndicator location={locations[book.id]}/>
+                                )}
+                            />
+                        )}
+                    </For>
+                </Grid>
             }
         </Stack>
     );

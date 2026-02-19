@@ -2,17 +2,20 @@ import {DeleteConfirmationDialog} from "@/components/ui/modals/DeleteConfirmatio
 import {type BookModel, useDeleteBookMutation, useUpdateBookMutation} from "@/entities/book";
 import {config} from "@/shared";
 import {Box, Flex, Heading, IconButton, Image, Separator, Stack, Text,} from "@chakra-ui/react";
-import {useState} from "react";
+import {useEffect, useState} from "react";
 import {LuBookOpen, LuHeart, LuX} from "react-icons/lu";
 import {Link, useNavigate} from "react-router";
 import {ManageBookShelvesButton} from "@/entities/bookShelf";
 import {Tooltip} from "@/components/ui/tooltip";
+import {deleteSavedPosition, getSavedPosition} from "@/features/reader/api/savedPositionApi";
+import ToastFactory from "@/app/utils/toast_handler";
 
 export interface BookDetailsPageProps {
     book: BookModel
 }
 
-function isBookOpened(bookId: string): Boolean {
+function isBookOpenedLocally(bookId: string): boolean {
+    if (typeof window === "undefined") return false;
     const currentlyReading = JSON.parse(
         localStorage.getItem("currentlyReading") ?? "{}"
     );
@@ -25,10 +28,27 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
     const navigate = useNavigate();
 
     const [isCurrentlyReading, setIsCurrentlyReading] = useState(
-        isBookOpened(book.id)
+        isBookOpenedLocally(book.id)
     );
 
-    const removeCurrentlyReading = (bookId: string) => {
+    useEffect(() => {
+        if (isCurrentlyReading) return;
+        let cancelled = false;
+        getSavedPosition(book.id)
+            .then((pos) => {
+                if (!cancelled && pos) setIsCurrentlyReading(true);
+            })
+            .catch(() => {});
+        return () => { cancelled = true; };
+    }, [book.id, isCurrentlyReading]);
+
+    const removeCurrentlyReading = async (bookId: string) => {
+        try {
+            await deleteSavedPosition(bookId);
+        } catch {
+            ToastFactory({message: "Failed to remove cloud reading position", type: "error"});
+            return;
+        }
         const currentlyReading = JSON.parse(
             localStorage.getItem("currentlyReading") ?? "{}"
         );
