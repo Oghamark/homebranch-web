@@ -278,15 +278,19 @@ POSTINST
   # Installs the .deb on the Proxmox frontend container via SSH.
   # --force-confold preserves any local edits to /etc/nginx/conf.d/homebranch.conf.
   #
+  # IMPORTANT: This job uses a self-hosted runner. The if: condition ensures only
+  # trusted pushes to main (which require write access) can reach the runner.
+  # PRs and other jobs run on GitHub's cloud runners for security.
+  #
   # Required secrets (Settings → Environments → production):
   #   SSH_PRIVATE_KEY  — private key authorised on the deploy user of the container
-  #   FRONTEND_HOST    — IP or hostname of the Proxmox frontend container
+  #   FRONTEND_HOST    — internal IP of the frontend container (e.g. 10.0.0.100)
   #   FRONTEND_USER    — SSH username (e.g. "deploy")
   deploy:
     name: Deploy to Proxmox (frontend)
     needs: deb
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     environment: production
 
     steps:
