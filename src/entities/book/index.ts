@@ -1,5 +1,5 @@
 // UI Components
-export {BookCard} from "./ui/BookCard";
+export {BookCard, BookCardSkeleton} from "./ui/BookCard";
 export {AddBookButton} from "./ui/AddBookButton";
 
 // Model

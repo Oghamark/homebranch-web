@@ -1,24 +1,29 @@
 import {Button, CloseButton, Dialog, IconButton, Loader, Portal,} from "@chakra-ui/react";
-import {HiTrash} from "react-icons/hi";
+import {LuTrash2} from "react-icons/lu";
+import {Tooltip} from "@/components/ui/tooltip";
 
 interface DeleteConfirmationDialogProps<T> {
     title: string;
     loading: boolean;
     onSubmit: () => unknown;
+    size?: "xs" | "sm" | "md" | "lg";
 }
 
 export function DeleteConfirmationDialog<T>({
                                                 onSubmit,
                                                 loading,
                                                 title,
+                                                size,
                                             }: DeleteConfirmationDialogProps<T>) {
     return (
         <Dialog.Root>
-            <Dialog.Trigger asChild>
-                <IconButton variant={"subtle"}>
-                    <HiTrash/>
-                </IconButton>
-            </Dialog.Trigger>
+            <Tooltip content="Delete">
+                <Dialog.Trigger asChild>
+                    <IconButton variant={"subtle"} size={size}>
+                        <LuTrash2/>
+                    </IconButton>
+                </Dialog.Trigger>
+            </Tooltip>
             <Portal>
                 <Dialog.Backdrop/>
                 <Dialog.Positioner>

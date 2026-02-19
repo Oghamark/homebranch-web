@@ -1,11 +1,12 @@
 import {DeleteConfirmationDialog} from "@/components/ui/modals/DeleteConfirmationDialog";
 import {type BookModel, useDeleteBookMutation, useUpdateBookMutation} from "@/entities/book";
 import {config} from "@/shared";
-import {Box, Heading, HStack, IconButton, Image, Separator, Text,} from "@chakra-ui/react";
+import {Box, Heading, HStack, IconButton, Image, Separator, Stack, Text,} from "@chakra-ui/react";
 import {useState} from "react";
-import {HiBookOpen, HiHeart, HiX} from "react-icons/hi";
+import {LuBookOpen, LuHeart, LuX} from "react-icons/lu";
 import {Link, useNavigate} from "react-router";
 import {ManageBookShelvesButton} from "@/entities/bookShelf";
+import {Tooltip} from "@/components/ui/tooltip";
 
 export interface BookDetailsPageProps {
     book: BookModel
@@ -37,57 +38,70 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
     };
 
     return (
-        <>
-            <Box p={4}>
-                <HStack align={"start"}>
-                    <Box>
-                        <Image
-                            src={`${config.apiUrl}/uploads/cover-images/${book.coverImageFileName}`}
-                            alt={book.title}
-                            w={"200px"}
+        <Box p={4}>
+            <HStack align={"start"} gap={6}>
+                <Stack w="200px" gap={3}>
+                    <Image
+                        src={`${config.apiUrl}/uploads/cover-images/${book.coverImageFileName}`}
+                        alt={book.title}
+                        w="100%"
+                        aspectRatio="2/3"
+                        objectFit="cover"
+                        borderRadius="md"
+                    />
+                    <HStack justify="center">
+                        <DeleteConfirmationDialog
+                            title={`Delete book: ${book.title}`}
+                            loading={pendingDelete}
+                            size="sm"
+                            onSubmit={() => {
+                                deleteBook(book.id).then(result => !result.error && navigate("/"))
+                            }}
                         />
-                        <HStack mt={2}>
-                            <DeleteConfirmationDialog
-                                title={`Delete book: ${book.title}`}
-                                loading={pendingDelete}
-                                onSubmit={() => {
-                                    deleteBook(book.id).then(result => !result.error && navigate("/"))
-                                }}
-                            />
-                            {/*TODO: Implement edit book functionality */}
-                            {/* <IconButton variant={"subtle"}>
-              <HiPencil />
-            </IconButton> */}
-                            <IconButton variant={"subtle"}
-                                        onClick={() => updateBook({...book, isFavorite: !book.isFavorite})}>
-                                <HiHeart color={book.isFavorite ? "red" : undefined}/>
+                        <Tooltip content={book.isFavorite ? "Unfavorite" : "Favorite"}>
+                            <IconButton
+                                variant="subtle"
+                                size="sm"
+                                onClick={() => updateBook({...book, isFavorite: !book.isFavorite})}
+                            >
+                                <LuHeart
+                                    fill={book.isFavorite ? "red" : "none"}
+                                    color={book.isFavorite ? "red" : undefined}
+                                />
                             </IconButton>
-                            <ManageBookShelvesButton bookId={book.id}/>
-                            <IconButton variant={"subtle"} asChild>
+                        </Tooltip>
+                        <ManageBookShelvesButton bookId={book.id} size="sm"/>
+                        <Tooltip content="Read">
+                            <IconButton variant="subtle" size="sm" asChild>
                                 <Link to={`/books/${book.id}/read`}>
-                                    <HiBookOpen/>
+                                    <LuBookOpen/>
                                 </Link>
                             </IconButton>
-                            {isCurrentlyReading && (
+                        </Tooltip>
+                        {isCurrentlyReading && (
+                            <Tooltip content="Stop reading">
                                 <IconButton
-                                    variant={"subtle"}
+                                    variant="subtle"
+                                    size="sm"
                                     onClick={() => removeCurrentlyReading(book.id)}
                                 >
-                                    <HiX/>
+                                    <LuX/>
                                 </IconButton>
-                            )}
-                        </HStack>
-                    </Box>
-                    <Box p={4} flex={1}>
-                        <Heading>{book.title}</Heading>
-                        <Text color={"GrayText"} fontSize={"sm"}>
-                            {book.author}
-                        </Text>
-                        <Separator my={4}/>
-                        <Text fontSize={"md"}>Published Year: {book.publishedYear}</Text>
-                    </Box>
-                </HStack>
-            </Box>
-        </>
+                            </Tooltip>
+                        )}
+                    </HStack>
+                </Stack>
+                <Box flex={1}>
+                    <Heading size="2xl">{book.title}</Heading>
+                    <Text color="fg.muted" fontSize="md" mt={1}>
+                        {book.author}
+                    </Text>
+                    <Separator my={4}/>
+                    <Text fontSize="md" color="fg.muted">
+                        Published Year: {book.publishedYear}
+                    </Text>
+                </Box>
+            </HStack>
+        </Box>
     );
 }

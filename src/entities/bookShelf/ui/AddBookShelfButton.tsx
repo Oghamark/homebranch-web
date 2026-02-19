@@ -1,6 +1,6 @@
 import {useState} from "react";
 import {Button} from "@chakra-ui/react";
-import {HiPlus} from "react-icons/hi";
+import {LuPlus} from "react-icons/lu";
 import TextField from "@/components/ui/TextField";
 import {toaster} from "@/components/ui/toaster";
 import {useCreateBookShelfMutation} from "@/entities/bookShelf";
@@ -43,6 +43,6 @@ export function AddBookShelfButton() {
     }
 
     return (
-        <Button variant={"outline"} size={"sm"} onClick={() => setIsEditing(true)}><HiPlus/> Add Book Shelf</Button>
+        <Button variant={"outline"} size={"sm"} width="100%" onClick={() => setIsEditing(true)}><LuPlus/> Add Book Shelf</Button>
     )
 }
