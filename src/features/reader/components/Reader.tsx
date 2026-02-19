@@ -12,8 +12,8 @@ import type {BookModel} from "@/entities/book/model/BookModel";
 import {getSavedPosition, savePosition} from "../api/savedPositionApi";
 import {useDeviceName} from "../hooks/useDeviceName";
 import {useSavePositionSync} from "../hooks/useSavePositionSync";
-import {JumpToSavedPositionModal, type ModalCase} from "./JumpToSavedPositionModal";
-import type {SavedPosition} from "../types/SavedPosition";
+import type {SavedPosition} from "@/features/reader";
+import {JumpToSavedPositionModal, type ModalCase} from "@/features/reader";
 
 function getInitialLocation(bookId: string): string | number {
     if (typeof window === "undefined") return 0;
@@ -25,8 +25,10 @@ function getInitialLocation(bookId: string): string | number {
 
 const KEYBOARD_HINT_KEY = "reader-keyboard-hint-shown";
 
-function resolvePositionLabel(cfi: string, toc: NavItem[], spineGetter: (index: number) => {href: string} | null): string {
-    if (!cfi || typeof cfi !== "string") return "Start of book";
+function resolvePositionLabel(cfi: string, toc: NavItem[], spineGetter: (index: number) => {
+    href: string
+} | null): string {
+    if (!cfi) return "Start of book";
 
     const match = cfi.match(/^epubcfi\(\/\d+\/(\d+)!?\/?(.*)?\)$/);
     if (!match) return "Start of book";
@@ -338,12 +340,9 @@ export function Reader({book}: ReaderProps) {
 }
 
 function useResponsiveReaderTheme(isDark: boolean): IReactReaderStyle {
-    const [isMobile, isMobileHorizontal] = useMediaQuery([
+    const [isSmallScreen] = useMediaQuery([
         "(max-width: 768px)",
-        "(max-height: 768px)",
     ]);
-
-    const isSmallScreen = isMobile || isMobileHorizontal;
 
     return useMemo(
         () => ({
@@ -439,6 +438,6 @@ function useResponsiveReaderTheme(isDark: boolean): IReactReaderStyle {
                 ...ReactReaderStyle.loadingView,
             },
         }),
-        [isMobile, isMobileHorizontal, isDark],
+        [isSmallScreen, isDark],
     );
 }
