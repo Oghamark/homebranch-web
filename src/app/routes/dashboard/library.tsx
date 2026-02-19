@@ -1,9 +1,10 @@
-import {LibraryPage} from "@/pages/library";
+import {BookGridSkeletons, LibraryPage} from "@/pages/library";
 import type {Route} from "./+types/library";
 import {useMemo} from "react";
-import {Heading, Stack} from "@chakra-ui/react";
+import {Flex, Heading, Stack} from "@chakra-ui/react";
 import {useGetBooksInfiniteQuery} from "@/entities/book";
 import {useLibrarySearch} from "@/features/library";
+import {LuLibrary} from "react-icons/lu";
 
 export function meta({}: Route.MetaArgs) {
     return [
@@ -24,7 +25,18 @@ export default function Library() {
         return _noBooks()
     }
 
-    return <LibraryPage books={books} fetchMore={fetchNextPage} hasMore={hasNextPage}/>;
+    return (
+        <Stack gap={4}>
+            <Flex align="center" gap={3}>
+                <LuLibrary size={24}/>
+                <Heading size="2xl">Library</Heading>
+            </Flex>
+            {isLoading
+                ? <BookGridSkeletons/>
+                : <LibraryPage books={books} fetchMore={fetchNextPage} hasMore={hasNextPage} totalBooks={data?.pages[0]?.total}/>
+            }
+        </Stack>
+    );
 }
 
 function _noBooks() {

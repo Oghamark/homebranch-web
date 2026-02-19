@@ -1,13 +1,14 @@
 import {Box, Checkbox, IconButton, Popover, Portal, Spinner, Stack, Text} from "@chakra-ui/react";
-import {HiCollection} from "react-icons/hi";
+import {LuLibrary} from "react-icons/lu";
+import {Tooltip} from "@/components/ui/tooltip";
 import {
+    useAddBookToBookShelfMutation,
     useGetBookShelvesByBookQuery,
     useGetBookShelvesQuery,
-    useAddBookToBookShelfMutation,
     useRemoveBookFromBookShelfMutation,
 } from "@/entities/bookShelf";
 
-export function ManageBookShelvesButton({bookId}: { bookId: string }) {
+export function ManageBookShelvesButton({bookId, size}: { bookId: string, size?: "xs" | "sm" | "md" | "lg" }) {
     const {data: allShelves, isLoading: shelvesLoading} = useGetBookShelvesQuery();
     const {data: bookShelves, isLoading: bookShelvesLoading} = useGetBookShelvesByBookQuery(bookId);
     const [addBook] = useAddBookToBookShelfMutation();
@@ -25,11 +26,15 @@ export function ManageBookShelvesButton({bookId}: { bookId: string }) {
 
     return (
         <Popover.Root>
-            <Popover.Trigger asChild>
-                <IconButton variant="subtle">
-                    <HiCollection/>
-                </IconButton>
-            </Popover.Trigger>
+            <Tooltip content="Manage shelves">
+                <Box display={"inline-block"} cursor={"pointer"}>
+                    <Popover.Trigger asChild>
+                        <IconButton variant="subtle" size={size}>
+                            <LuLibrary/>
+                        </IconButton>
+                    </Popover.Trigger>
+                </Box>
+            </Tooltip>
             <Portal>
                 <Popover.Positioner>
                     <Popover.Content>
@@ -40,7 +45,7 @@ export function ManageBookShelvesButton({bookId}: { bookId: string }) {
                             {(shelvesLoading || bookShelvesLoading) ? (
                                 <Spinner/>
                             ) : !allShelves || allShelves.length === 0 ? (
-                                <Text color="GrayText">No shelves created yet</Text>
+                                <Text color="fg.muted">No shelves created yet</Text>
                             ) : (
                                 <Stack gap={2}>
                                     {allShelves.map((shelf) => {

@@ -1,10 +1,11 @@
 import type {Route} from "./+types/currently-reading";
-import {Button, Heading, Loader, Stack} from "@chakra-ui/react";
+import {Button, Flex, Heading, Stack} from "@chakra-ui/react";
 import {Link} from "react-router";
 import {useMemo} from "react";
 import {useGetBooksByIdsQuery} from "@/entities/book";
-import {LibraryPage} from "@/pages/library";
+import {BookGridSkeletons, LibraryPage} from "@/pages/library";
 import {useLibrarySearch} from "@/features/library";
+import {LuBookOpen} from "react-icons/lu";
 
 export function meta({}: Route.MetaArgs) {
     return [
@@ -24,20 +25,25 @@ export default function CurrentlyReading() {
     const query = useLibrarySearch()
     const {data: books, isLoading} = useGetBooksByIdsQuery({bookIds: ids, query: query}, {skip: ids.length === 0});
 
-    if (isLoading) {
-        return <Loader/>;
-    }
-
-    if (!books || books.length === 0) {
+    if (!isLoading && (!books || books.length === 0)) {
         return _noBooks();
     }
 
     return (
-        <LibraryPage
-            books={books}
-            fetchMore={() => {}}
-            hasMore={false}
-        />
+        <Stack gap={4}>
+            <Flex align="center" gap={3}>
+                <LuBookOpen size={24}/>
+                <Heading size="2xl">Currently Reading</Heading>
+            </Flex>
+            {isLoading
+                ? <BookGridSkeletons count={ids.length || 6}/>
+                : <LibraryPage
+                    books={books!}
+                    fetchMore={() => {}}
+                    hasMore={false}
+                />
+            }
+        </Stack>
     );
 }
 

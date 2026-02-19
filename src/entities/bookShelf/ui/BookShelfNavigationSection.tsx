@@ -1,8 +1,8 @@
 import {useState} from "react";
 import {AddBookShelfButton, useDeleteBookShelfMutation, useGetBookShelvesQuery} from "@/entities/bookShelf";
-import {Flex, For, IconButton, Loader, Tabs} from "@chakra-ui/react";
+import {Flex, For, IconButton, Loader, Menu, Portal, Tabs} from "@chakra-ui/react";
 import {Link, useMatch, useNavigate} from "react-router";
-import {HiTrash} from "react-icons/hi";
+import {LuEllipsis, LuTrash2} from "react-icons/lu";
 import ToastFactory from "@/app/utils/toast_handler";
 
 export function BookShelfNavigationSection() {
@@ -15,7 +15,7 @@ export function BookShelfNavigationSection() {
                 variant={"subtle"}
                 value={location.pathname}
             >
-                <Tabs.List width={"100%"} style={{marginBottom: 10}}>
+                <Tabs.List width={"100%"} mb={2}>
                     <For each={bookShelves}>
                         {(bookShelf) => (
                             <BookShelfTab id={bookShelf.id} title={bookShelf.title}/>
@@ -48,23 +48,44 @@ function BookShelfTab({id, title}: { id: string, title: string }) {
     }
 
     return (
-        <Tabs.Trigger value={`/book-shelves/${id}`} asChild padding={0}>
-            <Flex justify={"space-between"} onMouseEnter={() => setHovered(true)}
-                  onMouseLeave={() => setHovered(false)}>
-                <Link to={`/book-shelves/${id}`} style={{flex: 1, marginLeft: 20}}>{title}</Link>
-                {hovered && (
-                    <IconButton
-                        variant={"subtle"}
-                        aria-label={`Delete ${title}`}
-                        onClick={handleDeleteBookShelf}
-                        disabled={isDeletingBookShelf}
-                        style={{borderRadius: "0 var(--tabs-trigger-radius) var(--tabs-trigger-radius) 0"}}
-                    >
-                        {isDeletingBookShelf ? <Loader/> : <HiTrash size={1}/>}
-                    </IconButton>
+        <Tabs.Trigger
+            value={`/book-shelves/${id}`}
+            asChild
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
+        >
+            <Flex justify={"space-between"} align={"center"}>
+                <Link to={`/book-shelves/${id}`} style={{flex: 1}}>{title}</Link>
+                {(hovered || isDeletingBookShelf) && (
+                    <Menu.Root>
+                        <Menu.Trigger asChild>
+                            <IconButton
+                                variant={"ghost"}
+                                size={"2xs"}
+                                aria-label={`Options for ${title}`}
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                {isDeletingBookShelf ? <Loader/> : <LuEllipsis size={14}/>}
+                            </IconButton>
+                        </Menu.Trigger>
+                        <Portal>
+                            <Menu.Positioner>
+                                <Menu.Content>
+                                    <Menu.Item
+                                        value="delete"
+                                        color="fg.error"
+                                        onClick={handleDeleteBookShelf}
+                                        disabled={isDeletingBookShelf}
+                                    >
+                                        <LuTrash2 size={14}/>
+                                        Delete
+                                    </Menu.Item>
+                                </Menu.Content>
+                            </Menu.Positioner>
+                        </Portal>
+                    </Menu.Root>
                 )}
             </Flex>
         </Tabs.Trigger>
-
     )
 }
