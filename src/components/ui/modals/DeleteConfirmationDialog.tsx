@@ -27,7 +27,7 @@ export function DeleteConfirmationDialog<T>({
             <Portal>
                 <Dialog.Backdrop/>
                 <Dialog.Positioner>
-                    <Dialog.Content>
+                    <Dialog.Content p={1} textAlign={"center"}>
                         <Dialog.Header>
                             <Dialog.Title>{title}</Dialog.Title>
                         </Dialog.Header>
@@ -36,10 +36,10 @@ export function DeleteConfirmationDialog<T>({
                         </Dialog.Body>
                         <Dialog.Footer>
                             <Dialog.ActionTrigger asChild>
-                                <Button variant="outline">Cancel</Button>
+                                <Button variant="ghost">Cancel</Button>
                             </Dialog.ActionTrigger>
-                            <Button disabled={loading} onClick={onSubmit}>
-                                {loading ? <Loader/> : "Save"}
+                            <Button variant={"subtle"} disabled={loading} onClick={onSubmit} color={"fg.error"}>
+                                {loading ? <Loader/> : "Delete"}
                             </Button>
                         </Dialog.Footer>
                         <Dialog.CloseTrigger asChild>
