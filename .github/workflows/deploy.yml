@@ -156,91 +156,16 @@ jobs:
           install -d pkg/var/www/homebranch
           install -d pkg/etc/nginx/conf.d
 
-          # ── Static files ──────────────────────────────────────────────────
           cp -r build/client/. pkg/var/www/homebranch/
+          cp packaging/deb/homebranch.conf pkg/etc/nginx/conf.d/homebranch.conf
 
-          # ── Nginx config ──────────────────────────────────────────────────
-          # This instance listens on HTTP (port 80) only. It is designed to
-          # run behind a TLS-terminating reverse proxy (e.g. Caddy, Traefik,
-          # or an upstream nginx) which handles HTTPS and forwards requests
-          # here over the internal network.
-          #
-          # Default proxy targets point to localhost; edit after first install
-          # to match your actual backend and auth service addresses.
-          cat > pkg/etc/nginx/conf.d/homebranch.conf <<'NGINX'
-# Homebranch Web — nginx configuration
-#
-# This server listens on HTTP port 80. It is intended to run behind a
-# TLS-terminating reverse proxy that handles HTTPS. Do not expose port 80
-# directly to the internet.
-server {
-    listen       80;
-    server_name  _;
+          printf 'Package: %s\nVersion: %s\nArchitecture: all\nDepends: nginx\nMaintainer: %s <%s@users.noreply.github.com>\nDescription: Homebranch Web — self-hosted ebook library frontend\n React SPA served by nginx with reverse-proxy support for the\n Homebranch API and authentication service.\n' \
+            "$PKG" "$VERSION" "$GITHUB_REPOSITORY_OWNER" "$GITHUB_REPOSITORY_OWNER" \
+            > pkg/DEBIAN/control
 
-    root   /var/www/homebranch;
-    index  index.html;
-
-    # Security headers
-    add_header X-Content-Type-Options  "nosniff"                       always;
-    add_header X-Frame-Options         "DENY"                          always;
-    add_header X-XSS-Protection        "1; mode=block"                 always;
-    add_header Referrer-Policy         "strict-origin-when-cross-origin" always;
-
-    location / {
-        try_files $uri $uri/ /index.html;
-    }
-
-    client_max_body_size 50m;
-
-    # Point these to your backend and auth service containers.
-    location /api/ {
-        proxy_pass http://127.0.0.1:8080/;
-        proxy_set_header Host              $host;
-        proxy_set_header X-Real-IP         $remote_addr;
-        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
-    }
-
-    location /auth/ {
-        proxy_pass http://127.0.0.1:3000/;
-        proxy_set_header Host              $host;
-        proxy_set_header X-Real-IP         $remote_addr;
-        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
-    }
-}
-NGINX
-
-          # ── DEBIAN/control ────────────────────────────────────────────────
-          cat > pkg/DEBIAN/control <<EOF
-Package: $PKG
-Version: $VERSION
-Architecture: all
-Depends: nginx
-Maintainer: $GITHUB_REPOSITORY_OWNER <$GITHUB_REPOSITORY_OWNER@users.noreply.github.com>
-Description: Homebranch Web — self-hosted ebook library frontend
- React SPA served by nginx with reverse-proxy support for the
- Homebranch API and authentication service.
-EOF
-
-          # Nginx config is a conffile — dpkg will not overwrite user edits.
           echo '/etc/nginx/conf.d/homebranch.conf' > pkg/DEBIAN/conffiles
 
-          # ── DEBIAN/postinst ───────────────────────────────────────────────
-          cat > pkg/DEBIAN/postinst <<'POSTINST'
-#!/bin/sh
-set -e
-if [ "$1" = "configure" ]; then
-  if systemctl is-active --quiet nginx 2>/dev/null; then
-    nginx -t && systemctl reload nginx
-  fi
-  echo ""
-  echo "Homebranch Web installed."
-  echo "Edit /etc/nginx/conf.d/homebranch.conf to set your backend"
-  echo "addresses, then run: systemctl reload nginx"
-fi
-POSTINST
-          chmod 755 pkg/DEBIAN/postinst
+          install -m 755 packaging/deb/postinst pkg/DEBIAN/postinst
 
           dpkg-deb --build --root-owner-group pkg "$DEB"
           echo "deb_name=$DEB" >> "$GITHUB_OUTPUT"

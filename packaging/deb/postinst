@@ -1,0 +1,11 @@
+#!/bin/sh
+set -e
+if [ "$1" = "configure" ]; then
+  if systemctl is-active --quiet nginx 2>/dev/null; then
+    nginx -t && systemctl reload nginx
+  fi
+  echo ""
+  echo "Homebranch Web installed."
+  echo "Edit /etc/nginx/conf.d/homebranch.conf to set your backend"
+  echo "addresses, then run: systemctl reload nginx"
+fi
