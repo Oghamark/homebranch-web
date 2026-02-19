@@ -1,1 +1,1 @@
-export { authenticationAxiosInstance, axiosErrorHandler } from './axios'
+export {authenticationAxiosInstance, axiosErrorHandler} from './axios'

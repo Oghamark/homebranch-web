@@ -1,0 +1,21 @@
+# CI/CD image — expects build/client to be present in the build context.
+# The React app is compiled once in the GitHub Actions build job and the
+# artifact is reused here, so there is no redundant Node.js build step.
+#
+# Runtime environment variables (passed via -e / docker compose environment:):
+#   API_BACKEND  — URL nginx proxies /api/ to, e.g. http://10.0.0.2:8080
+#   AUTH_BACKEND — URL nginx proxies /auth/ to, e.g. http://10.0.0.3:3000
+#
+# Example:
+#   docker run -p 80:80 \
+#     -e API_BACKEND=http://10.0.0.2:8080 \
+#     -e AUTH_BACKEND=http://10.0.0.3:3000 \
+#     ghcr.io/your-org/homebranch-web:latest
+
+FROM nginx:alpine
+
+COPY build/client /usr/share/nginx/html
+RUN rm /etc/nginx/conf.d/default.conf
+COPY default.conf.template /etc/nginx/templates/default.conf.template
+
+EXPOSE 80

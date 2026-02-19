@@ -1,19 +1,14 @@
-import {
-    isRouteErrorResponse,
-    Links,
-    Meta,
-    Outlet,
-    Scripts,
-    ScrollRestoration,
-} from "react-router";
+import {isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration} from "react-router";
+import React, {type ReactNode} from "react";
+import {Provider as ReduxProvider} from 'react-redux';
 
+import "@/app/styles/app.css";
 import type {Route} from "./+types/root";
 import {Provider} from "@/components/ui/provider";
 import {Toaster} from "@/components/ui/toaster";
-
-import "@/app/styles/app.css";
-import React, {type ReactNode} from "react";
 import {AuthContextProvider} from "@/shared/api/context";
+import {store} from "@/app/store";
+
 
 export const links: Route.LinksFunction = () => [
     {rel: "preconnect", href: "https://fonts.googleapis.com"},
@@ -29,9 +24,8 @@ export const links: Route.LinksFunction = () => [
 ];
 
 export function Layout({children}: { children: ReactNode }) {
-
     return (
-        <html lang="en">
+        <html lang="en" suppressHydrationWarning>
         <head>
             <title>Homebranch</title>
             <meta charSet="utf-8"/>
@@ -39,16 +33,18 @@ export function Layout({children}: { children: ReactNode }) {
             <Meta/>
             <Links/>
         </head>
+        <body>
         <Provider>
-            <AuthContextProvider>
-            <Toaster/>
-            <body>
-            {children}
-            <ScrollRestoration/>
-            <Scripts/>
-            </body>
-            </AuthContextProvider>
+            <ReduxProvider store={store}>
+                <AuthContextProvider>
+                    <Toaster/>
+                    {children}
+                    <ScrollRestoration/>
+                    <Scripts/>
+                </AuthContextProvider>
+            </ReduxProvider>
         </Provider>
+        </body>
         </html>
     );
 }

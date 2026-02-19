@@ -1,18 +1,41 @@
 import type {Route} from "./+types/book";
 
-import {fetchBookById} from "@/entities/book";
 import BookDetailsPage from "@/pages/bookDetails/ui/BookDetailsPage";
-import {redirect} from "react-router";
+import {useGetBookByIdQuery} from "@/entities/book";
+import {Loader} from "@chakra-ui/react";
+import ToastFactory from "@/app/utils/toast_handler";
+import {Navigate} from "react-router";
+import {handleRtkError} from "@/shared/api/rtk-query";
+import {useEffect} from "react";
 
-export async function clientLoader({ params }: Route.LoaderArgs) {
-  const { bookId } = params;
-    return await fetchBookById(bookId) ?? redirect('/');
-}
+export default function Book({params}: Route.ComponentProps) {
+    const {data, isLoading, error} = useGetBookByIdQuery(params.bookId);
 
-export default function Book({ loaderData }: Route.ComponentProps) {
-  return (
-    loaderData ? <BookDetailsPage book={loaderData} /> : null
-  );
+    useEffect(() => {
+        if (error) {
+            handleRtkError(error);
+        }
+    }, [error]);
+
+    useEffect(() => {
+        if (!isLoading && !error && !data) {
+            ToastFactory({message: "Something went wrong", type: "error"});
+        }
+    }, [data, isLoading, error]);
+
+    if (error) {
+        return <Navigate to={"/"}/>;
+    }
+
+    if (isLoading) {
+        return <Loader/>;
+    }
+
+    if (!data) {
+        return <Navigate to={"/"}/>
+    }
+
+    return <BookDetailsPage book={data}/>;
 }
 
 

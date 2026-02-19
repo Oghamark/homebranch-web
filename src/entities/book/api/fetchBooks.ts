@@ -1,9 +1,0 @@
-import type {BookModel} from "@/entities/book";
-import {axiosInstance, type Result} from "@/shared";
-import {axiosErrorHandler} from "@/features/authentication/api";
-
-export async function fetchBooks(): Promise<BookModel[]> {
-    return await axiosInstance.get<Result<BookModel[]>>('/books')
-        .then((response) => response.data.value)
-        .catch(axiosErrorHandler) ?? [];
-}

@@ -1,58 +1,53 @@
-import {
-  Button,
-  CloseButton,
-  Dialog,
-  IconButton,
-  Loader,
-  Portal,
-} from "@chakra-ui/react";
-import { HiTrash } from "react-icons/hi";
-import { useFetcher } from "react-router";
+import {Button, CloseButton, Dialog, IconButton, Loader, Portal,} from "@chakra-ui/react";
+import {LuTrash2} from "react-icons/lu";
+import {Tooltip} from "@/components/ui/tooltip";
 
 interface DeleteConfirmationDialogProps<T> {
-  title: string;
-  action: string;
+    title: string;
+    loading: boolean;
+    onSubmit: () => unknown;
+    size?: "xs" | "sm" | "md" | "lg";
 }
 
 export function DeleteConfirmationDialog<T>({
-  action,
-  title,
-}: DeleteConfirmationDialogProps<T>) {
-  const fetcher = useFetcher();
-  const busy = fetcher.state !== "idle";
-  return (
-    <Dialog.Root>
-      <Dialog.Trigger asChild>
-        <IconButton variant={"subtle"}>
-          <HiTrash />
-        </IconButton>
-      </Dialog.Trigger>
-      <Portal>
-        <Dialog.Backdrop />
-        <Dialog.Positioner>
-          <Dialog.Content>
-            <Dialog.Header>
-              <Dialog.Title>{title}</Dialog.Title>
-            </Dialog.Header>
-            <Dialog.Body>
-              Are you sure you want to delete this item?
-            </Dialog.Body>
-            <Dialog.Footer>
-              <Dialog.ActionTrigger asChild>
-                <Button variant="outline">Cancel</Button>
-              </Dialog.ActionTrigger>
-              <fetcher.Form method="delete" action={action}>
-                <Button type="submit" disabled={busy}>
-                  {busy ? <Loader /> : "Save"}
-                </Button>
-              </fetcher.Form>
-            </Dialog.Footer>
-            <Dialog.CloseTrigger asChild>
-              <CloseButton />
-            </Dialog.CloseTrigger>
-          </Dialog.Content>
-        </Dialog.Positioner>
-      </Portal>
-    </Dialog.Root>
-  );
+                                                onSubmit,
+                                                loading,
+                                                title,
+                                                size,
+                                            }: DeleteConfirmationDialogProps<T>) {
+    return (
+        <Dialog.Root>
+            <Tooltip content="Delete">
+                <Dialog.Trigger asChild>
+                    <IconButton variant={"subtle"} size={size}>
+                        <LuTrash2/>
+                    </IconButton>
+                </Dialog.Trigger>
+            </Tooltip>
+            <Portal>
+                <Dialog.Backdrop/>
+                <Dialog.Positioner>
+                    <Dialog.Content p={1} textAlign={"center"}>
+                        <Dialog.Header>
+                            <Dialog.Title>{title}</Dialog.Title>
+                        </Dialog.Header>
+                        <Dialog.Body>
+                            Are you sure you want to delete this item?
+                        </Dialog.Body>
+                        <Dialog.Footer>
+                            <Dialog.ActionTrigger asChild>
+                                <Button variant="ghost">Cancel</Button>
+                            </Dialog.ActionTrigger>
+                            <Button variant={"subtle"} disabled={loading} onClick={onSubmit} color={"fg.error"}>
+                                {loading ? <Loader/> : "Delete"}
+                            </Button>
+                        </Dialog.Footer>
+                        <Dialog.CloseTrigger asChild>
+                            <CloseButton/>
+                        </Dialog.CloseTrigger>
+                    </Dialog.Content>
+                </Dialog.Positioner>
+            </Portal>
+        </Dialog.Root>
+    );
 }

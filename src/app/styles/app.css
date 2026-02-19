@@ -1,11 +1,11 @@
 html,
 body {
-  height: 100%;
-  @media (prefers-color-scheme: dark) {
-    color-scheme: dark;
-  }
+    height: 100%;
+    @media (prefers-color-scheme: dark) {
+        color-scheme: dark;
+    }
 }
 
 body {
-  padding: 16px;
-  }
+    padding: 16px;
+}

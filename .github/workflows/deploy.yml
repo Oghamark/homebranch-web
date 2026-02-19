@@ -1,0 +1,251 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # ─── Build ────────────────────────────────────────────────────────────────────
+  # Compiles the React app once. The resulting artifact is shared by the Docker
+  # image, the Debian package, and the direct-deploy jobs — no redundant builds.
+  build:
+    name: Build & Typecheck
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Version is the semver tag (e.g. 1.2.3) on tag pushes, or a dev
+      # pre-release string (e.g. 0.0.0-abc1234f) on branch pushes.
+      # Tag versions are validated to be semver before proceeding.
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+            if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+              echo "::error::Tag '$VERSION' is not a valid semver string (expected vX.Y.Z)"
+              exit 1
+            fi
+          else
+            VERSION="0.0.0-${GITHUB_SHA::8}"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      # VITE_API_URL and VITE_AUTHENTICATION_URL are relative paths so nginx can
+      # proxy them to the actual backend containers at runtime. The built artifact
+      # is fully generic — no instance-specific URLs baked in.
+      - name: Build
+        run: npm run build
+        env:
+          VITE_API_URL: /api
+          VITE_AUTHENTICATION_URL: /auth
+          VITE_ITEMS_PER_PAGE: ${{ vars.VITE_ITEMS_PER_PAGE || '20' }}
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: build/client/
+          retention-days: 1
+
+  # ─── Docker image ─────────────────────────────────────────────────────────────
+  # Builds a minimal nginx image from the pre-compiled artifact and pushes it to
+  # GitHub Container Registry. No Node.js in the final image.
+  #
+  # Runtime env vars for docker run / compose:
+  #   API_BACKEND  — e.g. http://10.0.0.2:8080
+  #   AUTH_BACKEND — e.g. http://10.0.0.3:3000
+  docker:
+    name: Docker image → GHCR
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-build
+          path: build/client/
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      # Dockerfile.nginx copies build/client from the context — no Node build step.
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.nginx
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+  # ─── Debian package ───────────────────────────────────────────────────────────
+  # Creates an installable .deb that drops static files into /var/www/homebranch
+  # and ships a default nginx config. The nginx config is declared as a conffile
+  # so dpkg preserves any local edits on upgrade.
+  deb:
+    name: Debian package
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    outputs:
+      deb_name: ${{ steps.pkg.outputs.deb_name }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-build
+          path: build/client/
+
+      - name: Build .deb
+        id: pkg
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          PKG="homebranch-web"
+          DEB="${PKG}_${VERSION}_all.deb"
+
+          install -d pkg/DEBIAN
+          install -d pkg/var/www/homebranch
+          install -d pkg/etc/nginx/conf.d
+
+          cp -r build/client/. pkg/var/www/homebranch/
+          cp packaging/deb/homebranch.conf pkg/etc/nginx/conf.d/homebranch.conf
+
+          printf 'Package: %s\nVersion: %s\nArchitecture: all\nDepends: nginx\nMaintainer: %s <%s@users.noreply.github.com>\nDescription: Homebranch Web — self-hosted ebook library frontend\n React SPA served by nginx with reverse-proxy support for the\n Homebranch API and authentication service.\n' \
+            "$PKG" "$VERSION" "$GITHUB_REPOSITORY_OWNER" "$GITHUB_REPOSITORY_OWNER" \
+            > pkg/DEBIAN/control
+
+          echo '/etc/nginx/conf.d/homebranch.conf' > pkg/DEBIAN/conffiles
+
+          install -m 755 packaging/deb/postinst pkg/DEBIAN/postinst
+
+          dpkg-deb --build --root-owner-group pkg "$DEB"
+          echo "deb_name=$DEB" >> "$GITHUB_OUTPUT"
+
+      - name: Upload .deb artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb-package
+          path: "*.deb"
+          retention-days: 7
+
+  # ─── GitHub Release ───────────────────────────────────────────────────────────
+  # Creates a versioned release with the .deb attached whenever a v* tag is pushed.
+  release:
+    name: GitHub Release
+    needs: [docker, deb]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download .deb artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: deb-package
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: "*.deb"
+          generate_release_notes: true
+
+  # ─── Deploy ───────────────────────────────────────────────────────────────────
+  # Installs the .deb on the Proxmox frontend container via SSH.
+  # --force-confold preserves any local edits to /etc/nginx/conf.d/homebranch.conf.
+  #
+  # IMPORTANT: This job uses a self-hosted runner. The if: condition ensures only
+  # trusted pushes to main (which require write access) can reach the runner.
+  # PRs and other jobs run on GitHub's cloud runners for security.
+  #
+  # Required secrets (Settings → Environments → production):
+  #   SSH_PRIVATE_KEY  — private key authorised on the deploy user of the container
+  #   FRONTEND_HOST    — internal IP of the frontend container (e.g. 10.0.0.100)
+  #   FRONTEND_USER    — SSH username (e.g. "deploy")
+  deploy:
+    name: Deploy to Proxmox (frontend)
+    needs: deb
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: self-hosted
+    environment: production
+
+    steps:
+      - name: Download .deb artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: deb-package
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${{ secrets.FRONTEND_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Copy .deb to server
+        run: |
+          scp -i ~/.ssh/deploy_key \
+            "${{ needs.deb.outputs.deb_name }}" \
+            ${{ secrets.FRONTEND_USER }}@${{ secrets.FRONTEND_HOST }}:/tmp/homebranch-web.deb
+
+      - name: Install
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+            ${{ secrets.FRONTEND_USER }}@${{ secrets.FRONTEND_HOST }} \
+            "sudo dpkg -i --force-confold /tmp/homebranch-web.deb; \
+               status=\$?; \
+               rm -f /tmp/homebranch-web.deb; \
+               exit \$status"
+
+      - name: Cleanup SSH key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
