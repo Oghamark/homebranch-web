@@ -34,7 +34,7 @@ export default function Settings() {
 
     return (
         <Stack gap={4}>
-            <Flex align="center" gap={3}>
+            <Flex align="center" gap={3} display={{base: "none", md: "flex"}}>
                 <LuSettings size={24}/>
                 <Heading size="2xl">Account Settings</Heading>
             </Flex>

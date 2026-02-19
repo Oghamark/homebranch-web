@@ -29,7 +29,7 @@ export function LibraryPage({books, hasMore, totalBooks, fetchMore}: LibraryPage
             loader={<BookGridSkeletons count={remaining}/>}
             dataLength={books.length}
         >
-            <Grid gridTemplateColumns="repeat(auto-fill, minmax(160px, 1fr))" gap={6} p={1}>
+            <Grid gridTemplateColumns="repeat(auto-fill, minmax(160px, 1fr))" gap={6} p={1} pb={3}>
                 <For each={books}>
                     {(book, _index) => (
                         <BookCard

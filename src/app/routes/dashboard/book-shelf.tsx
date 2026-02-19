@@ -1,4 +1,4 @@
-import {useMemo} from "react";
+import {useEffect, useMemo} from "react";
 import {Box, Heading, HStack, Loader, Stack} from "@chakra-ui/react";
 import {Navigate, useParams} from "react-router";
 import {
@@ -11,6 +11,7 @@ import type {Route} from "./+types/book-shelf";
 import ToastFactory from "@/app/utils/toast_handler";
 import {HiCollection} from "react-icons/hi";
 import {useLibrarySearch} from "@/features/library";
+import {useMobileNav} from "@/components/navigation/MobileNavContext";
 
 export function meta({}: Route.MetaArgs) {
     return [
@@ -32,6 +33,18 @@ function BookShelfContent({bookShelfId}: { bookShelfId: string }) {
         query
     });
     const {data: bookShelf, isLoading: isLoadingBookShelf} = useGetBookShelfByIdQuery(bookShelfId);
+    const {setTitle, setRightAction} = useMobileNav();
+
+    useEffect(() => {
+        if (bookShelf) {
+            setTitle(bookShelf.title);
+            setRightAction(<ManageBookShelfBooksButton bookShelf={bookShelf}/>);
+        }
+        return () => {
+            setTitle(null);
+            setRightAction(null);
+        };
+    }, [bookShelf]);
 
     const books = useMemo(() => {
         return data?.pages.flatMap(page => page.data) ?? []
@@ -51,7 +64,7 @@ function BookShelfContent({bookShelfId}: { bookShelfId: string }) {
 
     return (
         <Stack justify={"space-evenly"} height={"100%"}>
-            <HStack>
+            <HStack display={{base: "none", md: "flex"}}>
                 <Heading>{bookShelf.title}</Heading>
                 <ManageBookShelfBooksButton bookShelf={bookShelf}/>
             </HStack>

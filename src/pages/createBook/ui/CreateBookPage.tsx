@@ -1,5 +1,5 @@
 import TextField from "@/components/ui/TextField";
-import {Button, Field, Flex, Heading, HStack, Image, Stack, Textarea, VStack,} from "@chakra-ui/react";
+import {Button, Field, Flex, Heading, Image, Stack, Textarea, VStack,} from "@chakra-ui/react";
 import {Form} from "react-router";
 
 export default function CreateBookPage() {
@@ -8,16 +8,17 @@ export default function CreateBookPage() {
             <Heading alignSelf={"Center"}>Edit Book Metadata</Heading>
             <Form method="post" action={"/create-book"}>
                 <Stack>
-                    <HStack align={"start"} gap={8} mb={2}>
+                    <Flex direction={{base: "column", md: "row"}} align={{base: "center", md: "start"}} gap={8} mb={2}>
                         <Image
                             src={""}
                             alt="Book Cover"
-                            w={280}
+                            w={{base: "100%", md: 280}}
+                            maxW="280px"
                             border={"2px solid"}
                             borderColor={"gray.600"}
                             borderRadius={10}
                         />
-                        <VStack flex={1}>
+                        <VStack flex={1} w={{base: "100%", md: "auto"}}>
                             <TextField
                                 label={"Title"}
                                 name="title"
@@ -45,7 +46,7 @@ export default function CreateBookPage() {
                             />
                             <TextField label={"Tags"} name="tags" variant={"subtle"}/>
                         </VStack>
-                    </HStack>
+                    </Flex>
                     <VStack flex={1}>
                         <TextField label={"Series"} name="series" variant={"subtle"}/>
                         <TextField label={"Series ID"} name="seriesId" variant={"subtle"}/>

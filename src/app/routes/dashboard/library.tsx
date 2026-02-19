@@ -27,7 +27,7 @@ export default function Library() {
 
     return (
         <Stack gap={4}>
-            <Flex align="center" gap={3}>
+            <Flex align="center" gap={3} display={{base: "none", md: "flex"}}>
                 <LuLibrary size={24}/>
                 <Heading size="2xl">Library</Heading>
             </Flex>

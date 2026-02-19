@@ -52,7 +52,7 @@ export function ManageBookShelfBooksButton({bookShelf}: ManageBookShelfBooksButt
             </Popover.Trigger>
             <Portal>
                 <Popover.Positioner>
-                    <Popover.Content>
+                    <Popover.Content overflow="hidden">
                         <Popover.Header>
                             <Popover.Title>Books</Popover.Title>
                         </Popover.Header>
@@ -64,7 +64,7 @@ export function ManageBookShelfBooksButton({bookShelf}: ManageBookShelfBooksButt
                             ) : (
                                 <Stack>
                                     <TextField placeholder={"Search"} onChange={event => setQuery(event.target.value)}/>
-                                    <Box id={"scroll-container"} maxH={"400px"} overflowY={"auto"}>
+                                    <Box id={"scroll-container"} maxH={"min(400px, 50vh)"} overflowY={"auto"}>
                                         <InfiniteScroll
                                             next={fetchMoreBooks}
                                             hasMore={allBooksHasNextPage}

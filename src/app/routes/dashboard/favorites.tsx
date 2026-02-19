@@ -28,7 +28,7 @@ export default function Favorites() {
 
     return (
         <Stack gap={4}>
-            <Flex align="center" gap={3}>
+            <Flex align="center" gap={3} display={{base: "none", md: "flex"}}>
                 <LuHeart size={24}/>
                 <Heading size="2xl">Favorites</Heading>
             </Flex>

@@ -31,7 +31,7 @@ export default function CurrentlyReading() {
 
     return (
         <Stack gap={4}>
-            <Flex align="center" gap={3}>
+            <Flex align="center" gap={3} display={{base: "none", md: "flex"}}>
                 <LuBookOpen size={24}/>
                 <Heading size="2xl">Currently Reading</Heading>
             </Flex>

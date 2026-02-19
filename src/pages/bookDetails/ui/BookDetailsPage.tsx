@@ -1,7 +1,7 @@
 import {DeleteConfirmationDialog} from "@/components/ui/modals/DeleteConfirmationDialog";
 import {type BookModel, useDeleteBookMutation, useUpdateBookMutation} from "@/entities/book";
 import {config} from "@/shared";
-import {Box, Heading, HStack, IconButton, Image, Separator, Stack, Text,} from "@chakra-ui/react";
+import {Box, Flex, Heading, IconButton, Image, Separator, Stack, Text,} from "@chakra-ui/react";
 import {useState} from "react";
 import {LuBookOpen, LuHeart, LuX} from "react-icons/lu";
 import {Link, useNavigate} from "react-router";
@@ -39,8 +39,8 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
 
     return (
         <Box p={4}>
-            <HStack align={"start"} gap={6}>
-                <Stack w="200px" gap={3}>
+            <Flex direction={{base: "column", md: "row"}} align={{base: "center", md: "start"}} gap={6}>
+                <Stack w={{base: "160px", md: "200px"}} gap={3} flexShrink={0}>
                     <Image
                         src={`${config.apiUrl}/uploads/cover-images/${book.coverImageFileName}`}
                         alt={book.title}
@@ -49,7 +49,7 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
                         objectFit="cover"
                         borderRadius="md"
                     />
-                    <HStack justify="center">
+                    <Flex justify={{base: "start", md: "center"}} wrap="wrap" gap={1}>
                         <DeleteConfirmationDialog
                             title={`Delete book: ${book.title}`}
                             loading={pendingDelete}
@@ -89,10 +89,10 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
                                 </IconButton>
                             </Tooltip>
                         )}
-                    </HStack>
+                    </Flex>
                 </Stack>
                 <Box flex={1}>
-                    <Heading size="2xl">{book.title}</Heading>
+                    <Heading size={{base: "xl", md: "2xl"}}>{book.title}</Heading>
                     <Text color="fg.muted" fontSize="md" mt={1}>
                         {book.author}
                     </Text>
@@ -101,7 +101,7 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
                         Published Year: {book.publishedYear}
                     </Text>
                 </Box>
-            </HStack>
+            </Flex>
         </Box>
     );
 }

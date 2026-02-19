@@ -5,7 +5,11 @@ import {Link, useMatch, useNavigate} from "react-router";
 import {LuEllipsis, LuTrash2} from "react-icons/lu";
 import ToastFactory from "@/app/utils/toast_handler";
 
-export function BookShelfNavigationSection() {
+interface BookShelfNavigationSectionProps {
+    onNavigate?: () => void;
+}
+
+export function BookShelfNavigationSection({onNavigate}: BookShelfNavigationSectionProps) {
     const {data: bookShelves = []} = useGetBookShelvesQuery();
 
     return (
@@ -18,7 +22,7 @@ export function BookShelfNavigationSection() {
                 <Tabs.List width={"100%"} mb={2}>
                     <For each={bookShelves}>
                         {(bookShelf) => (
-                            <BookShelfTab id={bookShelf.id} title={bookShelf.title}/>
+                            <BookShelfTab id={bookShelf.id} title={bookShelf.title} onNavigate={onNavigate}/>
                         )}
                     </For>
                 </Tabs.List>
@@ -29,7 +33,7 @@ export function BookShelfNavigationSection() {
     )
 }
 
-function BookShelfTab({id, title}: { id: string, title: string }) {
+function BookShelfTab({id, title, onNavigate}: { id: string, title: string, onNavigate?: () => void }) {
     const isBookShelfMatch = useMatch(`/book-shelves/${id}`);
     const navigate = useNavigate();
     const [hovered, setHovered] = useState(false);
@@ -55,7 +59,7 @@ function BookShelfTab({id, title}: { id: string, title: string }) {
             onMouseLeave={() => setHovered(false)}
         >
             <Flex justify={"space-between"} align={"center"}>
-                <Link to={`/book-shelves/${id}`} style={{flex: 1}}>{title}</Link>
+                <Link to={`/book-shelves/${id}`} style={{flex: 1}} onClick={onNavigate}>{title}</Link>
                 {(hovered || isDeletingBookShelf) && (
                     <Menu.Root>
                         <Menu.Trigger asChild>
