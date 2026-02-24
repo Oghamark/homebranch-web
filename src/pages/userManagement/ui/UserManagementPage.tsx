@@ -26,6 +26,8 @@ function UserActions({user}: { user: UserModel }) {
     const [unrestrictUser, {isLoading: isUnrestricting}] = useUnrestrictUserMutation();
 
     const isLoading = isRestricting || isUnrestricting;
+    const currentUserId = sessionStorage.getItem("user_id");
+    const isSelf = user.id === currentUserId;
 
     async function handleToggleRestrict() {
         try {
@@ -46,7 +48,7 @@ function UserActions({user}: { user: UserModel }) {
             <IconButton
                 variant="ghost"
                 size="sm"
-                disabled={isLoading}
+                disabled={isLoading || isSelf}
                 onClick={handleToggleRestrict}
                 title={user.restricted ? "Unrestrict user" : "Restrict user"}
             >
