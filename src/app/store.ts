@@ -1,14 +1,18 @@
+import readerThemeReducer, {registerReaderThemeListeners} from "@/features/reader/store/readerThemeSlice";
 import {type Action, configureStore, type ThunkAction} from '@reduxjs/toolkit';
 
-import {listenerMiddleware} from "@/app/listenerMiddleware";
+import {listenerMiddleware, startAppListening} from "@/app/listenerMiddleware";
 import {authenticationApi, homebranchApi} from "@/shared/api/rtk-query";
 import libraryReducer from "@/features/library/store/librarySlice";
+
+registerReaderThemeListeners(startAppListening);
 
 export const store = configureStore({
     reducer: {
         [homebranchApi.reducerPath]: homebranchApi.reducer,
         [authenticationApi.reducerPath]: authenticationApi.reducer,
-        library: libraryReducer
+        library: libraryReducer,
+        readerTheme: readerThemeReducer
     },
     middleware: getDefaultMiddleware =>
         getDefaultMiddleware()
