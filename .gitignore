@@ -10,3 +10,23 @@
 
 # Agent Zero project directory
 .a0proj/
+
+# Editor/IDE
+.vscode/
+.idea/
+
+# Logs
+npm-debug.log*
+yarn-error.log*
+
+# Python environments
+venv/
+.venv/
+__pycache__/
+
+# OS files
+Thumbs.db
+
+# Build/Test
+dist/
+coverage/
