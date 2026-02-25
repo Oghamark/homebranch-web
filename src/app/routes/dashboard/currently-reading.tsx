@@ -18,7 +18,7 @@ export function meta({}: Route.MetaArgs) {
 export default function CurrentlyReading() {
     const ids = useMemo(() => {
         const currentlyReading = JSON.parse(
-            localStorage.getItem("currentlyReading") ?? "{}"
+            localStorage.getItem(`currentlyReading_${sessionStorage.getItem("user_id")}`) ?? "{}"
         );
         return Object.keys(currentlyReading ?? {});
     }, []);

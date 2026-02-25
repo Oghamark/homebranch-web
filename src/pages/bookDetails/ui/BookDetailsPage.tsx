@@ -17,7 +17,7 @@ export interface BookDetailsPageProps {
 function isBookOpenedLocally(bookId: string): boolean {
     if (typeof window === "undefined") return false;
     const currentlyReading = JSON.parse(
-        localStorage.getItem("currentlyReading") ?? "{}"
+        localStorage.getItem(`currentlyReading_${sessionStorage.getItem("user_id")}`) ?? "{}"
     );
     return Boolean(currentlyReading[bookId]);
 }
@@ -50,10 +50,10 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
             return;
         }
         const currentlyReading = JSON.parse(
-            localStorage.getItem("currentlyReading") ?? "{}"
+            localStorage.getItem(`currentlyReading_${sessionStorage.getItem("user_id")}`) ?? "{}"
         );
         delete currentlyReading[bookId];
-        localStorage.setItem("currentlyReading", JSON.stringify(currentlyReading));
+        localStorage.setItem(`currentlyReading_${sessionStorage.getItem("user_id")}`, JSON.stringify(currentlyReading));
         setIsCurrentlyReading(false);
     };
 

@@ -18,7 +18,7 @@ import {JumpToSavedPositionModal, type ModalCase} from "@/features/reader";
 function getInitialLocation(bookId: string): string | number {
     if (typeof window === "undefined") return 0;
     const savedLocation = JSON.parse(
-        localStorage.getItem("currentlyReading") ?? "{}",
+        localStorage.getItem(`currentlyReading_${sessionStorage.getItem("user_id")}`) ?? "{}",
     )[bookId];
     return savedLocation ?? 0;
 }
