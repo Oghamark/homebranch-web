@@ -7,3 +7,6 @@
 .env
 .env.local
 .env.development
+
+# Agent Zero project directory
+.a0proj/
