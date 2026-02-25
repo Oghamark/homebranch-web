@@ -127,7 +127,8 @@ export const booksApi = homebranchApi.injectEndpoints({
                     return;
                 }
 
-                const key = 'currentlyReading';
+                const userId = sessionStorage.getItem('user_id');
+                const key = `currentlyReading_${userId}`;
                 const stored = localStorage.getItem(key);
 
                 if (stored === null) {
