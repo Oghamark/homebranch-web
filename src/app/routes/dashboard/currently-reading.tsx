@@ -6,7 +6,7 @@ import {BookCard, useGetBooksByIdsQuery} from "@/entities/book";
 import {BookGridSkeletons} from "@/pages/library";
 import {useLibrarySearch} from "@/features/library";
 import {LuBookOpen} from "react-icons/lu";
-import {StorageIndicator, useStorageLocations} from "@/features/reader";
+import {getStoredProgress, ReadingProgressBadge, StorageIndicator, useStorageLocations} from "@/features/reader";
 
 export function meta({}: Route.MetaArgs) {
     return [
@@ -22,6 +22,16 @@ export default function CurrentlyReading() {
         );
         return Object.keys(currentlyReading ?? {});
     }, []);
+
+    const progressMap = useMemo(() => {
+        const userId = sessionStorage.getItem("user_id");
+        if (!userId) return {} as Record<string, number>;
+        return ids.reduce((acc, id) => {
+            const progress = getStoredProgress(userId, id);
+            if (progress !== undefined) acc[id] = progress;
+            return acc;
+        }, {} as Record<string, number>);
+    }, [ids]);
 
     const {locations, allBookIds} = useStorageLocations(ids);
 
@@ -46,9 +56,16 @@ export default function CurrentlyReading() {
                             <BookCard
                                 key={book.id}
                                 book={book}
-                                badge={locations[book.id] && (
-                                    <StorageIndicator location={locations[book.id]}/>
-                                )}
+                                badge={
+                                    <>
+                                        {locations[book.id] && (
+                                            <StorageIndicator location={locations[book.id]}/>
+                                        )}
+                                        {progressMap[book.id] !== undefined && (
+                                            <ReadingProgressBadge percentage={progressMap[book.id]}/>
+                                        )}
+                                    </>
+                                }
                             />
                         )}
                     </For>

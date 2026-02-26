@@ -1,7 +1,7 @@
 import {DeleteConfirmationDialog} from "@/components/ui/modals/DeleteConfirmationDialog";
 import {type BookModel, useDeleteBookMutation, useUpdateBookMutation} from "@/entities/book";
 import {config} from "@/shared";
-import {Box, Flex, Heading, IconButton, Image, Separator, Stack, Text,} from "@chakra-ui/react";
+import {Box, Flex, Heading, IconButton, Image, Progress, Separator, Stack, Text,} from "@chakra-ui/react";
 import {useEffect, useState} from "react";
 import {LuBookOpen, LuHeart, LuX} from "react-icons/lu";
 import {Link, useNavigate} from "react-router";
@@ -9,6 +9,7 @@ import {ManageBookShelvesButton} from "@/entities/bookShelf";
 import {Tooltip} from "@/components/ui/tooltip";
 import {deleteSavedPosition, getSavedPosition} from "@/features/reader/api/savedPositionApi";
 import ToastFactory from "@/app/utils/toast_handler";
+import {getStoredProgress, removeStoredProgress} from "@/features/reader";
 
 export interface BookDetailsPageProps {
     book: BookModel
@@ -31,6 +32,12 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
         isBookOpenedLocally(book.id)
     );
 
+    const [progress] = useState<number | undefined>(() => {
+        const userId = sessionStorage.getItem("user_id");
+        if (!userId) return undefined;
+        return getStoredProgress(userId, book.id);
+    });
+
     useEffect(() => {
         if (isCurrentlyReading) return;
         let cancelled = false;
@@ -49,6 +56,8 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
             ToastFactory({message: "Failed to remove cloud reading position", type: "error"});
             return;
         }
+        const userId = sessionStorage.getItem("user_id");
+        if (userId) removeStoredProgress(userId, bookId);
         const currentlyReading = JSON.parse(
             localStorage.getItem(`currentlyReading_${sessionStorage.getItem("user_id")}`) ?? "{}"
         );
@@ -120,6 +129,22 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
                     <Text fontSize="md" color="fg.muted">
                         Published Year: {book.publishedYear}
                     </Text>
+                    {progress !== undefined && (
+                        <Box mt={4}>
+                            <Text fontSize="sm" color="fg.muted" mb={1}>
+                                Reading Progress — {Math.round(progress * 100)}%
+                            </Text>
+                            <Progress.Root
+                                value={Math.round(progress * 100)}
+                                maxW="300px"
+                                size="sm"
+                            >
+                                <Progress.Track>
+                                    <Progress.Range/>
+                                </Progress.Track>
+                            </Progress.Root>
+                        </Box>
+                    )}
                 </Box>
             </Flex>
         </Box>

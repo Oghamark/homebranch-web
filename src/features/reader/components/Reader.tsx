@@ -3,6 +3,7 @@ import { getThemeColors } from "../types/ReaderTheme";
 import {type IReactReaderStyle, ReactReader, ReactReaderStyle} from "react-reader";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {Box, Flex, IconButton, Spinner, Text, useMediaQuery} from "@chakra-ui/react";
+import {getStoredProgress, storeProgress} from "../utils/readingProgress";
 import {useNavigate} from "react-router";
 import {config} from "@/shared";
 import ToastFactory from "@/app/utils/toast_handler";
@@ -123,7 +124,13 @@ export function Reader({book}: ReaderProps) {
     const colors = getThemeColors(themeState.mode);
 
     const [location, setLocation] = useState<string | number>(getInitialLocation(book.id));
+    const [percentage, setPercentage] = useState<number | undefined>(() => {
+        const userId = sessionStorage.getItem("user_id");
+        if (!userId) return undefined;
+        return getStoredProgress(userId, book.id);
+    });
     const renditionRef = useRef<Rendition | null>(null);
+    const relocatedHandlerRef = useRef<((loc: any) => void) | null>(null);
     const themeStateRef = useRef(themeState);
     themeStateRef.current = themeState;
     const pendingServerPosRef = useRef<SavedPosition | null>(null);
@@ -218,9 +225,40 @@ export function Reader({book}: ReaderProps) {
         return () => clearTimeout(timer);
     }, [showKeyboardHint, isMobile]);
 
+    useEffect(() => {
+        return () => {
+            if (renditionRef.current && relocatedHandlerRef.current) {
+                renditionRef.current.off('relocated', relocatedHandlerRef.current);
+            }
+        };
+    }, []);
+
     const handleGetRendition = useCallback((rendition: Rendition) => {
         renditionRef.current = rendition;
         applyRenditionTheme(rendition, themeStateRef.current);
+
+        rendition.book.ready.then(() => {
+            rendition.book.locations.generate(1600).then(() => {
+                const location = rendition.currentLocation() as any;
+                if (location?.start?.percentage !== undefined) {
+                    const percentage = location.start.percentage as number;
+                    setPercentage(percentage);
+                    const userId = sessionStorage.getItem("user_id");
+                    if (userId) storeProgress(userId, book.id, percentage);
+                }
+            });
+        });
+
+        const relocatedHandler = (location: any) => {
+            if (location?.start?.percentage !== undefined) {
+                const percentage = location.start.percentage as number;
+                setPercentage(percentage);
+                const userId = sessionStorage.getItem("user_id");
+                if (userId) storeProgress(userId, book.id, percentage);
+            }
+        };
+        relocatedHandlerRef.current = relocatedHandler;
+        rendition.on('relocated', relocatedHandler);
 
         const pending = pendingServerPosRef.current;
         if (pending) {
@@ -229,7 +267,7 @@ export function Reader({book}: ReaderProps) {
                 buildModalCase(pending, rendition);
             });
         }
-    }, [buildModalCase]);
+    }, [buildModalCase, book.id]);
 
     const handleLocationChanged = useCallback(
         (newLocation: string | number) => {
@@ -344,6 +382,39 @@ export function Reader({book}: ReaderProps) {
                     onKeepLocal={handleKeepLocal}
                     onClose={() => setModalCase(null)}
                 />
+            )}
+
+            {percentage !== undefined && (
+                <Box
+                    position="fixed"
+                    bottom={0}
+                    left={0}
+                    right={0}
+                    h="3px"
+                    bg={colors.uiBg}
+                    zIndex={1002}
+                >
+                    <Box
+                        h="100%"
+                        w={`${Math.round(percentage * 100)}%`}
+                        bg={colors.muted}
+                        transition="width 0.4s ease"
+                    />
+                </Box>
+            )}
+
+            {percentage !== undefined && (
+                <Text
+                    position="fixed"
+                    bottom={1}
+                    right={2}
+                    fontSize="xs"
+                    color={colors.muted}
+                    zIndex={1002}
+                    userSelect="none"
+                >
+                    {Math.round(percentage * 100)}%
+                </Text>
             )}
         </>
     );
