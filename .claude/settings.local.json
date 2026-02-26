@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir /b \"C:\\\\Users\\\\ryanb\\\\WebstormProjects\\\\homebranch-web\\\\src\")",
+      "Bash(gh issue view:*)",
+      "Bash(npm run typecheck:*)"
+    ]
+  }
+}
