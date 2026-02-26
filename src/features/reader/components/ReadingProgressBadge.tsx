@@ -5,7 +5,7 @@ interface ReadingProgressBadgeProps {
 }
 
 export function ReadingProgressBadge({percentage}: ReadingProgressBadgeProps) {
-    const pct = Math.round(percentage * 100);
+    const roundedPercentage = Math.round(percentage * 100);
     return (
         <Box
             position="absolute"
@@ -25,13 +25,13 @@ export function ReadingProgressBadge({percentage}: ReadingProgressBadgeProps) {
                 <Box flex={1} h="2px" bg="whiteAlpha.400" borderRadius="full">
                     <Box
                         h="100%"
-                        w={`${pct}%`}
+                        w={`${roundedPercentage}%`}
                         bg="blue.400"
                         borderRadius="full"
                     />
                 </Box>
                 <Text color="white" fontSize="xs" flexShrink={0} minW="28px" textAlign="right">
-                    {pct}%
+                    {roundedPercentage}%
                 </Text>
             </Flex>
         </Box>

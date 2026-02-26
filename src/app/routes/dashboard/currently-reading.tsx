@@ -27,8 +27,8 @@ export default function CurrentlyReading() {
         const userId = sessionStorage.getItem("user_id");
         if (!userId) return {} as Record<string, number>;
         return ids.reduce((acc, id) => {
-            const p = getStoredProgress(userId, id);
-            if (p !== undefined) acc[id] = p;
+            const progress = getStoredProgress(userId, id);
+            if (progress !== undefined) acc[id] = progress;
             return acc;
         }, {} as Record<string, number>);
     }, [ids]);

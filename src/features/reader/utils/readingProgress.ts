@@ -10,8 +10,8 @@ export function getStoredProgress(userId: string, bookId: string): number | unde
     if (!stored) return undefined;
     try {
         const data = JSON.parse(stored);
-        const val = data[bookId];
-        return typeof val === 'number' ? val : undefined;
+        const value = data[bookId];
+        return typeof value === 'number' ? value : undefined;
     } catch {
         return undefined;
     }

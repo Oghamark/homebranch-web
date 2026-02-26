@@ -239,22 +239,22 @@ export function Reader({book}: ReaderProps) {
 
         rendition.book.ready.then(() => {
             rendition.book.locations.generate(1600).then(() => {
-                const loc = rendition.currentLocation() as any;
-                if (loc?.start?.percentage !== undefined) {
-                    const pct = loc.start.percentage as number;
-                    setPercentage(pct);
+                const location = rendition.currentLocation() as any;
+                if (location?.start?.percentage !== undefined) {
+                    const percentage = location.start.percentage as number;
+                    setPercentage(percentage);
                     const userId = sessionStorage.getItem("user_id");
-                    if (userId) storeProgress(userId, book.id, pct);
+                    if (userId) storeProgress(userId, book.id, percentage);
                 }
             });
         });
 
-        const relocatedHandler = (loc: any) => {
-            if (loc?.start?.percentage !== undefined) {
-                const pct = loc.start.percentage as number;
-                setPercentage(pct);
+        const relocatedHandler = (location: any) => {
+            if (location?.start?.percentage !== undefined) {
+                const percentage = location.start.percentage as number;
+                setPercentage(percentage);
                 const userId = sessionStorage.getItem("user_id");
-                if (userId) storeProgress(userId, book.id, pct);
+                if (userId) storeProgress(userId, book.id, percentage);
             }
         };
         relocatedHandlerRef.current = relocatedHandler;
