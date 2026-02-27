@@ -49,6 +49,7 @@ export default function Author({params}: Route.ComponentProps) {
                     authorName={authorName}
                     biography={authorData?.biography}
                     profilePictureUrl={authorData?.profilePictureUrl}
+                    isAuthorLoading={isAuthorLoading}
                     books={books}
                     fetchMore={fetchNextPage}
                     hasMore={hasNextPage ?? false}
