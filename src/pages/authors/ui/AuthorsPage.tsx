@@ -11,7 +11,7 @@ interface AuthorsPageProps {
 
 export function AuthorGridSkeletons({count = 12}: { count?: number } = {}) {
     return (
-        <Grid gridTemplateColumns="repeat(auto-fill, minmax(200px, 1fr))" gap={4} p={1}>
+        <Grid gridTemplateColumns="repeat(auto-fill, minmax(160px, 1fr))" gap={2} p={1}>
             {Array.from({length: count}).map((_, index) => (
                 <AuthorCardSkeleton key={index}/>
             ))}
@@ -29,7 +29,7 @@ export function AuthorsPage({authors, hasMore, totalAuthors, fetchMore}: Authors
             loader={<AuthorGridSkeletons count={remaining}/>}
             dataLength={authors.length}
         >
-            <Grid gridTemplateColumns="repeat(auto-fill, minmax(200px, 1fr))" gap={4} p={1} pb={3}>
+            <Grid gridTemplateColumns="repeat(auto-fill, minmax(160px, 1fr))" gap={2} p={1} pb={3}>
                 <For each={authors}>
                     {(author, _index) => (
                         <AuthorCard author={author}/>
