@@ -9,7 +9,7 @@ import {ManageBookShelvesButton} from "@/entities/bookShelf";
 import {Tooltip} from "@/components/ui/tooltip";
 import {deleteSavedPosition, getSavedPosition} from "@/features/reader/api/savedPositionApi";
 import ToastFactory from "@/app/utils/toast_handler";
-import {getStoredProgress, removeStoredProgress} from "@/features/reader";
+import {getStoredProgress, removeStoredProgress, clearLocationsCache} from "@/features/reader";
 
 export interface BookDetailsPageProps {
     book: BookModel
@@ -32,7 +32,7 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
         isBookOpenedLocally(book.id)
     );
 
-    const [progress] = useState<number | undefined>(() => {
+    const [progress, setProgress] = useState<number | undefined>(() => {
         const userId = sessionStorage.getItem("user_id");
         if (!userId) return undefined;
         return getStoredProgress(userId, book.id);
@@ -58,6 +58,8 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
         }
         const userId = sessionStorage.getItem("user_id");
         if (userId) removeStoredProgress(userId, bookId);
+        clearLocationsCache(bookId);
+        setProgress(undefined);
         const currentlyReading = JSON.parse(
             localStorage.getItem(`currentlyReading_${sessionStorage.getItem("user_id")}`) ?? "{}"
         );

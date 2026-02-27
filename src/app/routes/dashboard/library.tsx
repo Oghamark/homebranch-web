@@ -1,10 +1,11 @@
 import {BookGridSkeletons, LibraryPage} from "@/pages/library";
 import type {Route} from "./+types/library";
-import {useMemo} from "react";
+import {useEffect, useMemo} from "react";
 import {Flex, Heading, Stack} from "@chakra-ui/react";
 import {useGetBooksInfiniteQuery} from "@/entities/book";
 import {useLibrarySearch} from "@/features/library";
 import {LuLibrary} from "react-icons/lu";
+import {cleanupStaleLocationCaches} from "@/features/reader";
 
 export function meta({}: Route.MetaArgs) {
     return [
@@ -20,6 +21,13 @@ export default function Library() {
     const books = useMemo(() => {
         return data?.pages.flatMap(page => page.data) ?? []
     }, [data])
+
+    useEffect(() => {
+        if (!isLoading && !hasNextPage) {
+            const allIds = data?.pages.flatMap(page => page.data.map(b => b.id)) ?? [];
+            cleanupStaleLocationCaches(allIds);
+        }
+    }, [isLoading, hasNextPage, data]);
 
     if (!isLoading && books.length === 0) {
         return _noBooks()

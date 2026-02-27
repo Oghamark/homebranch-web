@@ -4,6 +4,7 @@ import {type IReactReaderStyle, ReactReader, ReactReaderStyle} from "react-reade
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {Box, Flex, IconButton, Spinner, Text, useMediaQuery} from "@chakra-ui/react";
 import {getStoredProgress, storeProgress} from "../utils/readingProgress";
+import {getOrGenerateLocations} from "../utils/epubLocations";
 import {useNavigate} from "react-router";
 import {config} from "@/shared";
 import ToastFactory from "@/app/utils/toast_handler";
@@ -129,11 +130,14 @@ export function Reader({book}: ReaderProps) {
         if (!userId) return undefined;
         return getStoredProgress(userId, book.id);
     });
+    const [locationsReady, setLocationsReady] = useState(false);
     const renditionRef = useRef<Rendition | null>(null);
     const relocatedHandlerRef = useRef<((loc: any) => void) | null>(null);
     const themeStateRef = useRef(themeState);
     themeStateRef.current = themeState;
     const pendingServerPosRef = useRef<SavedPosition | null>(null);
+    const mountedRef = useRef(true);
+    const locationsReadyRef = useRef(false);
 
     const [isMobile] = useMediaQuery(["(max-width: 768px)"]);
 
@@ -227,6 +231,8 @@ export function Reader({book}: ReaderProps) {
 
     useEffect(() => {
         return () => {
+            mountedRef.current = false;
+            locationsReadyRef.current = false;
             if (renditionRef.current && relocatedHandlerRef.current) {
                 renditionRef.current.off('relocated', relocatedHandlerRef.current);
             }
@@ -237,24 +243,28 @@ export function Reader({book}: ReaderProps) {
         renditionRef.current = rendition;
         applyRenditionTheme(rendition, themeStateRef.current);
 
-        rendition.book.ready.then(() => {
-            rendition.book.locations.generate(1600).then(() => {
-                const location = rendition.currentLocation() as any;
-                if (location?.start?.percentage !== undefined) {
-                    const percentage = location.start.percentage as number;
-                    setPercentage(percentage);
-                    const userId = sessionStorage.getItem("user_id");
-                    if (userId) storeProgress(userId, book.id, percentage);
-                }
-            });
+        rendition.book.ready.then(async () => {
+            await getOrGenerateLocations(rendition.book, book.id);
+            if (!mountedRef.current) return;
+            locationsReadyRef.current = true;
+            setLocationsReady(true);
+            const location = rendition.currentLocation() as any;
+            if (location?.start?.percentage !== undefined) {
+                const percentage = location.start.percentage as number;
+                setPercentage(percentage);
+                const userId = sessionStorage.getItem("user_id");
+                if (userId) storeProgress(userId, book.id, percentage);
+            }
         });
 
         const relocatedHandler = (location: any) => {
             if (location?.start?.percentage !== undefined) {
                 const percentage = location.start.percentage as number;
                 setPercentage(percentage);
-                const userId = sessionStorage.getItem("user_id");
-                if (userId) storeProgress(userId, book.id, percentage);
+                if (locationsReadyRef.current) {
+                    const userId = sessionStorage.getItem("user_id");
+                    if (userId) storeProgress(userId, book.id, percentage);
+                }
             }
         };
         relocatedHandlerRef.current = relocatedHandler;
@@ -394,16 +404,26 @@ export function Reader({book}: ReaderProps) {
                     bg={colors.uiBg}
                     zIndex={1002}
                 >
-                    <Box
-                        h="100%"
-                        w={`${Math.round(percentage * 100)}%`}
-                        bg={colors.muted}
-                        transition="width 0.4s ease"
-                    />
+                    {locationsReady ? (
+                        <Box
+                            h="100%"
+                            w={`${Math.round(percentage * 100)}%`}
+                            bg={colors.muted}
+                            transition="width 0.4s ease"
+                        />
+                    ) : (
+                        <Box
+                            h="100%"
+                            w="30%"
+                            bg={colors.muted}
+                            opacity={0.4}
+                            animation="pulse 1.5s ease-in-out infinite"
+                        />
+                    )}
                 </Box>
             )}
 
-            {percentage !== undefined && (
+            {locationsReady && percentage !== undefined && (
                 <Text
                     position="fixed"
                     bottom={1}
