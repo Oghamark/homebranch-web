@@ -124,9 +124,23 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
                 </Stack>
                 <Box flex={1}>
                     <Heading size={{base: "xl", md: "2xl"}}>{book.title}</Heading>
-                    <Text color="fg.muted" fontSize="md" mt={1}>
-                        {book.author}
-                    </Text>
+                    <Box color="fg.muted" fontSize="md" mt={1}>
+                        {book.author && book.author.trim() ? (
+                            <Link
+                                to={`/authors/${encodeURIComponent(book.author)}`}
+                                style={{textDecoration: "none", color: "inherit"}}
+                            >
+                                <Box
+                                    as="span"
+                                    _hover={{textDecoration: "underline"}}
+                                >
+                                    {book.author}
+                                </Box>
+                            </Link>
+                        ) : (
+                            <Box as="span">{book.author || "Unknown Author"}</Box>
+                        )}
+                    </Box>
                     <Separator my={4}/>
                     <Text fontSize="md" color="fg.muted">
                         Published Year: {book.publishedYear}
