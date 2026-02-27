@@ -1,9 +1,11 @@
 import {BookCard, BookCardSkeleton, type BookModel} from "@/entities/book";
-import {For, Grid, Heading, Stack} from "@chakra-ui/react";
+import {Avatar, Box, For, Grid, Heading, Skeleton, Stack, Text} from "@chakra-ui/react";
 import InfiniteScroll from "react-infinite-scroll-component";
 
 interface AuthorPageProps {
     authorName: string;
+    biography?: string | null;
+    profilePictureUrl?: string | null;
     books: BookModel[];
     hasMore: boolean;
     totalBooks?: number;
@@ -20,12 +22,25 @@ function BookGridSkeletons({count = 12}: { count?: number } = {}) {
     );
 }
 
-export function AuthorPage({authorName, books, hasMore, totalBooks, fetchMore}: AuthorPageProps) {
+export function AuthorPage({authorName, biography, profilePictureUrl, books, hasMore, totalBooks, fetchMore}: AuthorPageProps) {
     const remaining = totalBooks != null ? Math.max(totalBooks - books.length, 0) : 12;
 
     return (
-        <Stack gap={4}>
-            <Heading size="2xl">{authorName}</Heading>
+        <Stack gap={6}>
+            <Stack direction="row" gap={4} align="flex-start">
+                <Avatar.Root size="2xl" flexShrink={0}>
+                    <Avatar.Fallback name={authorName}/>
+                    {profilePictureUrl && <Avatar.Image src={profilePictureUrl} alt={authorName}/>}
+                </Avatar.Root>
+                <Box>
+                    <Heading size="2xl">{authorName}</Heading>
+                    {biography && (
+                        <Text mt={2} color="fg.muted" maxW="prose">
+                            {biography}
+                        </Text>
+                    )}
+                </Box>
+            </Stack>
             <InfiniteScroll
                 next={fetchMore}
                 hasMore={hasMore && books.length > 0}
@@ -40,6 +55,22 @@ export function AuthorPage({authorName, books, hasMore, totalBooks, fetchMore}: 
                     </For>
                 </Grid>
             </InfiniteScroll>
+        </Stack>
+    );
+}
+
+export function AuthorPageSkeleton() {
+    return (
+        <Stack gap={6}>
+            <Stack direction="row" gap={4} align="flex-start">
+                <Skeleton width="80px" height="80px" borderRadius="full" flexShrink={0}/>
+                <Box>
+                    <Skeleton height="2rem" width="200px"/>
+                    <Skeleton height="1rem" width="400px" mt={2}/>
+                    <Skeleton height="1rem" width="350px" mt={1}/>
+                </Box>
+            </Stack>
+            <BookGridSkeletons/>
         </Stack>
     );
 }

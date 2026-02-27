@@ -1,6 +1,6 @@
 export type AuthorModel = {
     name: string;
     bookCount: number;
-    biography?: string;
-    profilePictureFileName?: string;
+    biography?: string | null;
+    profilePictureUrl?: string | null;
 }
