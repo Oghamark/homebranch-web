@@ -40,6 +40,10 @@ export const authorsApi = homebranchApi.injectEndpoints({
                     ]
                 ) ?? [{type: 'Author', id: 'LIST'}, 'Author']
         }),
+        getAuthor: build.query<AuthorModel, string>({
+            query: (name) => ({url: `/authors/${encodeURIComponent(name)}`}),
+            providesTags: (_result, _error, name) => [{type: 'Author', id: name}],
+        }),
         getBooksByAuthor: build.infiniteQuery<PaginationResult<BookModel[]>, { authorName: string; query: string }, number>({
             infiniteQueryOptions: {
                 initialPageParam: 0,
@@ -72,10 +76,33 @@ export const authorsApi = homebranchApi.injectEndpoints({
                     ]
                 ) ?? [{type: 'Book', id: 'LIST'}]
         }),
+        updateAuthor: build.mutation<AuthorModel, { name: string; biography: string }>({
+            query: ({name, biography}) => ({
+                url: `/authors/${encodeURIComponent(name)}`,
+                method: 'PATCH',
+                body: {biography},
+            }),
+            invalidatesTags: (_result, _error, {name}) => [{type: 'Author', id: name}],
+        }),
+        uploadAuthorProfilePicture: build.mutation<AuthorModel, { name: string; file: File }>({
+            query: ({name, file}) => {
+                const formData = new FormData();
+                formData.append('file', file);
+                return {
+                    url: `/authors/${encodeURIComponent(name)}/profile-picture`,
+                    method: 'POST',
+                    body: formData,
+                };
+            },
+            invalidatesTags: (_result, _error, {name}) => [{type: 'Author', id: name}],
+        }),
     }),
 });
 
 export const {
     useGetAuthorsInfiniteQuery,
+    useGetAuthorQuery,
     useGetBooksByAuthorInfiniteQuery,
+    useUpdateAuthorMutation,
+    useUploadAuthorProfilePictureMutation,
 } = authorsApi;

@@ -1,9 +1,8 @@
-import {AuthorPage} from "@/pages/author";
+import {AuthorPage, AuthorPageSkeleton} from "@/pages/author";
 import type {Route} from "./+types/author";
 import {useEffect, useMemo} from "react";
-import {Stack, Heading} from "@chakra-ui/react";
-import {useGetBooksByAuthorInfiniteQuery} from "@/entities/author";
-import {BookGridSkeletons} from "@/pages/library";
+import {Heading, Stack} from "@chakra-ui/react";
+import {useGetAuthorQuery, useGetBooksByAuthorInfiniteQuery} from "@/entities/author";
 import {useLibrarySearch} from "@/features/library";
 import {handleRtkError} from "@/shared/api/rtk-query";
 
@@ -17,20 +16,26 @@ export function meta({params}: Route.MetaArgs) {
 export default function Author({params}: Route.ComponentProps) {
     const authorName = decodeURIComponent(params.authorName);
     const query = useLibrarySearch();
-    const {data, hasNextPage, fetchNextPage, isLoading, error} = useGetBooksByAuthorInfiniteQuery({
+
+    const {data: authorData, isLoading: isAuthorLoading, error: authorError} = useGetAuthorQuery(authorName);
+    const {data, hasNextPage, fetchNextPage, isLoading: isBooksLoading, error: booksError} = useGetBooksByAuthorInfiniteQuery({
         authorName,
         query,
     });
 
     useEffect(() => {
-        if (error) {
-            handleRtkError(error);
-        }
-    }, [error]);
+        if (authorError) handleRtkError(authorError);
+    }, [authorError]);
+
+    useEffect(() => {
+        if (booksError) handleRtkError(booksError);
+    }, [booksError]);
 
     const books = useMemo(() => {
         return data?.pages.flatMap(page => page.data) ?? [];
     }, [data]);
+
+    const isLoading = isBooksLoading;
 
     if (!isLoading && books.length === 0) {
         return _noBooks(authorName);
@@ -39,8 +44,16 @@ export default function Author({params}: Route.ComponentProps) {
     return (
         <Stack gap={4}>
             {isLoading
-                ? <BookGridSkeletons/>
-                : <AuthorPage authorName={authorName} books={books} fetchMore={fetchNextPage} hasMore={hasNextPage ?? false} totalBooks={data?.pages[0]?.total}/>
+                ? <AuthorPageSkeleton/>
+                : <AuthorPage
+                    authorName={authorName}
+                    biography={authorData?.biography}
+                    profilePictureUrl={authorData?.profilePictureUrl}
+                    books={books}
+                    fetchMore={fetchNextPage}
+                    hasMore={hasNextPage ?? false}
+                    totalBooks={data?.pages[0]?.total}
+                />
             }
         </Stack>
     );

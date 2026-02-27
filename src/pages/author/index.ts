@@ -1,1 +1,1 @@
-export {AuthorPage} from "./ui/AuthorPage";
+export {AuthorPage, AuthorPageSkeleton} from "./ui/AuthorPage";
