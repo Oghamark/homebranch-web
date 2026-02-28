@@ -1,8 +1,23 @@
 import {BookCard, BookCardSkeleton, type BookModel} from "@/entities/book";
-import {Avatar, Box, Button, Card, For, Grid, Heading, Image, Link, Skeleton, Stack, Text} from "@chakra-ui/react";
+import {
+    Avatar,
+    Box,
+    Button,
+    Card,
+    Flex,
+    For,
+    Grid,
+    Heading,
+    Image,
+    Link,
+    Skeleton,
+    Stack,
+    Text
+} from "@chakra-ui/react";
 import InfiniteScroll from "react-infinite-scroll-component";
 import {useState} from "react";
 import ReactMarkdown from "react-markdown";
+import {ShowAllUsersButton} from "@/features/library";
 
 interface AuthorPageProps {
     authorName: string;
@@ -164,6 +179,9 @@ export function AuthorPage({authorName, biography, profilePictureUrl, isAuthorLo
                 ? <AuthorHeroSkeleton/>
                 : <AuthorHero authorName={authorName} biography={biography} profilePictureUrl={profilePictureUrl}/>
             }
+            <Flex display={{base: "none", md: "flex"}} justify="flex-end">
+                <ShowAllUsersButton showLabel/>
+            </Flex>
             <InfiniteScroll
                 next={fetchMore}
                 hasMore={hasMore && books.length > 0}
