@@ -44,7 +44,7 @@ export const authorsApi = homebranchApi.injectEndpoints({
             query: (name) => ({url: `/authors/${encodeURIComponent(name)}`}),
             providesTags: (_result, _error, name) => [{type: 'Author', id: name}],
         }),
-        getBooksByAuthor: build.infiniteQuery<PaginationResult<BookModel[]>, { authorName: string; query: string }, number>({
+        getBooksByAuthor: build.infiniteQuery<PaginationResult<BookModel[]>, { authorName: string; query: string; userId?: string }, number>({
             infiniteQueryOptions: {
                 initialPageParam: 0,
                 getNextPageParam: (
@@ -67,7 +67,7 @@ export const authorsApi = homebranchApi.injectEndpoints({
                 }
             },
             query: ({queryArg, pageParam}) =>
-                ({url: `/authors/${encodeURIComponent(queryArg.authorName)}/books?query=${encodeURIComponent(queryArg.query)}&limit=${config.itemsPerPage}&offset=${pageParam * config.itemsPerPage}`}),
+                ({url: `/authors/${encodeURIComponent(queryArg.authorName)}/books?query=${encodeURIComponent(queryArg.query)}${queryArg.userId ? `&userId=${encodeURIComponent(queryArg.userId)}` : ''}&limit=${config.itemsPerPage}&offset=${pageParam * config.itemsPerPage}`}),
             providesTags: (result) =>
                 result?.pages.flatMap(page =>
                     [
