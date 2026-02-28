@@ -13,7 +13,10 @@ export const authConfigApi = homebranchApi.injectEndpoints({
             queryFn: async () => {
                 try {
                     const response = await authAxiosInstance.get<Result<AuthConfig>>('/config');
-                    return {data: response.data.value as AuthConfig};
+                    if (!response.data.success || !response.data.value) {
+                        return {error: {status: 'PARSING_ERROR', data: response.data.message ?? 'Invalid response'} as FetchBaseQueryError};
+                    }
+                    return {data: response.data.value};
                 } catch (error: unknown) {
                     const axiosError = error as {response?: {status: number; data?: {message?: string}}};
                     if (axiosError.response) {
@@ -28,7 +31,10 @@ export const authConfigApi = homebranchApi.injectEndpoints({
             queryFn: async (body) => {
                 try {
                     const response = await authAxiosInstance.patch<Result<AuthConfig>>('/config', body);
-                    return {data: response.data.value as AuthConfig};
+                    if (!response.data.success || !response.data.value) {
+                        return {error: {status: 'PARSING_ERROR', data: response.data.message ?? 'Invalid response'} as FetchBaseQueryError};
+                    }
+                    return {data: response.data.value};
                 } catch (error: unknown) {
                     const axiosError = error as {response?: {status: number; data?: {message?: string}}};
                     if (axiosError.response) {

@@ -43,7 +43,10 @@ export const usersApi = homebranchApi.injectEndpoints({
             queryFn: async ({id, role}) => {
                 try {
                     const response = await authAxiosInstance.patch<Result<UserModel>>(`/users/${id}/role`, {role});
-                    return {data: response.data.value as UserModel};
+                    if (!response.data.success || !response.data.value) {
+                        return {error: {status: 'PARSING_ERROR', data: response.data.message ?? 'Invalid response'} as FetchBaseQueryError};
+                    }
+                    return {data: response.data.value};
                 } catch (error: unknown) {
                     const axiosError = error as {response?: {status: number; data?: {message?: string}}};
                     if (axiosError.response) {
@@ -58,7 +61,10 @@ export const usersApi = homebranchApi.injectEndpoints({
             queryFn: async (request) => {
                 try {
                     const response = await authAxiosInstance.post<Result<UserModel>>('/users', request);
-                    return {data: response.data.value as UserModel};
+                    if (!response.data.success || !response.data.value) {
+                        return {error: {status: 'PARSING_ERROR', data: response.data.message ?? 'Invalid response'} as FetchBaseQueryError};
+                    }
+                    return {data: response.data.value};
                 } catch (error: unknown) {
                     const axiosError = error as {response?: {status: number; data?: {message?: string}}};
                     if (axiosError.response) {

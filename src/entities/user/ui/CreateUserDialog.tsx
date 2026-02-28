@@ -19,6 +19,10 @@ export function CreateUserDialog() {
 
     async function handleSubmit(e: React.FormEvent) {
         e.preventDefault();
+        if (form.password !== form.password_confirmation) {
+            toaster.error({description: 'Passwords do not match'});
+            return;
+        }
         try {
             await createUser(form).unwrap();
             toaster.success({description: `User ${form.name} created successfully`});
