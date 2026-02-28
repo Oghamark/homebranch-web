@@ -1,9 +1,10 @@
-export type AssignRoleRequest = {
-    roleId: string;
+export type UpdateUserRoleRequest = {
+    role: 'ADMIN' | 'USER';
 }
 
 export type CreateUserRequest = {
-    username: string;
+    name: string;
     email: string;
     password: string;
+    password_confirmation: string;
 }

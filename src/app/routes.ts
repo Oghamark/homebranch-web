@@ -7,6 +7,8 @@ export default [
         route("books/:bookId/read", "routes/dashboard/read-book.tsx"),
         route("currently-reading", "routes/dashboard/currently-reading.tsx"),
         route("favorites", "routes/dashboard/favorites.tsx"),
+        route("authors", "routes/dashboard/authors.tsx"),
+        route("authors/:authorName", "routes/dashboard/author.tsx"),
         index("routes/dashboard/library.tsx"),
         route("settings", "routes/dashboard/settings.tsx"),
         route("statistics", "routes/dashboard/statistics.tsx"),

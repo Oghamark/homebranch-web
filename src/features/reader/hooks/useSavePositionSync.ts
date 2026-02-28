@@ -15,10 +15,10 @@ export function useSavePositionSync(bookId: string, deviceName: string) {
     const onLocationChange = useCallback(
         (location: string | number) => {
             const currentlyReading = JSON.parse(
-                localStorage.getItem("currentlyReading") ?? "{}",
+                localStorage.getItem(`currentlyReading_${sessionStorage.getItem("user_id")}`) ?? "{}",
             );
             currentlyReading[bookId] = location;
-            localStorage.setItem("currentlyReading", JSON.stringify(currentlyReading));
+            localStorage.setItem(`currentlyReading_${sessionStorage.getItem("user_id")}`, JSON.stringify(currentlyReading));
 
             if (timerRef.current) clearTimeout(timerRef.current);
             timerRef.current = setTimeout(async () => {

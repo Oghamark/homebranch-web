@@ -1,6 +1,7 @@
 import {Button, CloseButton, Dialog, IconButton, Loader, Portal,} from "@chakra-ui/react";
 import {LuTrash2} from "react-icons/lu";
 import {Tooltip} from "@/components/ui/tooltip";
+import {useState} from "react";
 
 interface DeleteConfirmationDialogProps<T> {
     title: string;
@@ -15,8 +16,15 @@ export function DeleteConfirmationDialog<T>({
                                                 title,
                                                 size,
                                             }: DeleteConfirmationDialogProps<T>) {
+    const [open, setOpen] = useState(false);
+
+    async function handleSubmit() {
+        await onSubmit();
+        setOpen(false);
+    }
+
     return (
-        <Dialog.Root>
+        <Dialog.Root open={open} onOpenChange={(e) => setOpen(e.open)}>
             <Tooltip content="Delete">
                 <Dialog.Trigger asChild>
                     <IconButton variant={"subtle"} size={size}>
@@ -38,7 +46,7 @@ export function DeleteConfirmationDialog<T>({
                             <Dialog.ActionTrigger asChild>
                                 <Button variant="ghost">Cancel</Button>
                             </Dialog.ActionTrigger>
-                            <Button variant={"subtle"} disabled={loading} onClick={onSubmit} color={"fg.error"}>
+                            <Button variant={"subtle"} disabled={loading} onClick={handleSubmit} color={"fg.error"}>
                                 {loading ? <Loader/> : "Delete"}
                             </Button>
                         </Dialog.Footer>

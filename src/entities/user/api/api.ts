@@ -1,64 +1,99 @@
 import {homebranchApi} from "@/shared/api/rtk-query";
-import type {AssignRoleRequest, UserModel} from "@/entities/user";
-import type {PaginationResult} from "@/shared/api/api_response";
-import {config} from "@/shared";
+import type {CreateUserRequest, UpdateUserRoleRequest, UserModel} from "@/entities/user";
+import {authAxiosInstance} from "@/shared/api";
+import type {FetchBaseQueryError} from "@reduxjs/toolkit/query";
+import type {Result} from "@/shared";
 
 export const usersApi = homebranchApi.injectEndpoints({
     endpoints: (build => ({
-        getUsers: build.infiniteQuery<PaginationResult<UserModel[]>, void, number>({
-            infiniteQueryOptions: {
-                initialPageParam: 0,
-                getNextPageParam: (
-                    lastPage,
-                    _allPages,
-                    lastPageParam,
-                    _allPageParams,
-                    _queryArg,
-                ) => {
-                    const nextPage = lastPageParam + 1
-                    const remainingPages = Math.ceil(lastPage?.total / config.itemsPerPage) - nextPage
-
-                    if (remainingPages <= 0) {
-                        return undefined;
+        getUsers: build.query<UserModel[], void>({
+            queryFn: async () => {
+                try {
+                    const response = await authAxiosInstance.get<UserModel[]>('/users');
+                    return {data: response.data};
+                } catch (error: unknown) {
+                    const axiosError = error as {response?: {status: number; data?: {message?: string}}};
+                    if (axiosError.response) {
+                        return {error: {status: axiosError.response.status, data: axiosError.response.data?.message ?? 'Error'} as FetchBaseQueryError};
                     }
-
-                    return nextPage;
+                    return {error: {status: 'FETCH_ERROR', error: 'Network error'} as FetchBaseQueryError};
                 }
             },
-            query: ({pageParam}) =>
-                ({url: `/users?limit=${config.itemsPerPage}&offset=${pageParam * config.itemsPerPage}`}),
             providesTags: (result) =>
-                result?.pages.flatMap(page =>
-                    [
-                        ...page.data.map(({id}: UserModel) => ({type: 'User' as const, id: id})),
-                        {type: 'User', id: 'LIST'},
-                        'User'
-                    ]
-                ) ?? [{type: 'User', id: 'LIST'}, 'User']
+                result
+                    ? [...result.map(({id}) => ({type: 'User' as const, id})), {type: 'User', id: 'LIST'}]
+                    : [{type: 'User', id: 'LIST'}]
         }),
         getUserById: build.query<UserModel, string>({
-            query: userId => ({url: `/users/${userId}`}),
+            queryFn: async (userId) => {
+                try {
+                    const response = await authAxiosInstance.get<UserModel>(`/users/${userId}`);
+                    return {data: response.data};
+                } catch (error: unknown) {
+                    const axiosError = error as {response?: {status: number; data?: {message?: string}}};
+                    if (axiosError.response) {
+                        return {error: {status: axiosError.response.status, data: axiosError.response.data?.message ?? 'Error'} as FetchBaseQueryError};
+                    }
+                    return {error: {status: 'FETCH_ERROR', error: 'Network error'} as FetchBaseQueryError};
+                }
+            },
             providesTags: result => result ? [{type: 'User' as const, id: result.id}] : []
         }),
-        restrictUser: build.mutation<UserModel, string>({
-            query: userId => ({url: `/users/${userId}/restrict`, method: 'PATCH'}),
+        updateUserRole: build.mutation<UserModel, { id: string } & UpdateUserRoleRequest>({
+            queryFn: async ({id, role}) => {
+                try {
+                    const response = await authAxiosInstance.patch<Result<UserModel>>(`/users/${id}/role`, {role});
+                    if (!response.data.success || !response.data.value) {
+                        return {error: {status: 'PARSING_ERROR', data: response.data.message ?? 'Invalid response'} as FetchBaseQueryError};
+                    }
+                    return {data: response.data.value};
+                } catch (error: unknown) {
+                    const axiosError = error as {response?: {status: number; data?: {message?: string}}};
+                    if (axiosError.response) {
+                        return {error: {status: axiosError.response.status, data: axiosError.response.data?.message ?? 'Error'} as FetchBaseQueryError};
+                    }
+                    return {error: {status: 'FETCH_ERROR', error: 'Network error'} as FetchBaseQueryError};
+                }
+            },
             invalidatesTags: [{type: 'User', id: 'LIST'}]
         }),
-        unrestrictUser: build.mutation<UserModel, string>({
-            query: userId => ({url: `/users/${userId}/unrestrict`, method: 'PATCH'}),
+        createUser: build.mutation<UserModel, CreateUserRequest>({
+            queryFn: async (request) => {
+                try {
+                    const response = await authAxiosInstance.post<UserModel>('/users', request);
+                    return {data: response.data};
+                } catch (error: unknown) {
+                    const axiosError = error as {response?: {status: number; data?: {message?: string}}};
+                    if (axiosError.response) {
+                        return {error: {status: axiosError.response.status, data: axiosError.response.data?.message ?? 'Error'} as FetchBaseQueryError};
+                    }
+                    return {error: {status: 'FETCH_ERROR', error: 'Network error'} as FetchBaseQueryError};
+                }
+            },
             invalidatesTags: [{type: 'User', id: 'LIST'}]
         }),
-        assignRole: build.mutation<UserModel, AssignRoleRequest & { id: string }>({
-            query: ({id, ...request}) => ({url: `/users/${id}/role`, method: 'PATCH', body: request}),
+        deleteUser: build.mutation<void, string>({
+            queryFn: async (email) => {
+                try {
+                    await authAxiosInstance.delete('/users', {data: {email}});
+                    return {data: undefined};
+                } catch (error: unknown) {
+                    const axiosError = error as {response?: {status: number; data?: {message?: string}}};
+                    if (axiosError.response) {
+                        return {error: {status: axiosError.response.status, data: axiosError.response.data?.message ?? 'Error'} as FetchBaseQueryError};
+                    }
+                    return {error: {status: 'FETCH_ERROR', error: 'Network error'} as FetchBaseQueryError};
+                }
+            },
             invalidatesTags: [{type: 'User', id: 'LIST'}]
-        })
+        }),
     }))
 })
 
 export const {
-    useGetUsersInfiniteQuery,
+    useGetUsersQuery,
     useGetUserByIdQuery,
-    useRestrictUserMutation,
-    useUnrestrictUserMutation,
-    useAssignRoleMutation,
+    useUpdateUserRoleMutation,
+    useCreateUserMutation,
+    useDeleteUserMutation,
 } = usersApi;

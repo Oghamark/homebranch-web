@@ -1,10 +1,13 @@
+import type { ReaderThemeState } from "../types/ReaderTheme";
+import { getThemeColors } from "../types/ReaderTheme";
 import {type IReactReaderStyle, ReactReader, ReactReaderStyle} from "react-reader";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {Box, Flex, IconButton, Spinner, Text, useMediaQuery} from "@chakra-ui/react";
+import {getStoredProgress, storeProgress} from "@/features/reader";
+import {getOrGenerateLocations} from "../utils/epubLocations";
 import {useNavigate} from "react-router";
 import {config} from "@/shared";
 import ToastFactory from "@/app/utils/toast_handler";
-import {useColorMode} from "@/components/ui/color-mode";
 import {LuX} from "react-icons/lu";
 import type {Rendition} from "epubjs";
 import type {NavItem} from "epubjs/types/navigation";
@@ -14,16 +17,32 @@ import {useDeviceName} from "../hooks/useDeviceName";
 import {useSavePositionSync} from "../hooks/useSavePositionSync";
 import type {SavedPosition} from "@/features/reader";
 import {JumpToSavedPositionModal, type ModalCase} from "@/features/reader";
+import { useAppSelector } from "@/app/hooks";
+import { ReaderSettingsMenu } from "./ReaderSettingsMenu";
 
 function getInitialLocation(bookId: string): string | number {
     if (typeof window === "undefined") return 0;
     const savedLocation = JSON.parse(
-        localStorage.getItem("currentlyReading") ?? "{}",
+        localStorage.getItem(`currentlyReading_${sessionStorage.getItem("user_id")}`) ?? "{}",
     )[bookId];
     return savedLocation ?? 0;
 }
 
 const KEYBOARD_HINT_KEY = "reader-keyboard-hint-shown";
+
+function applyRenditionTheme(rendition: Rendition, themeState: ReaderThemeState) {
+    const colors = getThemeColors(themeState.mode);
+
+    rendition.themes.override("color", colors.contentText);
+    rendition.themes.override("background", colors.contentBg);
+
+    rendition.themes.fontSize(`${themeState.fontSize ?? 100}%`);
+    if (themeState.fontFamily !== 'System Default') {
+        rendition.themes.font(themeState.fontFamily);
+    } else {
+        rendition.themes.font('inherit');
+    }
+}
 
 function resolvePositionLabel(cfi: string, toc: NavItem[], spineGetter: (index: number) => {
     href: string
@@ -99,14 +118,26 @@ interface ReaderProps {
 }
 
 export function Reader({book}: ReaderProps) {
-    const {colorMode} = useColorMode();
-    const isDark = colorMode === "dark";
+    // Completely detached from global colorMode to respect reader preferences
     const navigate = useNavigate();
     const deviceName = useDeviceName();
+    const themeState = useAppSelector(state => state.readerTheme);
+    const colors = getThemeColors(themeState.mode);
 
     const [location, setLocation] = useState<string | number>(getInitialLocation(book.id));
+    const [percentage, setPercentage] = useState<number | undefined>(() => {
+        const userId = sessionStorage.getItem("user_id");
+        if (!userId) return undefined;
+        return getStoredProgress(userId, book.id);
+    });
+    const [locationsReady, setLocationsReady] = useState(false);
     const renditionRef = useRef<Rendition | null>(null);
+    const relocatedHandlerRef = useRef<((loc: any) => void) | null>(null);
+    const themeStateRef = useRef(themeState);
+    themeStateRef.current = themeState;
     const pendingServerPosRef = useRef<SavedPosition | null>(null);
+    const mountedRef = useRef(true);
+    const locationsReadyRef = useRef(false);
 
     const [isMobile] = useMediaQuery(["(max-width: 768px)"]);
 
@@ -117,7 +148,7 @@ export function Reader({book}: ReaderProps) {
 
     const [modalCase, setModalCase] = useState<ModalCase | null>(null);
 
-    const readerTheme = useResponsiveReaderTheme(isDark);
+    const readerTheme = useResponsiveReaderTheme(themeState.mode);
     const {onLocationChange} = useSavePositionSync(book.id, deviceName);
 
     const buildModalCase = useCallback((serverPos: SavedPosition, rendition: Rendition) => {
@@ -186,14 +217,8 @@ export function Reader({book}: ReaderProps) {
     useEffect(() => {
         const rendition = renditionRef.current;
         if (!rendition) return;
-        if (isDark) {
-            rendition.themes.override("color", "#e2e8f0");
-            rendition.themes.override("background", "#1a202c");
-        } else {
-            rendition.themes.override("color", "#1a202c");
-            rendition.themes.override("background", "#ffffff");
-        }
-    }, [isDark]);
+        applyRenditionTheme(rendition, themeState);
+    }, [themeState]);
 
     useEffect(() => {
         if (!showKeyboardHint || isMobile) return;
@@ -204,15 +229,46 @@ export function Reader({book}: ReaderProps) {
         return () => clearTimeout(timer);
     }, [showKeyboardHint, isMobile]);
 
+    useEffect(() => {
+        return () => {
+            mountedRef.current = false;
+            locationsReadyRef.current = false;
+            if (renditionRef.current && relocatedHandlerRef.current) {
+                renditionRef.current.off('relocated', relocatedHandlerRef.current);
+            }
+        };
+    }, []);
+
     const handleGetRendition = useCallback((rendition: Rendition) => {
         renditionRef.current = rendition;
-        if (isDark) {
-            rendition.themes.override("color", "#e2e8f0");
-            rendition.themes.override("background", "#1a202c");
-        } else {
-            rendition.themes.override("color", "#1a202c");
-            rendition.themes.override("background", "#ffffff");
-        }
+        applyRenditionTheme(rendition, themeStateRef.current);
+
+        rendition.book.ready.then(async () => {
+            await getOrGenerateLocations(rendition.book, book.id);
+            if (!mountedRef.current) return;
+            locationsReadyRef.current = true;
+            setLocationsReady(true);
+            const location = rendition.currentLocation() as any;
+            if (location?.start?.percentage !== undefined) {
+                const percentage = location.start.percentage as number;
+                setPercentage(percentage);
+                const userId = sessionStorage.getItem("user_id");
+                if (userId) storeProgress(userId, book.id, percentage);
+            }
+        });
+
+        const relocatedHandler = (location: any) => {
+            if (location?.start?.percentage !== undefined) {
+                const percentage = location.start.percentage as number;
+                setPercentage(percentage);
+                if (locationsReadyRef.current) {
+                    const userId = sessionStorage.getItem("user_id");
+                    if (userId) storeProgress(userId, book.id, percentage);
+                }
+            }
+        };
+        relocatedHandlerRef.current = relocatedHandler;
+        rendition.on('relocated', relocatedHandler);
 
         const pending = pendingServerPosRef.current;
         if (pending) {
@@ -221,7 +277,7 @@ export function Reader({book}: ReaderProps) {
                 buildModalCase(pending, rendition);
             });
         }
-    }, [isDark, buildModalCase]);
+    }, [buildModalCase, book.id]);
 
     const handleLocationChanged = useCallback(
         (newLocation: string | number) => {
@@ -252,6 +308,7 @@ export function Reader({book}: ReaderProps) {
     return (
         <>
             <Box
+                bg={colors.bg}
                 h="100dvh"
                 w="100%"
                 position="fixed"
@@ -260,7 +317,8 @@ export function Reader({book}: ReaderProps) {
                 zIndex={1000}
             >
                 <ReactReader
-                    url={`${config.apiUrl}/uploads/books/${book.fileName}`}
+                    url={`${config.apiUrl}/books/${book.id}/download`}
+                    epubInitOptions={{ openAs: 'epub' }}
                     title={book.title}
                     location={location}
                     locationChanged={handleLocationChanged}
@@ -279,14 +337,15 @@ export function Reader({book}: ReaderProps) {
                             direction="column"
                             gap={3}
                         >
-                            <Spinner size="lg" color={isDark ? "#a0aec0" : "#718096"}/>
-                            <Text color={isDark ? "#a0aec0" : "#718096"} fontSize="sm">
+                            <Spinner size="lg" color={colors.muted}/>
+                            <Text color={colors.muted} fontSize="sm">
                                 Loading book...
                             </Text>
                         </Flex>
                     }
                 />
             </Box>
+            <ReaderSettingsMenu />
             <IconButton
                 aria-label="Close reader"
                 position="fixed"
@@ -295,11 +354,11 @@ export function Reader({book}: ReaderProps) {
                 zIndex={1001}
                 borderRadius="full"
                 size="sm"
-                bg={isDark ? "rgba(45, 55, 72, 0.8)" : "rgba(255, 255, 255, 0.8)"}
-                color={isDark ? "#e2e8f0" : "#2d3748"}
+                bg={colors.btnBg}
+                color={colors.text}
                 boxShadow="md"
                 _hover={{
-                    bg: isDark ? "rgba(45, 55, 72, 1)" : "rgba(237, 242, 247, 1)",
+                    bg: colors.btnHoverBg,
                 }}
                 onClick={() => navigate(-1)}
             >
@@ -313,7 +372,7 @@ export function Reader({book}: ReaderProps) {
                     left="50%"
                     transform="translateX(-50%)"
                     zIndex={1001}
-                    bg={isDark ? "rgba(45, 55, 72, 0.9)" : "rgba(74, 85, 104, 0.9)"}
+                    bg={themeState.mode === 'dark' ? "rgba(45, 55, 72, 0.9)" : themeState.mode === 'sepia' ? "rgba(91, 70, 54, 0.9)" : "rgba(74, 85, 104, 0.9)"}
                     color="white"
                     px={4}
                     py={2}
@@ -335,109 +394,156 @@ export function Reader({book}: ReaderProps) {
                     onClose={() => setModalCase(null)}
                 />
             )}
+
+            {percentage !== undefined && (
+                <Box
+                    position="fixed"
+                    bottom={0}
+                    left={0}
+                    right={0}
+                    h="3px"
+                    bg={colors.uiBg}
+                    zIndex={1002}
+                >
+                    {locationsReady ? (
+                        <Box
+                            h="100%"
+                            w={`${Math.round(percentage * 100)}%`}
+                            bg={colors.muted}
+                            transition="width 0.4s ease"
+                        />
+                    ) : (
+                        <Box
+                            h="100%"
+                            w="30%"
+                            bg={colors.muted}
+                            opacity={0.4}
+                            animation="pulse 1.5s ease-in-out infinite"
+                        />
+                    )}
+                </Box>
+            )}
+
+            {locationsReady && percentage !== undefined && (
+                <Text
+                    position="fixed"
+                    bottom={1}
+                    right={2}
+                    fontSize="xs"
+                    color={colors.muted}
+                    zIndex={1002}
+                    userSelect="none"
+                >
+                    {Math.round(percentage * 100)}%
+                </Text>
+            )}
         </>
     );
 }
 
-function useResponsiveReaderTheme(isDark: boolean): IReactReaderStyle {
+function useResponsiveReaderTheme(themeMode: ReaderThemeState['mode']): IReactReaderStyle {
     const [isSmallScreen] = useMediaQuery([
         "(max-width: 768px)",
     ]);
 
     return useMemo(
-        () => ({
-            ...ReactReaderStyle,
-            container: {
-                ...ReactReaderStyle.container,
-                backgroundColor: isDark ? "#1a202c" : "#ffffff",
-            },
-            readerArea: {
-                ...ReactReaderStyle.readerArea,
-                backgroundColor: isDark ? "#1a202c" : "#ffffff",
-                transition: undefined,
-            },
-            reader: {
-                ...ReactReaderStyle.reader,
-                ...(isSmallScreen && {
-                    position: "absolute" as const,
-                    top: 40,
-                    left: 8,
-                    right: 8,
-                    bottom: 8,
-                }),
-            },
-            titleArea: {
-                ...ReactReaderStyle.titleArea,
-                color: isDark ? "#a0aec0" : "#999",
-                ...(isSmallScreen && {
-                    top: 8,
-                    left: 16,
-                    right: 16,
-                    fontSize: "0.85em",
-                }),
-            },
-            arrow: {
-                ...ReactReaderStyle.arrow,
-                color: isDark ? "#a0aec0" : "#718096",
-                ...(isSmallScreen && {
-                    display: "none",
-                }),
-            },
-            arrowHover: {
-                ...ReactReaderStyle.arrowHover,
-                color: isDark ? "#e2e8f0" : "#2d3748",
-                background: isDark ? "rgba(255,255,255,0.06)" : "rgba(0,0,0,0.04)",
-                borderRadius: "4px",
-            },
-            prev: {
-                ...ReactReaderStyle.prev,
-            },
-            next: {
-                ...ReactReaderStyle.next,
-            },
-            tocArea: {
-                ...ReactReaderStyle.tocArea,
-                backgroundColor: isDark ? "#2d3748" : "#f7fafc",
-            },
-            tocAreaButton: {
-                ...ReactReaderStyle.tocAreaButton,
-                color: isDark ? "#e2e8f0" : "#2d3748",
-                borderBottom: isDark ? "1px solid #4a5568" : "1px solid #e2e8f0",
-                padding: "10px 16px",
-            },
-            tocButtonExpanded: {
-                ...ReactReaderStyle.tocButtonExpanded,
-                background: isDark ? "#4a5568" : "#f2f2f2",
-            },
-            tocButton: {
-                ...ReactReaderStyle.tocButton,
-            },
-            tocButtonBar: {
-                ...ReactReaderStyle.tocButtonBar,
-                background: isDark ? "#a0aec0" : "#ccc",
-            },
-            tocButtonBarTop: {
-                ...ReactReaderStyle.tocButtonBarTop,
-            },
-            tocButtonBottom: {
-                ...ReactReaderStyle.tocButtonBottom,
-            },
-            tocBackground: {
-                ...ReactReaderStyle.tocBackground,
-            },
-            toc: {
-                ...ReactReaderStyle.toc,
-            },
-            swipeWrapper: {
-                ...ReactReaderStyle.swipeWrapper,
-            },
-            containerExpanded: {
-                ...ReactReaderStyle.containerExpanded,
-            },
-            loadingView: {
-                ...ReactReaderStyle.loadingView,
-            },
-        }),
-        [isSmallScreen, isDark],
+        () => {
+            const colors = getThemeColors(themeMode);
+
+            return {
+                ...ReactReaderStyle,
+                container: {
+                    ...ReactReaderStyle.container,
+                    backgroundColor: colors.bg,
+                },
+                readerArea: {
+                    ...ReactReaderStyle.readerArea,
+                    backgroundColor: colors.bg,
+                    transition: undefined,
+                },
+                reader: {
+                    ...ReactReaderStyle.reader,
+                    ...(isSmallScreen && {
+                        position: "absolute" as const,
+                        top: 40,
+                        left: 8,
+                        right: 8,
+                        bottom: 8,
+                    }),
+                },
+                titleArea: {
+                    ...ReactReaderStyle.titleArea,
+                    color: colors.muted,
+                    ...(isSmallScreen && {
+                        top: 8,
+                        left: 16,
+                        right: 16,
+                        fontSize: "0.85em",
+                    }),
+                },
+                arrow: {
+                    ...ReactReaderStyle.arrow,
+                    color: colors.muted,
+                    ...(isSmallScreen && {
+                        display: "none",
+                    }),
+                },
+                arrowHover: {
+                    ...ReactReaderStyle.arrowHover,
+                    color: colors.hoverText,
+                    background: colors.hoverBg,
+                    borderRadius: "4px",
+                },
+                prev: {
+                    ...ReactReaderStyle.prev,
+                },
+                next: {
+                    ...ReactReaderStyle.next,
+                },
+                tocArea: {
+                    ...ReactReaderStyle.tocArea,
+                    backgroundColor: colors.uiBg,
+                },
+                tocAreaButton: {
+                    ...ReactReaderStyle.tocAreaButton,
+                    color: colors.hoverText,
+                    borderBottom: `1px solid ${colors.uiBorder}`,
+                    padding: "10px 16px",
+                },
+                tocButtonExpanded: {
+                    ...ReactReaderStyle.tocButtonExpanded,
+                    background: colors.uiBorder,
+                },
+                tocButton: {
+                    ...ReactReaderStyle.tocButton,
+                },
+                tocButtonBar: {
+                    ...ReactReaderStyle.tocButtonBar,
+                    background: colors.muted,
+                },
+                tocButtonBarTop: {
+                    ...ReactReaderStyle.tocButtonBarTop,
+                },
+                tocButtonBottom: {
+                    ...ReactReaderStyle.tocButtonBottom,
+                },
+                tocBackground: {
+                    ...ReactReaderStyle.tocBackground,
+                },
+                toc: {
+                    ...ReactReaderStyle.toc,
+                },
+                swipeWrapper: {
+                    ...ReactReaderStyle.swipeWrapper,
+                },
+                containerExpanded: {
+                    ...ReactReaderStyle.containerExpanded,
+                },
+                loadingView: {
+                    ...ReactReaderStyle.loadingView,
+                },
+            };
+        },
+        [isSmallScreen, themeMode],
     );
 }

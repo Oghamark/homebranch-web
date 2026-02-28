@@ -1,6 +1,5 @@
 import {
     Badge,
-    Button,
     Card,
     Flex,
     For,
@@ -12,30 +11,38 @@ import {
     Text,
 } from "@chakra-ui/react";
 import {
-    useGetUsersInfiniteQuery,
-    useRestrictUserMutation,
+    CreateUserDialog,
+    useDeleteUserMutation,
+    useGetUsersQuery,
     type UserModel,
-    useUnrestrictUserMutation,
+    useUpdateUserRoleMutation,
 } from "@/entities/user";
 import {handleRtkError} from "@/shared/api/rtk-query";
 import {toaster} from "@/components/ui/toaster";
-import {LuShieldBan, LuShieldCheck, LuUsers} from "react-icons/lu";
+import {LuCrown, LuUser, LuUsers} from "react-icons/lu";
+import {DeleteConfirmationDialog} from "@/components/ui/modals/DeleteConfirmationDialog";
 
 function UserActions({user}: { user: UserModel }) {
-    const [restrictUser, {isLoading: isRestricting}] = useRestrictUserMutation();
-    const [unrestrictUser, {isLoading: isUnrestricting}] = useUnrestrictUserMutation();
+    const [deleteUser, {isLoading: isDeleting}] = useDeleteUserMutation();
+    const [updateUserRole, {isLoading: isUpdatingRole}] = useUpdateUserRoleMutation();
 
-    const isLoading = isRestricting || isUnrestricting;
+    const currentUserId = sessionStorage.getItem("user_id");
+    const isSelf = user.id === currentUserId;
 
-    async function handleToggleRestrict() {
+    async function handleToggleRole() {
         try {
-            if (user.restricted) {
-                await unrestrictUser(user.id).unwrap();
-                toaster.success({description: `${user.username} has been unrestricted`});
-            } else {
-                await restrictUser(user.id).unwrap();
-                toaster.success({description: `${user.username} has been restricted`});
-            }
+            const newRole = user.role === 'ADMIN' ? 'USER' : 'ADMIN';
+            await updateUserRole({id: user.id, role: newRole}).unwrap();
+            toaster.success({description: `${user.name} is now ${newRole}`});
+        } catch (error) {
+            handleRtkError(error);
+        }
+    }
+
+    async function handleDelete() {
+        try {
+            await deleteUser(user.email).unwrap();
+            toaster.success({description: `${user.name} has been deleted`});
         } catch (error) {
             handleRtkError(error);
         }
@@ -43,23 +50,31 @@ function UserActions({user}: { user: UserModel }) {
 
     return (
         <Flex gap={1}>
-            <IconButton
-                variant="ghost"
-                size="sm"
-                disabled={isLoading}
-                onClick={handleToggleRestrict}
-                title={user.restricted ? "Unrestrict user" : "Restrict user"}
-            >
-                {isLoading ? <Loader/> : user.restricted ? <LuShieldCheck/> : <LuShieldBan/>}
-            </IconButton>
+            {!isSelf && (
+                <IconButton
+                    variant="ghost"
+                    size="sm"
+                    disabled={isUpdatingRole}
+                    onClick={handleToggleRole}
+                    title={user.role === 'ADMIN' ? "Demote to User" : "Promote to Admin"}
+                >
+                    {isUpdatingRole ? <Loader/> : user.role === 'ADMIN' ? <LuUser/> : <LuCrown/>}
+                </IconButton>
+            )}
+            {!isSelf && (
+                <DeleteConfirmationDialog
+                    title={`Delete ${user.name}?`}
+                    loading={isDeleting}
+                    onSubmit={handleDelete}
+                    size="sm"
+                />
+            )}
         </Flex>
     );
 }
 
 export function UserManagementPage() {
-    const {data, isLoading, hasNextPage, fetchNextPage, isFetchingNextPage} = useGetUsersInfiniteQuery();
-
-    const users = data?.pages.flatMap(page => page.data) ?? [];
+    const {data: users = [], isLoading} = useGetUsersQuery();
 
     return (
         <Stack gap={4}>
@@ -68,6 +83,7 @@ export function UserManagementPage() {
                     <LuUsers size={24}/>
                     <Heading size="2xl">User Management</Heading>
                 </Flex>
+                <CreateUserDialog/>
             </Flex>
 
             {isLoading ? (
@@ -82,28 +98,23 @@ export function UserManagementPage() {
                 <>
                     {/* Mobile card view */}
                     <Stack display={{base: "flex", md: "none"}} gap={3}>
+                        <Flex justify="flex-end">
+                            <CreateUserDialog/>
+                        </Flex>
                         <For each={users}>
                             {(user) => (
                                 <Card.Root key={user.id}>
                                     <Card.Body p={4}>
                                         <Flex justify="space-between" align="start">
                                             <Stack gap={2}>
-                                                <Text fontWeight="medium">{user.username}</Text>
+                                                <Text fontWeight="medium">{user.name}</Text>
                                                 <Text fontSize="sm" color="fg.muted">{user.email}</Text>
-                                                <Flex gap={2}>
-                                                    <Badge
-                                                        variant="subtle"
-                                                        colorPalette={user.role?.name === "ADMIN" ? "blue" : "gray"}
-                                                    >
-                                                        {user.role?.name ?? "User"}
-                                                    </Badge>
-                                                    <Badge
-                                                        variant="subtle"
-                                                        colorPalette={user.restricted ? "red" : "green"}
-                                                    >
-                                                        {user.restricted ? "Restricted" : "Active"}
-                                                    </Badge>
-                                                </Flex>
+                                                <Badge
+                                                    variant="subtle"
+                                                    colorPalette={user.role === "ADMIN" ? "blue" : "gray"}
+                                                >
+                                                    {user.role ?? "USER"}
+                                                </Badge>
                                             </Stack>
                                             <UserActions user={user}/>
                                         </Flex>
@@ -119,10 +130,9 @@ export function UserManagementPage() {
                             <Table.Root variant="outline" stickyHeader>
                                 <Table.Header>
                                     <Table.Row>
-                                        <Table.ColumnHeader>Username</Table.ColumnHeader>
+                                        <Table.ColumnHeader>Name</Table.ColumnHeader>
                                         <Table.ColumnHeader>Email</Table.ColumnHeader>
                                         <Table.ColumnHeader>Role</Table.ColumnHeader>
-                                        <Table.ColumnHeader>Status</Table.ColumnHeader>
                                         <Table.ColumnHeader textAlign="end"></Table.ColumnHeader>
                                     </Table.Row>
                                 </Table.Header>
@@ -130,22 +140,14 @@ export function UserManagementPage() {
                                     <For each={users}>
                                         {(user) => (
                                             <Table.Row key={user.id}>
-                                                <Table.Cell fontWeight="medium">{user.username}</Table.Cell>
+                                                <Table.Cell fontWeight="medium">{user.name}</Table.Cell>
                                                 <Table.Cell color="fg.muted">{user.email}</Table.Cell>
                                                 <Table.Cell>
                                                     <Badge
                                                         variant="subtle"
-                                                        colorPalette={user.role?.name === "ADMIN" ? "blue" : "gray"}
+                                                        colorPalette={user.role === "ADMIN" ? "blue" : "gray"}
                                                     >
-                                                        {user.role?.name ?? "User"}
-                                                    </Badge>
-                                                </Table.Cell>
-                                                <Table.Cell>
-                                                    <Badge
-                                                        variant="subtle"
-                                                        colorPalette={user.restricted ? "red" : "green"}
-                                                    >
-                                                        {user.restricted ? "Restricted" : "Active"}
+                                                        {user.role ?? "USER"}
                                                     </Badge>
                                                 </Table.Cell>
                                                 <Table.Cell textAlign="end">
@@ -160,18 +162,8 @@ export function UserManagementPage() {
                     </Card.Root>
                 </>
             )}
-            {hasNextPage && (
-                <Flex justifyContent="center">
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => fetchNextPage()}
-                        disabled={isFetchingNextPage}
-                    >
-                        {isFetchingNextPage ? <Loader/> : "Load more"}
-                    </Button>
-                </Flex>
-            )}
         </Stack>
     );
 }
+
+

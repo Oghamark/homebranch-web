@@ -7,3 +7,31 @@
 .env
 .env.local
 .env.development
+
+# Agent Zero project directory
+.a0proj/
+
+# Editor/IDE
+.vscode/
+.idea/
+
+# AI assistant files
+.claude/
+.github/copilot-instructions.md
+CLAUDE.md
+
+# Logs
+npm-debug.log*
+yarn-error.log*
+
+# Python environments
+venv/
+.venv/
+__pycache__/
+
+# OS files
+Thumbs.db
+
+# Build/Test
+dist/
+coverage/
