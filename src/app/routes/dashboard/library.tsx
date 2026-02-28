@@ -16,7 +16,8 @@ export function meta({}: Route.MetaArgs) {
 
 export default function Library() {
     const query = useLibrarySearch();
-    const {data, hasNextPage, fetchNextPage, isLoading} = useGetBooksInfiniteQuery({query: query});
+    const userId = sessionStorage.getItem('user_id') ?? undefined;
+    const {data, hasNextPage, fetchNextPage, isLoading} = useGetBooksInfiniteQuery({query, userId});
 
     const books = useMemo(() => {
         return data?.pages.flatMap(page => page.data) ?? []
