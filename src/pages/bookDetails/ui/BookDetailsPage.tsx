@@ -1,14 +1,45 @@
-import {type BookModel, useDeleteBookMutation, useUpdateBookMutation} from "@/entities/book";
+import {type BookModel, useDeleteBookMutation, useGenerateBookSummaryMutation, useUpdateBookMutation} from "@/entities/book";
 import {config} from "@/shared";
 import {Box, Button, CloseButton, Dialog, Flex, Heading, IconButton, Image, Menu, Portal, Stack, Text,} from "@chakra-ui/react";
 import {useEffect, useState} from "react";
-import {LuBookOpen, LuDownload, LuEllipsis, LuHeart, LuLoader, LuTrash2, LuX} from "react-icons/lu";
+import {LuBookOpen, LuDownload, LuEllipsis, LuHeart, LuLibrary, LuLoader, LuTrash2, LuX} from "react-icons/lu";
 import {Link, useNavigate} from "react-router";
 import {ManageBookShelvesButton} from "@/entities/bookShelf";
 import {Tooltip} from "@/components/ui/tooltip";
 import {deleteSavedPosition, getSavedPosition} from "@/features/reader/api/savedPositionApi";
 import ToastFactory from "@/app/utils/toast_handler";
+import {handleRtkError} from "@/shared/api/rtk-query";
 import {getStoredProgress, removeStoredProgress, clearLocationsCache} from "@/features/reader";
+
+const SUMMARY_CHAR_LIMIT = 400;
+
+function Summary({html}: { html: string }) {
+    const [expanded, setExpanded] = useState(false);
+    const isLong = html.length > SUMMARY_CHAR_LIMIT;
+
+    return (
+        <Box>
+            <Box
+                maxH={isLong && !expanded ? "7.5em" : undefined}
+                overflow="hidden"
+                color="fg.muted"
+                fontSize="sm"
+                lineHeight="tall"
+                css={{
+                    "& p": {marginBottom: "0.5em"},
+                    "& p:last-child": {marginBottom: 0},
+                }}
+                dangerouslySetInnerHTML={{__html: html}}
+            />
+            {isLong && (
+                <Button variant="plain" size="xs" color="fg.subtle" px={0} mt={1}
+                        onClick={() => setExpanded(e => !e)}>
+                    {expanded ? "Show less" : "Read more"}
+                </Button>
+            )}
+        </Box>
+    );
+}
 
 export interface BookDetailsPageProps {
     book: BookModel
@@ -25,6 +56,7 @@ function isBookOpenedLocally(bookId: string): boolean {
 export default function BookDetailsPage({book}: BookDetailsPageProps) {
     const [updateBook] = useUpdateBookMutation();
     const [deleteBook, {isLoading: pendingDelete}] = useDeleteBookMutation();
+    const [generateSummary, {isLoading: generatingSummary}] = useGenerateBookSummaryMutation();
     const navigate = useNavigate();
     const [deleteOpen, setDeleteOpen] = useState(false);
 
@@ -137,10 +169,26 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
                         </Flex>
                     </Box>
 
-                    {book.summary && book.summary.trim() && (
-                        <Text color="fg.muted" fontSize="sm" lineHeight="tall">
-                            {book.summary}
-                        </Text>
+                    {book.summary && book.summary.trim() ? (
+                        <Summary html={book.summary}/>
+                    ) : (
+                        <Button
+                            variant="subtle"
+                            size="sm"
+                            onClick={() =>
+                                generateSummary(book.id)
+                                    .unwrap()
+                                    .then(result => {
+                                        if (!result.summary?.trim()) {
+                                            ToastFactory({message: "No summary could be found on Open Library for this book.", type: "info"});
+                                        }
+                                    })
+                                    .catch(handleRtkError)
+                            }
+                            loading={generatingSummary}
+                        >
+                            <LuLibrary/> Look up summary on Open Library
+                        </Button>
                     )}
 
                     {/* Unified action row: labeled CTAs + divider + icon actions */}
