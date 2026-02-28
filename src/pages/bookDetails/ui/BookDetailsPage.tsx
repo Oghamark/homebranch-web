@@ -3,7 +3,7 @@ import {type BookModel, useDeleteBookMutation, useUpdateBookMutation} from "@/en
 import {config} from "@/shared";
 import {Box, Flex, Heading, IconButton, Image, Progress, Separator, Stack, Text,} from "@chakra-ui/react";
 import {useEffect, useState} from "react";
-import {LuBookOpen, LuHeart, LuX} from "react-icons/lu";
+import {LuBookOpen, LuDownload, LuHeart, LuX} from "react-icons/lu";
 import {Link, useNavigate} from "react-router";
 import {ManageBookShelvesButton} from "@/entities/bookShelf";
 import {Tooltip} from "@/components/ui/tooltip";
@@ -107,6 +107,17 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
                                 <Link to={`/books/${book.id}/read`}>
                                     <LuBookOpen/>
                                 </Link>
+                            </IconButton>
+                        </Tooltip>
+                        <Tooltip content="Download">
+                            <IconButton variant="subtle" size="sm" asChild>
+                                <a
+                                    href={`${config.apiUrl}/uploads/books/${book.fileName}`}
+                                    // Replace characters invalid in filenames with underscores
+                                    download={`${book.title.replace(/[/\\:*?"<>|]/g, '_')}.epub`}
+                                >
+                                    <LuDownload/>
+                                </a>
                             </IconButton>
                         </Tooltip>
                         {isCurrentlyReading && (
