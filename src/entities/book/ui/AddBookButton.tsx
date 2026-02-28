@@ -71,6 +71,7 @@ export function AddBookButton(buttonProps: ButtonProps) {
                     author: metadata.creator,
                     isFavorite: false,
                     publishedYear: new Date(metadata.pubdate).getFullYear().toString(),
+                    summary: metadata.description?.trim() || undefined,
                     file,
                     coverImage: coverImageBlob,
                 };
