@@ -7,4 +7,5 @@ export type BookModel = {
     publishedYear: string;
     coverImageFileName: string;
     summary?: string;
+    uploadedByUserId: string;
 }
