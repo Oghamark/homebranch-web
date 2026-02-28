@@ -60,6 +60,10 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
     const navigate = useNavigate();
     const [deleteOpen, setDeleteOpen] = useState(false);
 
+    const currentUserId = sessionStorage.getItem('user_id');
+    const currentUserRole = sessionStorage.getItem('user_role');
+    const canDelete = currentUserRole === 'ADMIN' || currentUserId === book.uploadedByUserId;
+
     const [isCurrentlyReading, setIsCurrentlyReading] = useState(
         isBookOpenedLocally(book.id)
     );
@@ -240,13 +244,15 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
                                                     <LuX/> Stop reading
                                                 </Menu.Item>
                                             )}
-                                            <Menu.Item
-                                                value="delete"
-                                                color="fg.error"
-                                                onClick={() => setDeleteOpen(true)}
-                                            >
-                                                <LuTrash2/> Delete book
-                                            </Menu.Item>
+                                            {canDelete && (
+                                                <Menu.Item
+                                                    value="delete"
+                                                    color="fg.error"
+                                                    onClick={() => setDeleteOpen(true)}
+                                                >
+                                                    <LuTrash2/> Delete book
+                                                </Menu.Item>
+                                            )}
                                         </Menu.Content>
                                     </Menu.Positioner>
                                 </Portal>
