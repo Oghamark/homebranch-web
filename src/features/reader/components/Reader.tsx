@@ -3,7 +3,7 @@ import { getThemeColors } from "../types/ReaderTheme";
 import {type IReactReaderStyle, ReactReader, ReactReaderStyle} from "react-reader";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {Box, Flex, IconButton, Spinner, Text, useMediaQuery} from "@chakra-ui/react";
-import {getStoredProgress, storeProgress} from "../utils/readingProgress";
+import {getStoredProgress, storeProgress} from "@/features/reader";
 import {getOrGenerateLocations} from "../utils/epubLocations";
 import {useNavigate} from "react-router";
 import {config} from "@/shared";
@@ -317,7 +317,8 @@ export function Reader({book}: ReaderProps) {
                 zIndex={1000}
             >
                 <ReactReader
-                    url={`${config.apiUrl}/uploads/books/${book.fileName}`}
+                    url={`${config.apiUrl}/books/${book.id}/download`}
+                    epubInitOptions={{ openAs: 'epub' }}
                     title={book.title}
                     location={location}
                     locationChanged={handleLocationChanged}
