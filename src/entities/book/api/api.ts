@@ -28,7 +28,7 @@ export const booksApi = homebranchApi.injectEndpoints({
                 }
             },
             query: ({queryArg, pageParam}) =>
-                ({url: `/books?query=${encodeURIComponent(queryArg.query)}&limit=${config.itemsPerPage}&offset=${pageParam * config.itemsPerPage}`}),
+                ({url: `/books?query=${encodeURIComponent(queryArg.query)}${queryArg.userId ? `&userId=${encodeURIComponent(queryArg.userId)}` : ''}&limit=${config.itemsPerPage}&offset=${pageParam * config.itemsPerPage}`}),
             providesTags: (result) =>
                 result?.pages.flatMap(page =>
                     [
@@ -38,7 +38,7 @@ export const booksApi = homebranchApi.injectEndpoints({
                     ]
                 ) ?? [{type: 'Book', id: 'LIST'}, 'Book']
         }),
-        getBookById: build.query<BookModel, string>({
+        getBookById:build.query<BookModel, string>({
             query: (id) => ({url: `/books/${id}`}),
             providesTags: result =>
                 result
@@ -127,7 +127,8 @@ export const booksApi = homebranchApi.injectEndpoints({
                     return;
                 }
 
-                const key = 'currentlyReading';
+                const userId = sessionStorage.getItem('user_id');
+                const key = `currentlyReading_${userId}`;
                 const stored = localStorage.getItem(key);
 
                 if (stored === null) {
@@ -171,6 +172,10 @@ export const booksApi = homebranchApi.injectEndpoints({
             query: (book: BookModel) => ({url: `/books/${book.id}`, method: 'PUT', body: book}),
             invalidatesTags: result => result ? [{type: 'Book' as const, id: result.id}] : []
         }),
+        generateBookSummary: build.mutation<BookModel, string>({
+            query: (id: string) => ({url: `/books/${id}/fetch-summary`, method: 'POST'}),
+            invalidatesTags: result => result ? [{type: 'Book' as const, id: result.id}] : []
+        }),
     }),
 });
 
@@ -183,4 +188,5 @@ export const {
     useCreateBookMutation,
     useUpdateBookMutation,
     useDeleteBookMutation,
+    useGenerateBookSummaryMutation,
 } = booksApi;

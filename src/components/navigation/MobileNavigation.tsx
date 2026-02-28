@@ -4,6 +4,7 @@ import {useLocation} from "react-router";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {NavigationContent} from "./NavigationContent";
 import {useMobileNav} from "./MobileNavContext";
+import {ShowAllUsersButton} from "@/features/library";
 
 const pathnameToTitle: Record<string, string> = {
     "/": "Library",
@@ -96,6 +97,7 @@ export function MobileNavigation() {
                             {rightAction}
                         </Flex>
                     )}
+                    <ShowAllUsersButton/>
                 </Flex>
             </Box>
             {/* Spacer to prevent content from hiding behind fixed header */}
