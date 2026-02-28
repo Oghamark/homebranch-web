@@ -9,8 +9,11 @@ export const usersApi = homebranchApi.injectEndpoints({
         getUsers: build.query<UserModel[], void>({
             queryFn: async () => {
                 try {
-                    const response = await authAxiosInstance.get<UserModel[]>('/users');
-                    return {data: response.data};
+                    const response = await authAxiosInstance.get<Result<UserModel[]>>('/users');
+                    if (!response.data.success || !response.data.value) {
+                        return {error: {status: 'PARSING_ERROR', data: response.data.message ?? 'Invalid response'} as FetchBaseQueryError};
+                    }
+                    return {data: response.data.value};
                 } catch (error: unknown) {
                     const axiosError = error as {response?: {status: number; data?: {message?: string}}};
                     if (axiosError.response) {
@@ -27,8 +30,11 @@ export const usersApi = homebranchApi.injectEndpoints({
         getUserById: build.query<UserModel, string>({
             queryFn: async (userId) => {
                 try {
-                    const response = await authAxiosInstance.get<UserModel>(`/users/${userId}`);
-                    return {data: response.data};
+                    const response = await authAxiosInstance.get<Result<UserModel>>(`/users/${userId}`);
+                    if (!response.data.success || !response.data.value) {
+                        return {error: {status: 'PARSING_ERROR', data: response.data.message ?? 'Invalid response'} as FetchBaseQueryError};
+                    }
+                    return {data: response.data.value};
                 } catch (error: unknown) {
                     const axiosError = error as {response?: {status: number; data?: {message?: string}}};
                     if (axiosError.response) {
@@ -60,8 +66,11 @@ export const usersApi = homebranchApi.injectEndpoints({
         createUser: build.mutation<UserModel, CreateUserRequest>({
             queryFn: async (request) => {
                 try {
-                    const response = await authAxiosInstance.post<UserModel>('/users', request);
-                    return {data: response.data};
+                    const response = await authAxiosInstance.post<Result<UserModel>>('/users', request);
+                    if (!response.data.success || !response.data.value) {
+                        return {error: {status: 'PARSING_ERROR', data: response.data.message ?? 'Invalid response'} as FetchBaseQueryError};
+                    }
+                    return {data: response.data.value};
                 } catch (error: unknown) {
                     const axiosError = error as {response?: {status: number; data?: {message?: string}}};
                     if (axiosError.response) {
