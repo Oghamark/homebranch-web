@@ -8,7 +8,7 @@ import {
     useRemoveBookFromBookShelfMutation,
 } from "@/entities/bookShelf";
 
-export function ManageBookShelvesButton({bookId, size}: { bookId: string, size?: "xs" | "sm" | "md" | "lg" }) {
+export function ManageBookShelvesButton({bookId, size, variant = "subtle"}: { bookId: string, size?: "xs" | "sm" | "md" | "lg", variant?: "subtle" | "ghost" | "outline" | "solid" | "plain" }) {
     const {data: allShelves, isLoading: shelvesLoading} = useGetBookShelvesQuery();
     const {data: bookShelves, isLoading: bookShelvesLoading} = useGetBookShelvesByBookQuery(bookId);
     const [addBook] = useAddBookToBookShelfMutation();
@@ -29,7 +29,7 @@ export function ManageBookShelvesButton({bookId, size}: { bookId: string, size?:
             <Tooltip content="Manage shelves">
                 <Box display={"inline-block"} cursor={"pointer"}>
                     <Popover.Trigger asChild>
-                        <IconButton variant="subtle" size={size}>
+                        <IconButton variant={variant} size={size}>
                             <LuLibrary/>
                         </IconButton>
                     </Popover.Trigger>
