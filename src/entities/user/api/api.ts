@@ -60,11 +60,8 @@ export const usersApi = homebranchApi.injectEndpoints({
         createUser: build.mutation<UserModel, CreateUserRequest>({
             queryFn: async (request) => {
                 try {
-                    const response = await authAxiosInstance.post<Result<UserModel>>('/users', request);
-                    if (!response.data.success || !response.data.value) {
-                        return {error: {status: 'PARSING_ERROR', data: response.data.message ?? 'Invalid response'} as FetchBaseQueryError};
-                    }
-                    return {data: response.data.value};
+                    const response = await authAxiosInstance.post<UserModel>('/users', request);
+                    return {data: response.data};
                 } catch (error: unknown) {
                     const axiosError = error as {response?: {status: number; data?: {message?: string}}};
                     if (axiosError.response) {

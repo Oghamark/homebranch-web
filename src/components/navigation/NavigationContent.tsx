@@ -17,11 +17,6 @@ const links: { to: string; label: string; icon: IconType }[] = [
     {to: "/authors", label: "Authors", icon: LuUser},
 ];
 
-const sharedLinks: { to: string; label: string; icon: IconType }[] = [
-    {to: "/shared-library", label: "Shared Library", icon: LuUsers},
-    {to: "/shared-authors", label: "Shared Authors", icon: LuUsers},
-];
-
 export function NavigationContent({onNavigate}: NavigationContentProps) {
     const location = useLocation();
     const fetcher = useFetcher();
@@ -63,26 +58,6 @@ export function NavigationContent({onNavigate}: NavigationContentProps) {
                 <Text fontWeight="medium" fontSize="sm" color="fg.muted" mb={2}>Book Shelves</Text>
                 <BookShelfNavigationSection onNavigate={onNavigate}/>
                 <Separator my={4}/>
-                <Text fontWeight="medium" fontSize="sm" color="fg.muted" mb={2}>Shared</Text>
-                <Tabs.Root
-                    orientation="vertical"
-                    variant={"subtle"}
-                    value={location.pathname}
-                >
-                    <Tabs.List width={"100%"}>
-                        <For each={sharedLinks}>
-                            {(link) => (
-                                <Tabs.Trigger value={link.to} asChild>
-                                    <Link to={link.to} onClick={onNavigate}>
-                                        <link.icon size={16}/>
-                                        {link.label}
-                                    </Link>
-                                </Tabs.Trigger>
-                            )}
-                        </For>
-                    </Tabs.List>
-                </Tabs.Root>
-                <Separator my={4}/>
                 <Tabs.Root
                     orientation="vertical"
                     variant={"subtle"}
@@ -112,3 +87,4 @@ export function NavigationContent({onNavigate}: NavigationContentProps) {
         </>
     );
 }
+

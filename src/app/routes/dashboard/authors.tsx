@@ -1,7 +1,7 @@
 import {AuthorGridSkeletons, AuthorsPage} from "@/pages/authors";
 import type {Route} from "./+types/authors";
-import {useEffect, useMemo} from "react";
-import {Flex, Heading, Stack} from "@chakra-ui/react";
+import {useEffect, useMemo, useState} from "react";
+import {Flex, Heading, Stack, Switch, Text} from "@chakra-ui/react";
 import {useGetAuthorsInfiniteQuery} from "@/entities/author";
 import {useLibrarySearch} from "@/features/library";
 import {LuUser} from "react-icons/lu";
@@ -16,7 +16,8 @@ export function meta({}: Route.MetaArgs) {
 
 export default function Authors() {
     const query = useLibrarySearch();
-    const userId = sessionStorage.getItem('user_id') ?? undefined;
+    const [showAll, setShowAll] = useState(false);
+    const userId = showAll ? undefined : (sessionStorage.getItem('user_id') ?? undefined);
     const {data, hasNextPage, fetchNextPage, isLoading, error} = useGetAuthorsInfiniteQuery({query, userId});
 
     useEffect(() => {
@@ -30,7 +31,7 @@ export default function Authors() {
     }, [data]);
 
     if (!isLoading && authors.length === 0) {
-        return _noAuthors();
+        return _noAuthors(showAll, setShowAll);
     }
 
     return (
@@ -38,6 +39,15 @@ export default function Authors() {
             <Flex align="center" gap={3} display={{base: "none", md: "flex"}}>
                 <LuUser size={24}/>
                 <Heading size="2xl">Authors</Heading>
+                <Switch.Root
+                    ml="auto"
+                    checked={showAll}
+                    onCheckedChange={(e) => setShowAll(e.checked)}
+                >
+                    <Switch.HiddenInput/>
+                    <Switch.Control><Switch.Thumb/></Switch.Control>
+                    <Switch.Label><Text fontSize="sm">Show all users</Text></Switch.Label>
+                </Switch.Root>
             </Flex>
             {isLoading
                 ? <AuthorGridSkeletons/>
@@ -47,11 +57,20 @@ export default function Authors() {
     );
 }
 
-function _noAuthors() {
+function _noAuthors(showAll: boolean, setShowAll: (v: boolean) => void) {
     return (
         <Stack height={"100%"} alignItems={"center"} justifyContent={"center"} gap={4}>
-            <Heading>No authors found in your library!</Heading>
-            <Heading>Add some books to see authors here</Heading>
+            <Heading>{showAll ? "No authors found!" : "No authors found in your library!"}</Heading>
+            {!showAll &&
+                <Flex align="center" gap={2}>
+                    <Text>Show authors from all users?</Text>
+                    <Switch.Root checked={showAll} onCheckedChange={(e) => setShowAll(e.checked)}>
+                        <Switch.HiddenInput/>
+                        <Switch.Control><Switch.Thumb/></Switch.Control>
+                    </Switch.Root>
+                </Flex>
+            }
+            {!showAll && <Heading>Add some books to see authors here</Heading>}
         </Stack>
     );
 }
