@@ -21,6 +21,7 @@ export function NavigationContent({onNavigate}: NavigationContentProps) {
     const location = useLocation();
     const fetcher = useFetcher();
     let busy = fetcher.state !== 'idle';
+    const isAdmin = sessionStorage.getItem('user_role') === 'ADMIN';
 
     return (
         <>
@@ -66,9 +67,11 @@ export function NavigationContent({onNavigate}: NavigationContentProps) {
                         <Tabs.Trigger value={"/settings"} asChild>
                             <Link to={"/settings"} onClick={onNavigate}><LuSettings size={16}/> Settings</Link>
                         </Tabs.Trigger>
-                        <Tabs.Trigger value={"/users"} asChild>
-                            <Link to={"/users"} onClick={onNavigate}><LuUsers size={16}/> User Management</Link>
-                        </Tabs.Trigger>
+                        {isAdmin && (
+                            <Tabs.Trigger value={"/users"} asChild>
+                                <Link to={"/users"} onClick={onNavigate}><LuUsers size={16}/> User Management</Link>
+                            </Tabs.Trigger>
+                        )}
                     </Tabs.List>
                 </Tabs.Root>
             </Box>
