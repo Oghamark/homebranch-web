@@ -137,6 +137,12 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
                         </Flex>
                     </Box>
 
+                    {book.summary && book.summary.trim() && (
+                        <Text color="fg.muted" fontSize="sm" lineHeight="tall">
+                            {book.summary}
+                        </Text>
+                    )}
+
                     {/* Unified action row: labeled CTAs + divider + icon actions */}
                     <Flex align="center" gap={3} flexWrap="wrap" w={{base: "full", md: "auto"}} justify={{base: "center", md: "start"}}>
                         <Button variant="solid" w={{base: "full", md: "auto"}} minW="120px" asChild>

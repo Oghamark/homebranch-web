@@ -6,4 +6,5 @@ export type BookModel = {
     isFavorite: boolean;
     publishedYear: string;
     coverImageFileName: string;
+    summary?: string;
 }
