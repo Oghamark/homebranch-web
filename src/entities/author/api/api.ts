@@ -30,7 +30,7 @@ export const authorsApi = homebranchApi.injectEndpoints({
                 }
             },
             query: ({queryArg, pageParam}) =>
-                ({url: `/authors?query=${encodeURIComponent(queryArg.query)}&limit=${config.itemsPerPage}&offset=${pageParam * config.itemsPerPage}`}),
+                ({url: `/authors?query=${encodeURIComponent(queryArg.query)}${queryArg.userId ? `&userId=${encodeURIComponent(queryArg.userId)}` : ''}&limit=${config.itemsPerPage}&offset=${pageParam * config.itemsPerPage}`}),
             providesTags: (result) =>
                 result?.pages.flatMap(page =>
                     [
@@ -44,7 +44,7 @@ export const authorsApi = homebranchApi.injectEndpoints({
             query: (name) => ({url: `/authors/${encodeURIComponent(name)}`}),
             providesTags: (_result, _error, name) => [{type: 'Author', id: name}],
         }),
-        getBooksByAuthor: build.infiniteQuery<PaginationResult<BookModel[]>, { authorName: string; query: string }, number>({
+        getBooksByAuthor: build.infiniteQuery<PaginationResult<BookModel[]>, { authorName: string; query: string; userId?: string }, number>({
             infiniteQueryOptions: {
                 initialPageParam: 0,
                 getNextPageParam: (
@@ -67,7 +67,7 @@ export const authorsApi = homebranchApi.injectEndpoints({
                 }
             },
             query: ({queryArg, pageParam}) =>
-                ({url: `/authors/${encodeURIComponent(queryArg.authorName)}/books?query=${encodeURIComponent(queryArg.query)}&limit=${config.itemsPerPage}&offset=${pageParam * config.itemsPerPage}`}),
+                ({url: `/authors/${encodeURIComponent(queryArg.authorName)}/books?query=${encodeURIComponent(queryArg.query)}${queryArg.userId ? `&userId=${encodeURIComponent(queryArg.userId)}` : ''}&limit=${config.itemsPerPage}&offset=${pageParam * config.itemsPerPage}`}),
             providesTags: (result) =>
                 result?.pages.flatMap(page =>
                     [
@@ -76,7 +76,7 @@ export const authorsApi = homebranchApi.injectEndpoints({
                     ]
                 ) ?? [{type: 'Book', id: 'LIST'}]
         }),
-        updateAuthor: build.mutation<AuthorModel, { name: string; biography: string }>({
+        updateAuthor:build.mutation<AuthorModel, { name: string; biography: string }>({
             query: ({name, biography}) => ({
                 url: `/authors/${encodeURIComponent(name)}`,
                 method: 'PATCH',

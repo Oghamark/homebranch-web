@@ -3,7 +3,7 @@ import type {Route} from "./+types/author";
 import {useEffect, useMemo} from "react";
 import {Heading, Stack} from "@chakra-ui/react";
 import {useGetAuthorQuery, useGetBooksByAuthorInfiniteQuery} from "@/entities/author";
-import {useLibrarySearch} from "@/features/library";
+import {useLibrarySearch, useShowAllUsers} from "@/features/library";
 import {handleRtkError} from "@/shared/api/rtk-query";
 
 export function meta({params}: Route.MetaArgs) {
@@ -16,11 +16,14 @@ export function meta({params}: Route.MetaArgs) {
 export default function Author({params}: Route.ComponentProps) {
     const authorName = decodeURIComponent(params.authorName);
     const query = useLibrarySearch();
+    const showAllUsers = useShowAllUsers();
+    const userId = showAllUsers ? undefined : (sessionStorage.getItem("user_id") ?? undefined);
 
     const {data: authorData, isLoading: isAuthorLoading, error: authorError} = useGetAuthorQuery(authorName);
     const {data, hasNextPage, fetchNextPage, isLoading: isBooksLoading, error: booksError} = useGetBooksByAuthorInfiniteQuery({
         authorName,
         query,
+        userId,
     });
 
     useEffect(() => {
@@ -35,15 +38,13 @@ export default function Author({params}: Route.ComponentProps) {
         return data?.pages.flatMap(page => page.data) ?? [];
     }, [data]);
 
-    const isLoading = isBooksLoading;
-
-    if (!isLoading && books.length === 0) {
-        return _noBooks(authorName);
+    if (!isBooksLoading && books.length === 0) {
+        return <NoBooksMessage authorName={authorName}/>;
     }
 
     return (
         <Stack gap={4}>
-            {isLoading
+            {isBooksLoading
                 ? <AuthorPageSkeleton/>
                 : <AuthorPage
                     authorName={authorName}
@@ -60,10 +61,17 @@ export default function Author({params}: Route.ComponentProps) {
     );
 }
 
-function _noBooks(authorName: string) {
+function NoBooksMessage({authorName}: { authorName: string }) {
+    const query = useLibrarySearch();
     return (
         <Stack height={"100%"} alignItems={"center"} justifyContent={"center"} gap={4}>
-            <Heading>No books found for {authorName}</Heading>
+            {query
+                ? <>
+                    <Heading>No books match your search.</Heading>
+                    <Heading size="md" color="fg.muted">Try a different title.</Heading>
+                  </>
+                : <Heading>No books found for {authorName}</Heading>
+            }
         </Stack>
     );
 }
