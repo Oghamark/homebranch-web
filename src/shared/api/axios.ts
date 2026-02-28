@@ -32,3 +32,9 @@ axiosInstance.interceptors.response.use(
         return Promise.reject(error);
     }
 );
+
+export const authAxiosInstance = axios.create({
+    baseURL: config.authenticationUrl,
+    headers: {'Content-Type': 'application/json'},
+    withCredentials: true,
+});
