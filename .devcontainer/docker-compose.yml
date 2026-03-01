@@ -1,0 +1,17 @@
+services:
+  app:
+    image: node:20
+    working_dir: /workspace
+    volumes:
+      - ..:/workspace:cached
+      - node_modules:/workspace/node_modules
+    environment:
+      NODE_ENV: development
+    ports:
+      - "5173:5173"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: sleep infinity
+
+volumes:
+  node_modules:
