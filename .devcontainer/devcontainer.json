@@ -1,0 +1,11 @@
+{
+  "name": "homebranch-web",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspace",
+  "forwardPorts": [5173],
+  "portsAttributes": {
+    "5173": { "label": "Dev Server" }
+  },
+  "postCreateCommand": "npm install && ([ -f .env ] || cp .devcontainer/.env.devcontainer .env)"
+}
