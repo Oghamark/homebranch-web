@@ -1,10 +1,10 @@
 # Homebranch Web
 
-The frontend for [Homebranch](https://github.com/Hydraux/Homebranch) — a self-hosted e-book library. Browse, manage, and read your EPUB collection from any device, with reading position synced across devices.
+The frontend for [Homebranch](https://github.com/Oghamark/homebranch) — a self-hosted e-book library. Browse, manage, and read your EPUB collection from any device, with reading position synced across devices.
 
 **Requires the backend services to be running:**
-- [Homebranch API](https://github.com/Hydraux/Homebranch) — book management and storage
-- [Authentication service](https://github.com/Hydraux/Authentication) — user accounts and sessions
+- [Homebranch API](https://github.com/Oghamark/Homebranch) — book management and storage
+- [Authentication service](https://github.com/Oghamark/Authentication) — user accounts and sessions
 
 ---
 
@@ -43,7 +43,7 @@ Or with Docker Compose:
 ```yaml
 services:
   homebranch-web:
-    image: ghcr.io/hydraux/homebranch-web:latest
+    image: ghcr.io/Oghamark/homebranch-web:latest
     ports:
       - "80:80"
     environment:
