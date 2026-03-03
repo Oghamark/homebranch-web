@@ -1,6 +1,6 @@
 # Homebranch Web
 
-The frontend for [Homebranch](https://github.com/Oghamark/homebranch) — a self-hosted e-book library. Browse, manage, and read your EPUB collection from any device, with reading position synced across devices.
+The frontend for [Homebranch](https://homebranch.app) — a self-hosted e-book library. Browse, manage, and read your EPUB collection from any device, with reading position synced across devices.
 
 **Requires the backend services to be running:**
 - [Homebranch API](https://github.com/Oghamark/Homebranch) — book management and storage
