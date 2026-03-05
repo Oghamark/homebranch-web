@@ -3,8 +3,6 @@ import {useAppDispatch} from "@/app/hooks";
 import React from "react";
 import {updateQuery} from "@/features/library/store/librarySlice";
 
-const SEARCH_PLACEHOLDER = 'Search — or use isbn:, genre:, series:, author: keywords';
-
 export function SearchLibrary() {
     const dispatch = useAppDispatch();
 
@@ -12,5 +10,5 @@ export function SearchLibrary() {
         dispatch(updateQuery(e.currentTarget.value));
     }
 
-    return <TextField placeholder={SEARCH_PLACEHOLDER} onChange={handleChange}/>
+    return <TextField placeholder={"Search"} onChange={handleChange}/>
 }

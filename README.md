@@ -12,6 +12,9 @@ The frontend for [Homebranch](https://github.com/Hydraux/Homebranch) — a self-
 
 - EPUB reader with cross-device position sync
 - Library with infinite scroll and search
+  - Keyword search: `isbn:<value>`, `genre:<value>`, `series:<value>`, `author:<value>` prefixes narrow results by metadata field
+- Book detail page with enriched metadata: genres, series, ISBN, page count, publisher, language, ratings
+- Automatic metadata enrichment from Open Library and Google Books on upload
 - Book shelves (collections)
 - Currently Reading and Favorites lists
 - Dark and light mode

@@ -23,17 +23,6 @@ export function parseSearchKeywords(raw: string): { query: string; isbn?: string
     return result;
 }
 
-function buildBookSearchUrl(base: string, keywords: ReturnType<typeof parseSearchKeywords>, extra: string = ''): string {
-    const params = new URLSearchParams();
-    if (keywords.query) params.set('query', keywords.query);
-    if (keywords.isbn) params.set('isbn', keywords.isbn);
-    if (keywords.genre) params.set('genre', keywords.genre);
-    if (keywords.series) params.set('series', keywords.series);
-    if (keywords.author) params.set('author', keywords.author);
-    const qs = params.toString();
-    return `${base}${qs ? '?' + qs : ''}${extra}`;
-}
-
 export const booksApi = homebranchApi.injectEndpoints({
     endpoints: (build) => ({
         getBooks: build.infiniteQuery<PaginationResult<BookModel[]>, QueriedSearch, number>({
