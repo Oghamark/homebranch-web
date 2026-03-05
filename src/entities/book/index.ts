@@ -16,6 +16,8 @@ export {
     useUpdateBookMutation,
     useDeleteBookMutation,
     useGenerateBookSummaryMutation,
+    useFetchBookMetadataMutation,
+    parseSearchKeywords,
 } from "./api/api";
 
 export type {CreateBookRequest} from "./api/dtos";

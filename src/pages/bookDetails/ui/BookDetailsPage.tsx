@@ -1,8 +1,8 @@
-import {type BookModel, useDeleteBookMutation, useGenerateBookSummaryMutation, useUpdateBookMutation} from "@/entities/book";
+import {type BookModel, useDeleteBookMutation, useGenerateBookSummaryMutation, useUpdateBookMutation, useFetchBookMetadataMutation} from "@/entities/book";
 import {config} from "@/shared";
-import {Box, Button, CloseButton, Dialog, Flex, Heading, IconButton, Image, Menu, Portal, Stack, Text,} from "@chakra-ui/react";
+import {Badge, Box, Button, CloseButton, Dialog, Flex, Heading, IconButton, Image, Menu, Portal, SimpleGrid, Stack, Text,} from "@chakra-ui/react";
 import {useEffect, useState} from "react";
-import {LuBookOpen, LuDownload, LuEllipsis, LuHeart, LuLibrary, LuLoader, LuTrash2, LuX} from "react-icons/lu";
+import {LuBookOpen, LuDownload, LuEllipsis, LuHeart, LuLibrary, LuLoader, LuRefreshCw, LuStar, LuTrash2, LuX} from "react-icons/lu";
 import {Link, useNavigate} from "react-router";
 import {ManageBookShelvesButton} from "@/entities/bookShelf";
 import {Tooltip} from "@/components/ui/tooltip";
@@ -12,6 +12,38 @@ import {handleRtkError} from "@/shared/api/rtk-query";
 import {getStoredProgress, removeStoredProgress, clearLocationsCache} from "@/features/reader";
 
 const SUMMARY_CHAR_LIMIT = 400;
+
+function StarRating({value, count}: { value: number; count?: number }) {
+    const full = Math.floor(value);
+    const half = value - full >= 0.5;
+    const stars = Array.from({length: 5}, (_, i) => {
+        if (i < full) return 'full';
+        if (i === full && half) return 'half';
+        return 'empty';
+    });
+    return (
+        <Flex align="center" gap={1}>
+            {stars.map((s, i) => (
+                <LuStar
+                    key={i}
+                    size={14}
+                    fill={s === 'full' ? 'currentColor' : s === 'half' ? 'url(#half)' : 'none'}
+                    color={s === 'empty' ? 'var(--chakra-colors-fg-subtle)' : 'orange'}
+                />
+            ))}
+            <Text fontSize="sm" color="fg.muted">{value.toFixed(1)}{count != null ? ` (${count.toLocaleString()})` : ''}</Text>
+        </Flex>
+    );
+}
+
+function MetaItem({label, value}: { label: string; value: string }) {
+    return (
+        <Box>
+            <Text fontSize="xs" color="fg.subtle" textTransform="uppercase" letterSpacing="wide" mb="1px">{label}</Text>
+            <Text fontSize="sm">{value}</Text>
+        </Box>
+    );
+}
 
 function Summary({html}: { html: string }) {
     const [expanded, setExpanded] = useState(false);
@@ -57,6 +89,7 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
     const [updateBook] = useUpdateBookMutation();
     const [deleteBook, {isLoading: pendingDelete}] = useDeleteBookMutation();
     const [generateSummary, {isLoading: generatingSummary}] = useGenerateBookSummaryMutation();
+    const [fetchMetadata, {isLoading: fetchingMetadata}] = useFetchBookMetadataMutation();
     const navigate = useNavigate();
     const [deleteOpen, setDeleteOpen] = useState(false);
 
@@ -150,9 +183,14 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
 
                 {/* Book info + actions */}
                 <Stack flex={1} gap={4} align={{base: "center", md: "start"}} textAlign={{base: "center", md: "start"}} w="full">
-                    {/* Title & author · year */}
+                    {/* Title & author · year · series */}
                     <Box>
                         <Heading size={{base: "xl", md: "2xl"}} mb={1}>{book.title}</Heading>
+                        {book.series && (
+                            <Text fontSize="sm" color="fg.muted" mb={1}>
+                                {book.series}{book.seriesPosition != null ? ` #${book.seriesPosition}` : ''}
+                            </Text>
+                        )}
                         <Flex align="center" gap={2} color="fg.muted" fontSize="md" justify={{base: "center", md: "start"}} flexWrap="wrap">
                             {book.author && book.author.trim() ? (
                                 <Link
@@ -171,6 +209,11 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
                                 </>
                             )}
                         </Flex>
+                        {book.averageRating != null && (
+                            <Box mt={1}>
+                                <StarRating value={book.averageRating} count={book.ratingsCount}/>
+                            </Box>
+                        )}
                     </Box>
 
                     {book.summary && book.summary.trim() ? (
@@ -193,6 +236,25 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
                         >
                             <LuLibrary/> Look up summary on Open Library
                         </Button>
+                    )}
+
+                    {/* Genres */}
+                    {book.genres && book.genres.filter(g => g.trim()).length > 0 && (
+                        <Flex gap={2} flexWrap="wrap">
+                            {book.genres.filter(g => g.trim()).map(genre => (
+                                <Badge key={genre} variant="subtle" colorPalette="teal" size="sm">{genre}</Badge>
+                            ))}
+                        </Flex>
+                    )}
+
+                    {/* Metadata grid */}
+                    {(book.isbn || book.pageCount || book.publisher || book.language) && (
+                        <SimpleGrid columns={{base: 2, md: 3}} gap={4} pt={1}>
+                            {book.isbn && <MetaItem label="ISBN" value={book.isbn}/>}
+                            {book.pageCount && <MetaItem label="Pages" value={String(book.pageCount)}/>}
+                            {book.publisher && <MetaItem label="Publisher" value={book.publisher}/>}
+                            {book.language && <MetaItem label="Language" value={book.language.toUpperCase()}/>}
+                        </SimpleGrid>
                     )}
 
                     {/* Unified action row: labeled CTAs + divider + icon actions */}
@@ -244,6 +306,18 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
                                                     <LuX/> Stop reading
                                                 </Menu.Item>
                                             )}
+                                            <Menu.Item
+                                                value="refresh-metadata"
+                                                onClick={() =>
+                                                    fetchMetadata(book.id)
+                                                        .unwrap()
+                                                        .then(() => ToastFactory({message: "Metadata refreshed", type: "success"}))
+                                                        .catch(handleRtkError)
+                                                }
+                                                disabled={fetchingMetadata}
+                                            >
+                                                <LuRefreshCw/> Refresh metadata
+                                            </Menu.Item>
                                             {canDelete && (
                                                 <Menu.Item
                                                     value="delete"
@@ -259,6 +333,12 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
                             </Menu.Root>
                         </Flex>
                     </Flex>
+                    {/* Metadata last fetched */}
+                    {book.metadataFetchedAt && (
+                        <Text fontSize="xs" color="fg.subtle">
+                            Metadata last enriched {new Date(book.metadataFetchedAt).toLocaleDateString()}
+                        </Text>
+                    )}
                 </Stack>
             </Flex>
 

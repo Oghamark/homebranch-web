@@ -5,6 +5,35 @@ import {config} from "@/shared";
 import type {QueriedSearch} from "@/entities/book/api/types";
 import type {GetBooksByIdsRequest} from "@/entities/book/api/dtos";
 
+/**
+ * Parse a search query string for keyword prefixes like `isbn:`, `genre:`, `series:`, `author:`.
+ * Returns the extracted keyword params and the remaining plain query text.
+ */
+export function parseSearchKeywords(raw: string): { query: string; isbn?: string; genre?: string; series?: string; author?: string } {
+    let remaining = raw;
+    const result: { query: string; isbn?: string; genre?: string; series?: string; author?: string } = {query: ''};
+    const keywordRe = /\b(isbn|genre|series|author):("([^"]+)"|(\S+))/gi;
+    remaining = remaining.replace(keywordRe, (_match, key: string, _fullVal: string, quoted?: string, unquoted?: string) => {
+        const value = (quoted ?? unquoted ?? '').trim();
+        const lower = key.toLowerCase() as 'isbn' | 'genre' | 'series' | 'author';
+        result[lower] = value;
+        return '';
+    }).trim();
+    result.query = remaining;
+    return result;
+}
+
+function buildBookSearchUrl(base: string, keywords: ReturnType<typeof parseSearchKeywords>, extra: string = ''): string {
+    const params = new URLSearchParams();
+    if (keywords.query) params.set('query', keywords.query);
+    if (keywords.isbn) params.set('isbn', keywords.isbn);
+    if (keywords.genre) params.set('genre', keywords.genre);
+    if (keywords.series) params.set('series', keywords.series);
+    if (keywords.author) params.set('author', keywords.author);
+    const qs = params.toString();
+    return `${base}${qs ? '?' + qs : ''}${extra}`;
+}
+
 export const booksApi = homebranchApi.injectEndpoints({
     endpoints: (build) => ({
         getBooks: build.infiniteQuery<PaginationResult<BookModel[]>, QueriedSearch, number>({
@@ -27,8 +56,19 @@ export const booksApi = homebranchApi.injectEndpoints({
                     return nextPage;
                 }
             },
-            query: ({queryArg, pageParam}) =>
-                ({url: `/books?query=${encodeURIComponent(queryArg.query)}${queryArg.userId ? `&userId=${encodeURIComponent(queryArg.userId)}` : ''}&limit=${config.itemsPerPage}&offset=${pageParam * config.itemsPerPage}`}),
+            query: ({queryArg, pageParam}) => {
+                const keywords = parseSearchKeywords(queryArg.query);
+                const params = new URLSearchParams();
+                if (keywords.query) params.set('query', keywords.query);
+                if (keywords.isbn) params.set('isbn', keywords.isbn);
+                if (keywords.genre) params.set('genre', keywords.genre);
+                if (keywords.series) params.set('series', keywords.series);
+                if (keywords.author) params.set('author', keywords.author);
+                if (queryArg.userId) params.set('userId', queryArg.userId);
+                params.set('limit', String(config.itemsPerPage));
+                params.set('offset', String(pageParam * config.itemsPerPage));
+                return {url: `/books?${params.toString()}`};
+            },
             providesTags: (result) =>
                 result?.pages.flatMap(page =>
                     [
@@ -65,8 +105,18 @@ export const booksApi = homebranchApi.injectEndpoints({
                     return nextPage;
                 }
             },
-            query: ({queryArg, pageParam}) =>
-                ({url: `/books/favorite?query=${encodeURIComponent(queryArg.query)}&limit=${config.itemsPerPage}&offset=${pageParam * config.itemsPerPage}`}),
+            query: ({queryArg, pageParam}) => {
+                const keywords = parseSearchKeywords(queryArg.query);
+                const params = new URLSearchParams();
+                if (keywords.query) params.set('query', keywords.query);
+                if (keywords.isbn) params.set('isbn', keywords.isbn);
+                if (keywords.genre) params.set('genre', keywords.genre);
+                if (keywords.series) params.set('series', keywords.series);
+                if (keywords.author) params.set('author', keywords.author);
+                params.set('limit', String(config.itemsPerPage));
+                params.set('offset', String(pageParam * config.itemsPerPage));
+                return {url: `/books/favorite?${params.toString()}`};
+            },
             providesTags: (result) =>
                 result?.pages.flatMap(page =>
                     [
@@ -105,7 +155,18 @@ export const booksApi = homebranchApi.injectEndpoints({
                 result ? result.map(({id}) => ({type: 'Book' as const, id})) : []
         }),
         searchBooks: build.query<BookModel[], string>({
-            query: (query) => ({url: `/books?query=${encodeURIComponent(query)}&limit=20&offset=0`}),
+            query: (query) => {
+                const keywords = parseSearchKeywords(query);
+                const params = new URLSearchParams();
+                if (keywords.query) params.set('query', keywords.query);
+                if (keywords.isbn) params.set('isbn', keywords.isbn);
+                if (keywords.genre) params.set('genre', keywords.genre);
+                if (keywords.series) params.set('series', keywords.series);
+                if (keywords.author) params.set('author', keywords.author);
+                params.set('limit', '20');
+                params.set('offset', '0');
+                return {url: `/books?${params.toString()}`};
+            },
             transformResponse: (response: PaginationResult<BookModel[]>) => response.data,
             providesTags: (result) =>
                 result
@@ -176,6 +237,10 @@ export const booksApi = homebranchApi.injectEndpoints({
             query: (id: string) => ({url: `/books/${id}/fetch-summary`, method: 'POST'}),
             invalidatesTags: result => result ? [{type: 'Book' as const, id: result.id}] : []
         }),
+        fetchBookMetadata: build.mutation<BookModel, string>({
+            query: (id: string) => ({url: `/books/${id}/fetch-metadata`, method: 'POST'}),
+            invalidatesTags: result => result ? [{type: 'Book' as const, id: result.id}] : []
+        }),
     }),
 });
 
@@ -189,4 +254,5 @@ export const {
     useUpdateBookMutation,
     useDeleteBookMutation,
     useGenerateBookSummaryMutation,
+    useFetchBookMetadataMutation,
 } = booksApi;

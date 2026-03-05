@@ -4,8 +4,6 @@ import SubmitButton from "@/components/ui/SubmitButton";
 import {toaster} from "@/components/ui/toaster";
 import {type CreateBookRequest, useCreateBookMutation} from "@/entities/book";
 import {isFetchBaseQueryError, isErrorWithMessage} from "@/shared/api/rtk-query";
-import Epub from "epubjs";
-import axios from "axios";
 import type {FileAcceptDetails} from "@zag-js/file-upload";
 import {useRef, useState} from "react";
 import {UploadProgressDialog} from "./UploadProgressDialog";
@@ -55,25 +53,9 @@ export function AddBookButton(buttonProps: ButtonProps) {
             );
 
             try {
-                const epub = Epub(await file.arrayBuffer());
-                const metadata = await epub.loaded.metadata;
-
-                const coverImageUrl = await epub.coverUrl();
-                let coverImageBlob: Blob | undefined = undefined;
-                if (coverImageUrl) {
-                    coverImageBlob = await axios
-                        .get<Blob>(coverImageUrl, {responseType: "blob"})
-                        .then(r => r.data);
-                }
-
                 const createBookRequest: CreateBookRequest = {
-                    title: metadata.title,
-                    author: metadata.creator,
-                    isFavorite: false,
-                    publishedYear: new Date(metadata.pubdate).getFullYear().toString(),
-                    summary: metadata.description?.trim() || undefined,
                     file,
-                    coverImage: coverImageBlob,
+                    isFavorite: false,
                 };
 
                 await createBook(createBookRequest).unwrap();

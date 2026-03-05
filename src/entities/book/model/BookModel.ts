@@ -8,4 +8,14 @@ export type BookModel = {
     coverImageFileName: string;
     summary?: string;
     uploadedByUserId: string;
+    genres?: string[];
+    series?: string;
+    seriesPosition?: number;
+    isbn?: string;
+    pageCount?: number;
+    publisher?: string;
+    language?: string;
+    averageRating?: number;
+    ratingsCount?: number;
+    metadataFetchedAt?: string;
 }

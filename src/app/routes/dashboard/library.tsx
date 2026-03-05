@@ -60,7 +60,7 @@ function NoBooksMessage({showAllUsers}: { showAllUsers: boolean }) {
         return (
             <Stack height={"100%"} alignItems={"center"} justifyContent={"center"} gap={4}>
                 <Heading>No books match your search.</Heading>
-                <Heading size="md" color="fg.muted">Try a different title or author name.</Heading>
+                <Heading size="md" color="fg.muted">Try a different title, author, or a keyword like isbn:9780...</Heading>
             </Stack>
         );
     }
