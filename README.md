@@ -42,4 +42,4 @@ See our [documentation](https://homebranch.app/docs/getting-started/) for instal
 
 ## Contributing
 
-Contributions are welcome! Please see our [contribution guidelines](https://github.com/Oghamark/homebranch-web/blob/main/CONTRIBUTING.md)  for details on how to get involved.
+Contributions are welcome! Please see our [contribution guidelines](CONTRIBUTING.md)  for details on how to get involved.
