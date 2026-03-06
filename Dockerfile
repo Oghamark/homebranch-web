@@ -11,5 +11,5 @@ RUN npm run build
 FROM nginx:alpine
 COPY --from=build /app/build/client /usr/share/nginx/html
 RUN rm /etc/nginx/conf.d/default.conf
-COPY default.conf.template /etc/nginx/templates/default.conf.template
+COPY nginx/default.conf.template /etc/nginx/templates/default.conf.template
 EXPOSE 80
