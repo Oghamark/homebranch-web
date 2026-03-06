@@ -1,0 +1,150 @@
+name: QA CI/CD
+
+on:
+  push:
+    branches: [dev]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # ─── Build ────────────────────────────────────────────────────────────────────
+  build:
+    name: Build & Typecheck
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Determine version
+        id: version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+            if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+              echo "::error::Tag '$VERSION' is not a valid semver string (expected vX.Y.Z)"
+              exit 1
+            fi
+          else
+            VERSION="0.0.0-qa-${GITHUB_SHA::8}"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+        env:
+          VITE_API_URL: /api
+          VITE_AUTHENTICATION_URL: /auth
+          VITE_ITEMS_PER_PAGE: ${{ vars.VITE_ITEMS_PER_PAGE || '20' }}
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-build
+          path: build/client/
+          retention-days: 1
+
+  # ─── Debian package ───────────────────────────────────────────────────────────
+  deb:
+    name: Debian package
+    needs: build
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    outputs:
+      deb_name: ${{ steps.pkg.outputs.deb_name }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-build
+          path: build/client/
+
+      - name: Build .deb
+        id: pkg
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          PKG="homebranch-web"
+          DEB="${PKG}_${VERSION}_all.deb"
+
+          install -d pkg/DEBIAN
+          install -d pkg/var/www/homebranch
+          install -d pkg/etc/nginx/conf.d
+
+          cp -r build/client/. pkg/var/www/homebranch/
+          cp packaging/deb/homebranch.conf pkg/etc/nginx/conf.d/homebranch.conf
+
+          printf 'Package: %s\nVersion: %s\nArchitecture: all\nDepends: nginx\nMaintainer: %s <%s@users.noreply.github.com>\nDescription: Homebranch Web — self-hosted ebook library frontend\n React SPA served by nginx with reverse-proxy support for the\n Homebranch API and authentication service.\n' \
+            "$PKG" "$VERSION" "$GITHUB_REPOSITORY_OWNER" "$GITHUB_REPOSITORY_OWNER" \
+            > pkg/DEBIAN/control
+
+          echo '/etc/nginx/conf.d/homebranch.conf' > pkg/DEBIAN/conffiles
+
+          install -m 755 packaging/deb/postinst pkg/DEBIAN/postinst
+
+          dpkg-deb --build --root-owner-group pkg "$DEB"
+          echo "deb_name=$DEB" >> "$GITHUB_OUTPUT"
+
+      - name: Upload .deb artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb-package
+          path: "*.deb"
+          retention-days: 7
+
+  # ─── Deploy ───────────────────────────────────────────────────────────────────
+  deploy:
+    name: Deploy to Proxmox (frontend - QA)
+    needs: deb
+    if: github.ref == 'refs/heads/dev' && github.event_name == 'push'
+    runs-on: self-hosted
+    environment: qa
+
+    steps:
+      - name: Download .deb artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: deb-package
+
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "${{ secrets.FRONTEND_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Copy .deb to server
+        run: |
+          scp -i ~/.ssh/deploy_key \
+            "${{ needs.deb.outputs.deb_name }}" \
+            ${{ secrets.FRONTEND_USER }}@${{ secrets.FRONTEND_HOST }}:/tmp/homebranch-web.deb
+
+      - name: Install
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+            ${{ secrets.FRONTEND_USER }}@${{ secrets.FRONTEND_HOST }} \
+            "sudo dpkg -i --force-confold /tmp/homebranch-web.deb; \
+               status=\$?; \
+               rm -f /tmp/homebranch-web.deb; \
+               exit \$status"
+
+      - name: Cleanup SSH key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
