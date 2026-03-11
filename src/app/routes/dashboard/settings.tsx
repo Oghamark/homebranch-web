@@ -18,6 +18,7 @@ import {LuKeyRound, LuMail, LuSettings, LuShieldCheck, LuUser, LuUserPlus} from 
 import {handleRtkError} from "@/shared/api/rtk-query";
 import TextField from "@/components/ui/TextField";
 import PasswordTextField from "@/components/ui/PasswordTextField";
+import ToastFactory from "@/app/utils/toast_handler";
 
 export function meta({}: Route.MetaArgs) {
     return [
@@ -69,6 +70,7 @@ export default function Settings() {
                 oidcClientSecret: oidcForm.oidcClientSecret || null,
                 oidcCallbackUrl: oidcForm.oidcCallbackUrl || null,
             }).unwrap();
+            ToastFactory({message: "OIDC settings saved successfully", type: "success"});
         } catch (error) {
             handleRtkError(error);
         } finally {
