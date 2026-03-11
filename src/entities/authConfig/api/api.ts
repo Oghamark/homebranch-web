@@ -5,6 +5,12 @@ import type {Result} from "@/shared";
 
 export type AuthConfig = {
     signupEnabled: boolean;
+    oidcEnabled: boolean;
+    oidcIssuerUrl: string | null;
+    oidcClientId: string | null;
+    oidcClientSecret: string | null;
+    oidcCallbackUrl: string | null;
+    oidcProviderName: string | null;
 };
 
 export const authConfigApi = homebranchApi.injectEndpoints({

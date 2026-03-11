@@ -1,6 +1,7 @@
 import type {Route} from "./+types/settings";
 import {
     Badge,
+    Button,
     Card,
     Flex,
     Heading,
@@ -10,10 +11,13 @@ import {
     Switch,
     Text,
 } from "@chakra-ui/react";
+import {useState, useEffect} from "react";
 import {useGetUserByIdQuery} from "@/entities/user";
 import {useGetAuthConfigQuery, useUpdateAuthConfigMutation} from "@/entities/authConfig";
-import {LuMail, LuSettings, LuShieldCheck, LuUser, LuUserPlus} from "react-icons/lu";
+import {LuKeyRound, LuMail, LuSettings, LuShieldCheck, LuUser, LuUserPlus} from "react-icons/lu";
 import {handleRtkError} from "@/shared/api/rtk-query";
+import TextField from "@/components/ui/TextField";
+import PasswordTextField from "@/components/ui/PasswordTextField";
 
 export function meta({}: Route.MetaArgs) {
     return [
@@ -30,6 +34,47 @@ export default function Settings() {
     });
     const {data: authConfig} = useGetAuthConfigQuery(undefined, {skip: !isAdmin});
     const [updateAuthConfig] = useUpdateAuthConfigMutation();
+
+    const [oidcForm, setOidcForm] = useState({
+        oidcEnabled: false,
+        oidcProviderName: "",
+        oidcIssuerUrl: "",
+        oidcClientId: "",
+        oidcClientSecret: "",
+        oidcCallbackUrl: "",
+    });
+    const [isSavingOidc, setIsSavingOidc] = useState(false);
+
+    useEffect(() => {
+        if (authConfig) {
+            setOidcForm({
+                oidcEnabled: authConfig.oidcEnabled,
+                oidcProviderName: authConfig.oidcProviderName ?? "",
+                oidcIssuerUrl: authConfig.oidcIssuerUrl ?? "",
+                oidcClientId: authConfig.oidcClientId ?? "",
+                oidcClientSecret: authConfig.oidcClientSecret ?? "",
+                oidcCallbackUrl: authConfig.oidcCallbackUrl ?? "",
+            });
+        }
+    }, [authConfig]);
+
+    const handleSaveOidc = async () => {
+        setIsSavingOidc(true);
+        try {
+            await updateAuthConfig({
+                oidcEnabled: oidcForm.oidcEnabled,
+                oidcProviderName: oidcForm.oidcProviderName || null,
+                oidcIssuerUrl: oidcForm.oidcIssuerUrl || null,
+                oidcClientId: oidcForm.oidcClientId || null,
+                oidcClientSecret: oidcForm.oidcClientSecret || null,
+                oidcCallbackUrl: oidcForm.oidcCallbackUrl || null,
+            }).unwrap();
+        } catch (error) {
+            handleRtkError(error);
+        } finally {
+            setIsSavingOidc(false);
+        }
+    };
 
     if (isLoading) {
         return (
@@ -121,6 +166,79 @@ export default function Settings() {
                             </Switch.Root>
                         </Flex>
                     </Card.Body>
+                </Card.Root>
+            )}
+
+            {isAdmin && (
+                <Card.Root>
+                    <Card.Header>
+                        <Flex align="center" gap={3}>
+                            <LuKeyRound/>
+                            <Card.Title>Single Sign-On (OIDC)</Card.Title>
+                        </Flex>
+                    </Card.Header>
+                    <Card.Body>
+                        <Stack gap={4}>
+                            <Flex align="center" gap={3} justify="space-between">
+                                <Stack gap={0}>
+                                    <Text fontWeight="medium">Enable OIDC</Text>
+                                    <Text fontSize="sm" color="fg.muted">
+                                        {oidcForm.oidcEnabled ? "Users can sign in via your identity provider" : "OIDC login is disabled"}
+                                    </Text>
+                                </Stack>
+                                <Switch.Root
+                                    checked={oidcForm.oidcEnabled}
+                                    onCheckedChange={({checked}) =>
+                                        setOidcForm(prev => ({...prev, oidcEnabled: checked}))
+                                    }
+                                >
+                                    <Switch.HiddenInput/>
+                                    <Switch.Control>
+                                        <Switch.Thumb/>
+                                    </Switch.Control>
+                                </Switch.Root>
+                            </Flex>
+                            <Separator/>
+                            <TextField
+                                label="Provider Name"
+                                placeholder="e.g. Keycloak, Google, Okta"
+                                value={oidcForm.oidcProviderName}
+                                onChange={e => setOidcForm(prev => ({...prev, oidcProviderName: e.target.value}))}
+                            />
+                            <TextField
+                                label="Issuer URL"
+                                placeholder="https://your-provider.example.com/realms/myrealm"
+                                value={oidcForm.oidcIssuerUrl}
+                                onChange={e => setOidcForm(prev => ({...prev, oidcIssuerUrl: e.target.value}))}
+                            />
+                            <TextField
+                                label="Client ID"
+                                placeholder="your-client-id"
+                                value={oidcForm.oidcClientId}
+                                onChange={e => setOidcForm(prev => ({...prev, oidcClientId: e.target.value}))}
+                            />
+                            <PasswordTextField
+                                label="Client Secret"
+                                placeholder="your-client-secret"
+                                value={oidcForm.oidcClientSecret}
+                                onChange={e => setOidcForm(prev => ({...prev, oidcClientSecret: e.target.value}))}
+                            />
+                            <TextField
+                                label="Callback URL"
+                                placeholder="https://your-app.example.com/oidc-callback"
+                                value={oidcForm.oidcCallbackUrl}
+                                onChange={e => setOidcForm(prev => ({...prev, oidcCallbackUrl: e.target.value}))}
+                            />
+                        </Stack>
+                    </Card.Body>
+                    <Card.Footer justifyContent="flex-end">
+                        <Button
+                            onClick={handleSaveOidc}
+                            loading={isSavingOidc}
+                        >
+                            Save OIDC Settings
+                        </Button>
+                    </Card.Footer>
                 </Card.Root>
             )}
         </Stack>
