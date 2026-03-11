@@ -1,17 +1,23 @@
 import type {Route} from "./+types/sign-up";
 
 import TextField from "@/components/ui/TextField";
-import {Box, Button, Card, Center, Heading, Stack, Text} from "@chakra-ui/react";
+import {Box, Button, Card, Center, Heading, Separator, Stack, Text} from "@chakra-ui/react";
 import {Link, redirect, useFetcher} from "react-router";
 import signUp from "@/features/authentication/api/signUp";
 import {LuBookOpen} from "react-icons/lu";
 import {config} from "@/shared";
+import {getPublicAuthConfig} from "@/features/authentication/api/publicConfig";
 
-export function clientLoader() {
+export async function clientLoader() {
     if (!config.signupEnabled) {
         return redirect("/login");
     }
-    return null;
+    try {
+        const publicConfig = await getPublicAuthConfig();
+        return {oidcEnabled: publicConfig.oidcEnabled, oidcProviderName: publicConfig.oidcProviderName};
+    } catch {
+        return {oidcEnabled: false, oidcProviderName: null};
+    }
 }
 
 export async function clientAction({request}: Route.ClientActionArgs) {
@@ -19,8 +25,13 @@ export async function clientAction({request}: Route.ClientActionArgs) {
     return await signUp(formData);
 }
 
-export default function SignUp() {
+export default function SignUp({loaderData}: Route.ComponentProps) {
     const fetcher = useFetcher();
+    const {oidcEnabled, oidcProviderName} = loaderData;
+
+    const handleOidcLogin = () => {
+        window.location.href = `${config.authenticationUrl}/login/oidc?returnTo=/oidc-callback`;
+    };
 
     return (
         <Center minH="100%" bg="bg.subtle" p={4}>
@@ -32,8 +43,26 @@ export default function SignUp() {
                         <Text color="white" opacity={0.8} fontSize="sm">Create your account</Text>
                     </Stack>
                 </Box>
+                {oidcEnabled && (
+                    <Card.Body px={6} pt={6} pb={0}>
+                        <Stack gap={4}>
+                            <Button
+                                variant="outline"
+                                width="full"
+                                onClick={handleOidcLogin}
+                            >
+                                Sign up with {oidcProviderName || "OIDC"}
+                            </Button>
+                            <Box display="flex" alignItems="center" gap={3}>
+                                <Separator flex={1}/>
+                                <Text fontSize="xs" color="fg.muted" flexShrink={0}>or</Text>
+                                <Separator flex={1}/>
+                            </Box>
+                        </Stack>
+                    </Card.Body>
+                )}
                 <fetcher.Form method="post">
-                    <Card.Body px={6} pt={6} pb={2}>
+                    <Card.Body px={6} pt={oidcEnabled ? 2 : 6} pb={2}>
                         <Stack gap={4}>
                             <TextField label="Name" name="name" required/>
                             <TextField label="Email" name="email" type="email" required/>
