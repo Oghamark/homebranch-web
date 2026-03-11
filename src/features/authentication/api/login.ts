@@ -15,7 +15,7 @@ export async function login(formData: FormData) {
                 sessionStorage.setItem('user_id', responseData.value.userId);
                 try {
                     const payload = JSON.parse(atob(responseData.value.accessToken.split('.')[1]));
-                    sessionStorage.setItem('user_role', payload.roles?.[0] ?? 'USER');
+                    sessionStorage.setItem('user_role', payload.role ?? 'USER');
                 } catch {
                     sessionStorage.setItem('user_role', 'USER');
                 }
