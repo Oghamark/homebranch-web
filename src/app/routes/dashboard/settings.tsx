@@ -203,31 +203,36 @@ export default function Settings() {
                             <Separator/>
                             <TextField
                                 label="Provider Name"
+                                tooltip="A display name for your identity provider, shown on the login page."
                                 placeholder="e.g. Keycloak, Google, Okta"
                                 value={oidcForm.oidcProviderName}
                                 onChange={e => setOidcForm(prev => ({...prev, oidcProviderName: e.target.value}))}
                             />
                             <TextField
                                 label="Issuer URL"
+                                tooltip="The base URL of your OIDC provider's discovery endpoint (e.g. the realm or tenant URL)."
                                 placeholder="https://your-provider.example.com/realms/myrealm"
                                 value={oidcForm.oidcIssuerUrl}
                                 onChange={e => setOidcForm(prev => ({...prev, oidcIssuerUrl: e.target.value}))}
                             />
                             <TextField
                                 label="Client ID"
+                                tooltip="The client identifier registered with your identity provider for this application."
                                 placeholder="your-client-id"
                                 value={oidcForm.oidcClientId}
                                 onChange={e => setOidcForm(prev => ({...prev, oidcClientId: e.target.value}))}
                             />
                             <PasswordTextField
                                 label="Client Secret"
+                                tooltip="The secret key paired with the Client ID. Keep this confidential."
                                 placeholder="your-client-secret"
                                 value={oidcForm.oidcClientSecret}
                                 onChange={e => setOidcForm(prev => ({...prev, oidcClientSecret: e.target.value}))}
                             />
                             <TextField
                                 label="Callback URL"
-                                placeholder="https://your-app.example.com/oidc-callback"
+                                tooltip="Must be your frontend host + /auth/login/oidc/callback (e.g. https://homebranch.example.com/auth/login/oidc/callback). Register this exact URL with your identity provider."
+                                placeholder="https://your-app.example.com/auth/login/oidc/callback"
                                 value={oidcForm.oidcCallbackUrl}
                                 onChange={e => setOidcForm(prev => ({...prev, oidcCallbackUrl: e.target.value}))}
                             />
