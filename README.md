@@ -31,6 +31,7 @@ It provides a user-friendly interface to organize, search, and read your ebooks 
 - Dark and light mode
 - User management and roles
 - Book upload (up to 50 MB)
+- SSO login via OIDC (configurable in the Settings page)
 
 ---
 
