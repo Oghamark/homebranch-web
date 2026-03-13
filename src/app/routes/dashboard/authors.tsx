@@ -30,12 +30,10 @@ export default function Authors() {
         return data?.pages.flatMap(page => page.data) ?? [];
     }, [data]);
 
-    if (!isLoading && authors.length === 0) {
-        return _noAuthors(showAllUsers);
-    }
+    const isEmpty = !isLoading && authors.length === 0;
 
     return (
-        <Stack gap={4}>
+        <Stack gap={4} height="100%">
             <Flex align="center" gap={3} display={{base: "none", md: "flex"}} justify="space-between">
                 <Flex align="center" gap={3}>
                     <LuUser size={24}/>
@@ -45,7 +43,9 @@ export default function Authors() {
             </Flex>
             {isLoading
                 ? <AuthorGridSkeletons/>
-                : <AuthorsPage authors={authors} fetchMore={fetchNextPage} hasMore={hasNextPage ?? false} totalAuthors={data?.pages[0]?.total}/>
+                : isEmpty
+                    ? _noAuthors(showAllUsers)
+                    : <AuthorsPage authors={authors} fetchMore={fetchNextPage} hasMore={hasNextPage ?? false} totalAuthors={data?.pages[0]?.total}/>
             }
         </Stack>
     );
@@ -53,7 +53,7 @@ export default function Authors() {
 
 function _noAuthors(showAllUsers: boolean) {
     return (
-        <Stack height={"100%"} alignItems={"center"} justifyContent={"center"} gap={4}>
+        <Stack flex={1} alignItems={"center"} justifyContent={"center"} gap={4}>
             <Heading>{showAllUsers ? "No authors found!" : "No authors found in your library!"}</Heading>
             {!showAllUsers && <Heading>Add some books, or tap the user icon to browse everyone{"'"}s authors</Heading>}
         </Stack>

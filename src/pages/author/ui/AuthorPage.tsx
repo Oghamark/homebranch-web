@@ -1,3 +1,4 @@
+import type React from "react";
 import {BookCard, BookCardSkeleton, type BookModel} from "@/entities/book";
 import {
     Avatar,
@@ -28,6 +29,7 @@ interface AuthorPageProps {
     hasMore: boolean;
     totalBooks?: number;
     fetchMore: () => void;
+    noResultsNode?: React.ReactNode;
 }
 
 const BIOGRAPHY_CHAR_LIMIT = 400;
@@ -170,11 +172,11 @@ function BookGridSkeletons({count = 12}: { count?: number } = {}) {
     );
 }
 
-export function AuthorPage({authorName, biography, profilePictureUrl, isAuthorLoading, books, hasMore, totalBooks, fetchMore}: AuthorPageProps) {
+export function AuthorPage({authorName, biography, profilePictureUrl, isAuthorLoading, books, hasMore, totalBooks, fetchMore, noResultsNode}: AuthorPageProps) {
     const remaining = totalBooks != null ? Math.max(totalBooks - books.length, 0) : 12;
 
     return (
-        <Stack gap={6}>
+        <Stack gap={6} height="100%">
             {isAuthorLoading
                 ? <AuthorHeroSkeleton/>
                 : <AuthorHero authorName={authorName} biography={biography} profilePictureUrl={profilePictureUrl}/>
@@ -182,20 +184,24 @@ export function AuthorPage({authorName, biography, profilePictureUrl, isAuthorLo
             <Flex display={{base: "none", md: "flex"}} justify="flex-end">
                 <ShowAllUsersButton showLabel/>
             </Flex>
-            <InfiniteScroll
-                next={fetchMore}
-                hasMore={hasMore && books.length > 0}
-                loader={<BookGridSkeletons count={remaining}/>}
-                dataLength={books.length}
-            >
-                <Grid gridTemplateColumns="repeat(auto-fill, minmax(160px, 1fr))" gap={6} p={1} pb={3}>
-                    <For each={books}>
-                        {(book, _index) => (
-                            <BookCard book={book}/>
-                        )}
-                    </For>
-                </Grid>
-            </InfiniteScroll>
+            {noResultsNode
+                ? <Flex flex={1} alignItems="center" justifyContent="center">{noResultsNode}</Flex>
+                : (
+                <InfiniteScroll
+                    next={fetchMore}
+                    hasMore={hasMore && books.length > 0}
+                    loader={<BookGridSkeletons count={remaining}/>}
+                    dataLength={books.length}
+                >
+                    <Grid gridTemplateColumns="repeat(auto-fill, minmax(160px, 1fr))" gap={6} p={1} pb={3}>
+                        <For each={books}>
+                            {(book, _index) => (
+                                <BookCard book={book}/>
+                            )}
+                        </For>
+                    </Grid>
+                </InfiniteScroll>
+            )}
         </Stack>
     );
 }

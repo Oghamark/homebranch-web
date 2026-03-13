@@ -31,12 +31,10 @@ export default function Library() {
         }
     }, [isLoading, hasNextPage, data]);
 
-    if (!isLoading && books.length === 0) {
-        return <NoBooksMessage showAllUsers={showAllUsers}/>;
-    }
+    const isEmpty = !isLoading && books.length === 0;
 
     return (
-        <Stack gap={4}>
+        <Stack gap={4} height="100%">
             <Flex align="center" gap={3} display={{base: "none", md: "flex"}} justify="space-between">
                 <Flex align="center" gap={3}>
                     <LuLibrary size={24}/>
@@ -46,7 +44,9 @@ export default function Library() {
             </Flex>
             {isLoading
                 ? <BookGridSkeletons/>
-                : <LibraryPage books={books} fetchMore={fetchNextPage} hasMore={hasNextPage} totalBooks={data?.pages[0]?.total}/>
+                : isEmpty
+                    ? <NoBooksMessage showAllUsers={showAllUsers}/>
+                    : <LibraryPage books={books} fetchMore={fetchNextPage} hasMore={hasNextPage} totalBooks={data?.pages[0]?.total}/>
             }
         </Stack>
     );
@@ -58,14 +58,14 @@ function NoBooksMessage({showAllUsers}: { showAllUsers: boolean }) {
 
     if (hasQuery) {
         return (
-            <Stack height={"100%"} alignItems={"center"} justifyContent={"center"} gap={4}>
+            <Stack flex={1} alignItems={"center"} justifyContent={"center"} gap={4}>
                 <Heading>No books match your search.</Heading>
                 <Heading size="md" color="fg.muted">Try a different title, author, or a keyword like isbn:9780...</Heading>
             </Stack>
         );
     }
     return (
-        <Stack height={"100%"} alignItems={"center"} justifyContent={"center"} gap={4}>
+        <Stack flex={1} alignItems={"center"} justifyContent={"center"} gap={4}>
             <Heading>{showAllUsers ? "No books have been added yet." : "You don't have any books in your library!"}</Heading>
             {!showAllUsers && <Heading size="md" color="fg.muted">Add some books, or switch to All Libraries to browse everyone{"'"}s collection.</Heading>}
         </Stack>

@@ -38,9 +38,7 @@ export default function Author({params}: Route.ComponentProps) {
         return data?.pages.flatMap(page => page.data) ?? [];
     }, [data]);
 
-    if (!isBooksLoading && books.length === 0) {
-        return <NoBooksMessage authorName={authorName}/>;
-    }
+    const isEmpty = !isBooksLoading && books.length === 0;
 
     return (
         <Stack gap={4}>
@@ -55,6 +53,7 @@ export default function Author({params}: Route.ComponentProps) {
                     fetchMore={fetchNextPage}
                     hasMore={hasNextPage ?? false}
                     totalBooks={data?.pages[0]?.total}
+                    noResultsNode={isEmpty ? <NoBooksMessage authorName={authorName}/> : undefined}
                 />
             }
         </Stack>
@@ -64,7 +63,7 @@ export default function Author({params}: Route.ComponentProps) {
 function NoBooksMessage({authorName}: { authorName: string }) {
     const query = useLibrarySearch();
     return (
-        <Stack height={"100%"} alignItems={"center"} justifyContent={"center"} gap={4}>
+        <Stack alignItems={"center"} gap={4} py={4}>
             {query
                 ? <>
                     <Heading>No books match your search.</Heading>
