@@ -14,6 +14,7 @@ export {
     useSearchBooksQuery,
     useCreateBookMutation,
     useUpdateBookMutation,
+    useToggleFavoriteMutation,
     useDeleteBookMutation,
     useGenerateBookSummaryMutation,
     useFetchBookMetadataMutation,

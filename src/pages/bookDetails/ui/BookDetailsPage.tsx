@@ -1,4 +1,4 @@
-import {type BookModel, useDeleteBookMutation, useGenerateBookSummaryMutation, useUpdateBookMutation, useFetchBookMetadataMutation} from "@/entities/book";
+import {type BookModel, useDeleteBookMutation, useGenerateBookSummaryMutation, useUpdateBookMutation, useFetchBookMetadataMutation, useToggleFavoriteMutation} from "@/entities/book";
 import {config} from "@/shared";
 import {Badge, Box, Button, CloseButton, Dialog, Flex, Heading, IconButton, Image, Menu, Portal, SimpleGrid, Stack, Text,} from "@chakra-ui/react";
 import {useEffect, useState} from "react";
@@ -87,6 +87,7 @@ function isBookOpenedLocally(bookId: string): boolean {
 
 export default function BookDetailsPage({book}: BookDetailsPageProps) {
     const [updateBook] = useUpdateBookMutation();
+    const [toggleFavorite] = useToggleFavoriteMutation();
     const [deleteBook, {isLoading: pendingDelete}] = useDeleteBookMutation();
     const [generateSummary, {isLoading: generatingSummary}] = useGenerateBookSummaryMutation();
     const [fetchMetadata, {isLoading: fetchingMetadata}] = useFetchBookMetadataMutation();
@@ -279,7 +280,7 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
                             <Tooltip content={book.isFavorite ? "Unfavorite" : "Favorite"}>
                                 <IconButton
                                     variant="ghost"
-                                    onClick={() => updateBook({...book, isFavorite: !book.isFavorite})}
+                                    onClick={() => toggleFavorite(book.id)}
                                 >
                                     <LuHeart
                                         fill={book.isFavorite ? "red" : "none"}

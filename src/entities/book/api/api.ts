@@ -222,7 +222,11 @@ export const booksApi = homebranchApi.injectEndpoints({
             query: (book: BookModel) => ({url: `/books/${book.id}`, method: 'PUT', body: book}),
             invalidatesTags: result => result ? [{type: 'Book' as const, id: result.id}] : []
         }),
-        generateBookSummary: build.mutation<BookModel, string>({
+        toggleFavorite: build.mutation<{ isFavorite: boolean }, string>({
+            query: (bookId: string) => ({url: `/books/${bookId}/favorite`, method: 'PUT'}),
+            invalidatesTags: (_result, _error, bookId) => [{type: 'Book' as const, id: bookId}, 'Book'],
+        }),
+        generateBookSummary:build.mutation<BookModel, string>({
             query: (id: string) => ({url: `/books/${id}/fetch-summary`, method: 'POST'}),
             invalidatesTags: result => result ? [{type: 'Book' as const, id: result.id}] : []
         }),
@@ -241,6 +245,7 @@ export const {
     useSearchBooksQuery,
     useCreateBookMutation,
     useUpdateBookMutation,
+    useToggleFavoriteMutation,
     useDeleteBookMutation,
     useGenerateBookSummaryMutation,
     useFetchBookMetadataMutation,
