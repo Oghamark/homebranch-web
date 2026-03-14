@@ -2,6 +2,7 @@ import {useEffect, useMemo} from "react";
 import {Box, Heading, HStack, Loader, Stack} from "@chakra-ui/react";
 import {Navigate, useParams} from "react-router";
 import {
+    BookShelfOptionsMenu,
     ManageBookShelfBooksButton,
     useGetBookShelfBooksInfiniteQuery,
     useGetBookShelfByIdQuery
@@ -38,7 +39,12 @@ function BookShelfContent({bookShelfId}: { bookShelfId: string }) {
     useEffect(() => {
         if (bookShelf) {
             setTitle(bookShelf.title);
-            setRightAction(<ManageBookShelfBooksButton bookShelf={bookShelf}/>);
+            setRightAction(
+                <HStack gap={1}>
+                    <ManageBookShelfBooksButton bookShelf={bookShelf}/>
+                    <BookShelfOptionsMenu bookShelfId={bookShelf.id} bookShelfTitle={bookShelf.title}/>
+                </HStack>
+            );
         }
         return () => {
             setTitle(null);
@@ -67,6 +73,7 @@ function BookShelfContent({bookShelfId}: { bookShelfId: string }) {
             <HStack display={{base: "none", md: "flex"}}>
                 <Heading>{bookShelf.title}</Heading>
                 <ManageBookShelfBooksButton bookShelf={bookShelf}/>
+                <BookShelfOptionsMenu bookShelfId={bookShelf.id} bookShelfTitle={bookShelf.title}/>
             </HStack>
             {bookIds.length === 0 ? _noBooks() :
                 <Box flex={1}>

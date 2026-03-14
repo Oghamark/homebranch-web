@@ -1,0 +1,1 @@
+export {useHoverCapable} from "./useHoverCapable";

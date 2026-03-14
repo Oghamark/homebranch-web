@@ -5,6 +5,8 @@ interface MobileNavContextValue {
     setTitle: (title: string | null) => void;
     rightAction: ReactNode;
     setRightAction: (action: ReactNode) => void;
+    showUserToggle: boolean;
+    setShowUserToggle: (show: boolean) => void;
 }
 
 const MobileNavContext = createContext<MobileNavContextValue>({
@@ -12,14 +14,17 @@ const MobileNavContext = createContext<MobileNavContextValue>({
     setTitle: () => {},
     rightAction: null,
     setRightAction: () => {},
+    showUserToggle: false,
+    setShowUserToggle: () => {},
 });
 
 export function MobileNavProvider({children}: { children: ReactNode }) {
     const [title, setTitle] = useState<string | null>(null);
     const [rightAction, setRightAction] = useState<ReactNode>(null);
+    const [showUserToggle, setShowUserToggle] = useState(false);
 
     return (
-        <MobileNavContext.Provider value={{title, setTitle, rightAction, setRightAction}}>
+        <MobileNavContext.Provider value={{title, setTitle, rightAction, setRightAction, showUserToggle, setShowUserToggle}}>
             {children}
         </MobileNavContext.Provider>
     );
@@ -46,4 +51,17 @@ export function useMobileNavConfig(title: string, rightAction?: ReactNode) {
             setRightAction(null);
         };
     }, [title, rightAction]);
+}
+
+/**
+ * Hook to show the user toggle (ShowAllUsersButton) in the mobile nav header.
+ * Cleans up on unmount.
+ */
+export function useMobileNavUserToggle() {
+    const {setShowUserToggle} = useMobileNav();
+
+    useEffect(() => {
+        setShowUserToggle(true);
+        return () => setShowUserToggle(false);
+    }, []);
 }

@@ -141,7 +141,6 @@ export function AddBookButton(buttonProps: ButtonProps) {
                             <HiPlus/> Add Book
                         </SubmitButton>
                     </Menu.Trigger>
-                    <Portal>
                         <Menu.Positioner>
                             <Menu.Content>
                                 <FileUpload.Trigger asChild>
@@ -157,7 +156,6 @@ export function AddBookButton(buttonProps: ButtonProps) {
                                 </Menu.Item>
                             </Menu.Content>
                         </Menu.Positioner>
-                    </Portal>
                 </Menu.Root>
             </FileUpload.Root>
         </>

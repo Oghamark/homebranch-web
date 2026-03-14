@@ -18,6 +18,7 @@ export type {BookShelfModel} from './model/BookShelfModel';
 // UI
 export {AddBookShelfButton} from './ui/AddBookShelfButton';
 export {BookShelfNavigationSection} from './ui/BookShelfNavigationSection';
+export {BookShelfOptionsMenu} from './ui/BookShelfOptionsMenu';
 export {ManageBookShelvesButton} from './ui/ManageBookShelvesButton';
 export {ManageBookShelfBooksButton} from './ui/ManageBookShelfBooksButton';
 export {RemoveBookFromShelfButton} from './ui/RemoveBookFromShelfButton';

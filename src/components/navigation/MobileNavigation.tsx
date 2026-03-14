@@ -48,7 +48,7 @@ function useScrollDirection() {
 export function MobileNavigation() {
     const [open, setOpen] = useState(false);
     const location = useLocation();
-    const {title: contextTitle, rightAction} = useMobileNav();
+    const {title: contextTitle, rightAction, showUserToggle} = useMobileNav();
     const headerVisible = useScrollDirection();
 
     const isReaderPage = /^\/books\/[^/]+\/read$/.test(location.pathname);
@@ -97,7 +97,7 @@ export function MobileNavigation() {
                             {rightAction}
                         </Flex>
                     )}
-                    <ShowAllUsersButton/>
+                    {showUserToggle && <ShowAllUsersButton/>}
                 </Flex>
             </Box>
             {/* Spacer to prevent content from hiding behind fixed header */}

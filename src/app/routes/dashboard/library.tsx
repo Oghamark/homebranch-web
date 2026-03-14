@@ -6,6 +6,7 @@ import {useGetBooksInfiniteQuery} from "@/entities/book";
 import {useLibrarySearch, useShowAllUsers, ShowAllUsersButton} from "@/features/library";
 import {LuLibrary} from "react-icons/lu";
 import {cleanupStaleLocationCaches} from "@/features/reader";
+import {useMobileNavUserToggle} from "@/components/navigation/MobileNavContext";
 
 export function meta({}: Route.MetaArgs) {
     return [
@@ -15,6 +16,7 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export default function Library() {
+    useMobileNavUserToggle();
     const query = useLibrarySearch();
     const showAllUsers = useShowAllUsers();
     const userId = showAllUsers ? undefined : (sessionStorage.getItem("user_id") ?? undefined);

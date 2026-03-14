@@ -5,6 +5,7 @@ import {Heading, Stack} from "@chakra-ui/react";
 import {useGetAuthorQuery, useGetBooksByAuthorInfiniteQuery} from "@/entities/author";
 import {useLibrarySearch, useShowAllUsers} from "@/features/library";
 import {handleRtkError} from "@/shared/api/rtk-query";
+import {useMobileNavUserToggle} from "@/components/navigation/MobileNavContext";
 
 export function meta({params}: Route.MetaArgs) {
     return [
@@ -14,6 +15,7 @@ export function meta({params}: Route.MetaArgs) {
 }
 
 export default function Author({params}: Route.ComponentProps) {
+    useMobileNavUserToggle();
     const authorName = decodeURIComponent(params.authorName);
     const query = useLibrarySearch();
     const showAllUsers = useShowAllUsers();
