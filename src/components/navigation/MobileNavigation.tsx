@@ -1,10 +1,11 @@
 import {Box, CloseButton, Drawer, Flex, Heading, IconButton, Portal, Separator} from "@chakra-ui/react";
-import {LuBookOpen, LuMenu} from "react-icons/lu";
+import {LuMenu} from "react-icons/lu";
 import {useLocation} from "react-router";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {NavigationContent} from "./NavigationContent";
 import {useMobileNav} from "./MobileNavContext";
 import {ShowAllUsersButton} from "@/features/library";
+import {useColorMode} from "@/components/ui/color-mode";
 
 const pathnameToTitle: Record<string, string> = {
     "/": "Library",
@@ -50,6 +51,10 @@ export function MobileNavigation() {
     const location = useLocation();
     const {title: contextTitle, rightAction, showUserToggle} = useMobileNav();
     const headerVisible = useScrollDirection();
+    const {colorMode} = useColorMode();
+    const logoSrc = colorMode === "dark"
+        ? "/Logo%20Monochrome%20For%20Dark.svg"
+        : "/Logo%20Monochrome%20For%20Light.svg";
 
     const isReaderPage = /^\/books\/[^/]+\/read$/.test(location.pathname);
 
@@ -109,10 +114,7 @@ export function MobileNavigation() {
                     <Drawer.Positioner>
                         <Drawer.Content>
                             <Drawer.Header>
-                                <Flex align="center" gap={2}>
-                                    <LuBookOpen size={28}/>
-                                    <Heading size="lg">HomeBranch</Heading>
-                                </Flex>
+                                <img src={logoSrc} alt="HomeBranch" style={{height: "36px"}}/>
                                 <Drawer.CloseTrigger asChild>
                                     <CloseButton size="sm"/>
                                 </Drawer.CloseTrigger>

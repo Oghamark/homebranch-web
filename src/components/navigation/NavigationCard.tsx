@@ -1,8 +1,13 @@
-import {Card, Flex, Heading, Separator} from "@chakra-ui/react";
-import {LuBookOpen} from "react-icons/lu";
+import {Card, Flex, Separator} from "@chakra-ui/react";
 import {NavigationContent} from "./NavigationContent";
+import {useColorMode} from "@/components/ui/color-mode";
 
 export function NavigationCard() {
+    const {colorMode} = useColorMode();
+    const logoSrc = colorMode === "dark"
+        ? "/Logo%20Monochrome%20For%20Dark.svg"
+        : "/Logo%20Monochrome%20For%20Light.svg";
+
     return (
         <Card.Root
             borderRadius="lg"
@@ -18,9 +23,8 @@ export function NavigationCard() {
             flexDirection="column"
             overflow="hidden"
         >
-            <Flex align={"center"} justify={"center"} gap={2} flexShrink={0}>
-                <LuBookOpen size={36}/>
-                <Heading>HomeBranch</Heading>
+            <Flex align={"center"} justify={"center"} flexShrink={0}>
+                <img src={logoSrc} alt="HomeBranch" style={{height: "48px"}}/>
             </Flex>
             <Separator my={4}/>
             <NavigationContent/>

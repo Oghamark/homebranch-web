@@ -1,14 +1,14 @@
 import type {Route} from "./+types/login";
 
 import TextField from "@/components/ui/TextField";
-import {Box, Button, Card, Center, Heading, Separator, Stack, Text} from "@chakra-ui/react";
+import {Box, Button, Card, Center, Separator, Stack, Text} from "@chakra-ui/react";
 import {Link, useFetcher, useSearchParams} from "react-router";
 import {login} from "@/features/authentication/api/login";
-import {LuBookOpen} from "react-icons/lu";
 import {config} from "@/shared";
 import {getPublicAuthConfig} from "@/features/authentication/api/publicConfig";
 import {useEffect} from "react";
 import ToastFactory from "@/app/utils/toast_handler";
+import {useColorMode} from "@/components/ui/color-mode";
 
 export async function clientLoader() {
     try {
@@ -29,6 +29,10 @@ export default function Login({loaderData}: Route.ComponentProps) {
     const {oidcEnabled, oidcProviderName} = loaderData;
     const [searchParams, setSearchParams] = useSearchParams();
     const error = searchParams.get("error");
+    const {colorMode} = useColorMode();
+    const logoSrc = colorMode === "dark"
+        ? "/Logo%202-Color%20For%20Dark.svg"
+        : "/Logo%202-Color%20For%20Light.svg";
 
     useEffect(() => {
         if (error) {
@@ -43,16 +47,16 @@ export default function Login({loaderData}: Route.ComponentProps) {
 
     return (
         <Center minH="100%" bg="bg.subtle" p={4}>
-            <Card.Root w="full" maxW="sm" shadow="lg" overflow="hidden">
-                <Box colorPalette="teal" bg="colorPalette.600" py={8}>
-                    <Stack align="center" gap={2}>
-                        <LuBookOpen size={48} color="white"/>
-                        <Heading color="white" size="xl">HomeBranch</Heading>
-                        <Text color="white" opacity={0.8} fontSize="sm">Your personal library</Text>
+            <Card.Root w="full" maxW="sm" shadow="lg">
+                <Card.Body px={6} pt={8} pb={6}>
+                    <Stack align="center" gap={3}>
+                        <img src={logoSrc} alt="HomeBranch" style={{height: "100px"}}/>
+                        <Text color="fg.muted" fontSize="sm">Your personal library</Text>
                     </Stack>
-                </Box>
+                </Card.Body>
+                <Separator/>
                 {oidcEnabled && (
-                    <Card.Body px={6} pt={6} pb={0}>
+                    <Card.Body px={6} py={4}>
                         <Stack gap={4}>
                             <Button
                                 variant="outline"
@@ -70,7 +74,7 @@ export default function Login({loaderData}: Route.ComponentProps) {
                     </Card.Body>
                 )}
                 <fetcher.Form method="post">
-                    <Card.Body px={6} pt={oidcEnabled ? 2 : 6} pb={2}>
+                    <Card.Body px={6} pt={oidcEnabled ? 0 : 4} pb={2}>
                         <Stack gap={4}>
                             <TextField label="Email" name="email" type="email" required/>
                             <TextField label="Password" name="password" type="password" required/>

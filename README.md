@@ -1,4 +1,7 @@
-# Homebranch
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="public/Logo%202-Color%20For%20Dark.svg">
+  <img src="public/Logo%202-Color%20For%20Light.svg" alt="HomeBranch" width="710" height="auto">
+</picture>
 
 Homebranch is a self-hosted web application for managing and reading your E-Book collection. 
 It provides a user-friendly interface to organize, search, and read your ebooks across devices.
@@ -13,9 +16,18 @@ It provides a user-friendly interface to organize, search, and read your ebooks 
 
 ## Preview
 
-<img src="images/library_view.png" alt="Homebranch Logo">
-<img src="images/book_details_view.png" alt="Book Details View">
-<img src="images/authors_view.png" alt="Authors View">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/library_view.png">
+  <img src="images/library_view_light.png" alt="Library View">
+</picture>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/book_details_view.png">
+  <img src="images/book_details_view_light.png" alt="Book Details View">
+</picture>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/authors_view.png">
+  <img src="images/authors_view_light.png" alt="Authors View">
+</picture>
 
 ---
 
@@ -44,3 +56,9 @@ See our [documentation](https://homebranch.app/docs/getting-started/) for instal
 ## Contributing
 
 Contributions are welcome! Please see our [contribution guidelines](CONTRIBUTING.md)  for details on how to get involved.
+
+---
+
+## Credits
+
+- "HomeBranch" Logo and Iconography  © 2026 [Acro Visuals, L.L.C.](https://acrovisuals.com) is licensed under CC BY-SA 4.0. To view a copy of this license, visit https://creativecommons.org/licenses/by-sa/4.0/

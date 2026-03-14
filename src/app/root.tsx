@@ -11,6 +11,10 @@ import {store} from "@/app/store";
 
 
 export const links: Route.LinksFunction = () => [
+    {rel: "icon", type: "image/svg+xml", href: "/Favicon.svg"},
+    {rel: "icon", type: "image/png", sizes: "64x64", href: "/Favicon@2x.png"},
+    {rel: "icon", type: "image/png", sizes: "32x32", href: "/Favicon.png"},
+    {rel: "icon", type: "image/png", sizes: "16x16", href: "/Favicon@0.5x.png"},
     {rel: "preconnect", href: "https://fonts.googleapis.com"},
     {
         rel: "preconnect",
