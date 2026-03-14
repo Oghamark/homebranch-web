@@ -57,13 +57,13 @@ export function ManageBookShelfBooksButton({bookShelf}: ManageBookShelfBooksButt
                             <Popover.Title>Books</Popover.Title>
                         </Popover.Header>
                         <Popover.Body>
-                            {(isLoadingAllBooks) ? (
-                                <Spinner/>
-                            ) : !allBooks || allBooks.length === 0 ? (
-                                <Text color="GrayText">No books in your library</Text>
-                            ) : (
-                                <Stack>
-                                    <TextField placeholder={"Search"} onChange={event => setQuery(event.target.value)}/>
+                            <Stack>
+                                <TextField placeholder={"Search"} onChange={event => setQuery(event.target.value)}/>
+                                {(isLoadingAllBooks) ? (
+                                    <Spinner/>
+                                ) : !allBooks || allBooks.length === 0 ? (
+                                    <Text color="GrayText">No books found</Text>
+                                ) : (
                                     <Box id={"scroll-container"} maxH={"min(400px, 50vh)"} overflowY={"auto"}>
                                         <InfiniteScroll
                                             next={fetchMoreBooks}
@@ -102,8 +102,8 @@ export function ManageBookShelfBooksButton({bookShelf}: ManageBookShelfBooksButt
                                         </InfiniteScroll>
 
                                     </Box>
-                                </Stack>
-                            )}
+                                )}
+                            </Stack>
                         </Popover.Body>
                     </Popover.Content>
                 </Popover.Positioner>
