@@ -1,12 +1,12 @@
 import type {Route} from "./+types/sign-up";
 
 import TextField from "@/components/ui/TextField";
-import {Box, Button, Card, Center, Heading, Separator, Stack, Text} from "@chakra-ui/react";
+import {Box, Button, Card, Center, Separator, Stack, Text} from "@chakra-ui/react";
 import {Link, redirect, useFetcher} from "react-router";
 import signUp from "@/features/authentication/api/signUp";
-import {LuBookOpen} from "react-icons/lu";
 import {config} from "@/shared";
 import {getPublicAuthConfig} from "@/features/authentication/api/publicConfig";
+import {useColorMode} from "@/components/ui/color-mode";
 
 export async function clientLoader() {
     if (!config.signupEnabled) {
@@ -28,23 +28,27 @@ export async function clientAction({request}: Route.ClientActionArgs) {
 export default function SignUp({loaderData}: Route.ComponentProps) {
     const fetcher = useFetcher();
     const {oidcEnabled, oidcProviderName} = loaderData;
+    const {colorMode} = useColorMode();
+    const logoSrc = colorMode === "dark"
+        ? "/Logo%202-Color%20For%20Dark.svg"
+        : "/Logo%202-Color%20For%20Light.svg";
 
     const handleOidcLogin = () => {
         window.location.href = `${config.authenticationUrl}/login/oidc?returnTo=/oidc-callback`;
     };
 
     return (
-        <Center minH="100%" bg="bg.subtle" p={4}>
-            <Card.Root w="full" maxW="sm" shadow="lg" overflow="hidden">
-                <Box colorPalette="teal" bg="colorPalette.600" py={8}>
-                    <Stack align="center" gap={2}>
-                        <LuBookOpen size={48} color="white"/>
-                        <Heading color="white" size="xl">HomeBranch</Heading>
-                        <Text color="white" opacity={0.8} fontSize="sm">Create your account</Text>
+        <Center minH="100%" p={4}>
+            <Card.Root w="full" maxW="sm" shadow="lg">
+                <Card.Body px={6} pt={8} pb={6}>
+                    <Stack align="center" gap={3}>
+                        <img src={logoSrc} alt="HomeBranch" style={{height: "100px"}}/>
+                        <Text color="fg.muted" fontSize="sm">Create your account</Text>
                     </Stack>
-                </Box>
+                </Card.Body>
+                <Separator/>
                 {oidcEnabled && (
-                    <Card.Body px={6} pt={6} pb={0}>
+                    <Card.Body px={6} py={4}>
                         <Stack gap={4}>
                             <Button
                                 variant="outline"
@@ -62,7 +66,7 @@ export default function SignUp({loaderData}: Route.ComponentProps) {
                     </Card.Body>
                 )}
                 <fetcher.Form method="post">
-                    <Card.Body px={6} pt={oidcEnabled ? 2 : 6} pb={2}>
+                    <Card.Body px={6} pt={oidcEnabled ? 0 : 4} pb={2}>
                         <Stack gap={4}>
                             <TextField label="Name" name="name" required/>
                             <TextField label="Email" name="email" type="email" required/>

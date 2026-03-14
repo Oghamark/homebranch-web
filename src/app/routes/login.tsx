@@ -46,7 +46,7 @@ export default function Login({loaderData}: Route.ComponentProps) {
     };
 
     return (
-        <Center minH="100%" bg="bg.subtle" p={4}>
+        <Center minH="100%" p={4}>
             <Card.Root w="full" maxW="sm" shadow="lg">
                 <Card.Body px={6} pt={8} pb={6}>
                     <Stack align="center" gap={3}>
