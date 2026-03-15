@@ -1,6 +1,6 @@
 import {AddBookButton} from "@/entities/book";
 import {Box, Button, For, Separator, Spinner, Stack, Tabs, Text} from "@chakra-ui/react";
-import {LuBookOpen, LuHeart, LuLibrary, LuLogOut, LuSettings, LuUser, LuUsers} from "react-icons/lu";
+import {LuBookOpen, LuFolderSync, LuHeart, LuLibrary, LuLogOut, LuSettings, LuUser, LuUsers} from "react-icons/lu";
 import {Link, useFetcher, useLocation} from "react-router";
 import {BookShelfNavigationSection} from "@/entities/bookShelf";
 import {SearchLibrary} from "@/features/library";
@@ -66,6 +66,9 @@ export function NavigationContent({onNavigate}: NavigationContentProps) {
                     <Tabs.List width={"100%"}>
                         <Tabs.Trigger value={"/settings"} asChild>
                             <Link to={"/settings"} onClick={onNavigate}><LuSettings size={16}/> Settings</Link>
+                        </Tabs.Trigger>
+                        <Tabs.Trigger value={"/library-management"} asChild>
+                            <Link to={"/library-management"} onClick={onNavigate}><LuFolderSync size={16}/> Library Management</Link>
                         </Tabs.Trigger>
                         {isAdmin && (
                             <Tabs.Trigger value={"/users"} asChild>
