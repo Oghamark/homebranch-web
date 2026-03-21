@@ -1,11 +1,11 @@
-import {type ButtonProps, FileUpload, Menu, Portal} from "@chakra-ui/react";
+import {type ButtonProps, FileUpload, Menu, useFileUploadContext} from "@chakra-ui/react";
 import {HiPlus} from "react-icons/hi";
 import SubmitButton from "@/components/ui/SubmitButton";
 import {toaster} from "@/components/ui/toaster";
 import {type CreateBookRequest, useCreateBookMutation} from "@/entities/book";
 import {isFetchBaseQueryError, isErrorWithMessage} from "@/shared/api/rtk-query";
 import type {FileAcceptDetails} from "@zag-js/file-upload";
-import {useRef, useState} from "react";
+import {useEffect, useRef, useState} from "react";
 import {UploadProgressDialog} from "./UploadProgressDialog";
 
 export type FileUploadStatus = {
@@ -22,6 +22,22 @@ function getErrorMessage(error: unknown): string {
         return error.message;
     }
     return "Unknown error";
+}
+
+function ClearFilesOnComplete({ isUploading }: { isUploading: boolean }) {
+    const api = useFileUploadContext();
+    const clearFilesRef = useRef(api.clearFiles);
+    clearFilesRef.current = api.clearFiles;
+    const prevIsUploading = useRef(false);
+
+    useEffect(() => {
+        if (prevIsUploading.current && !isUploading) {
+            clearFilesRef.current();
+        }
+        prevIsUploading.current = isUploading;
+    }, [isUploading]);
+
+    return null;
 }
 
 export function AddBookButton(buttonProps: ButtonProps) {
@@ -126,9 +142,10 @@ export function AddBookButton(buttonProps: ButtonProps) {
 
             <FileUpload.Root
                 accept={".epub"}
-                maxFiles={500}
+                maxFiles={Number.MAX_SAFE_INTEGER}
                 onFileAccept={_handleMultiSelect}
             >
+                <ClearFilesOnComplete isUploading={isUploading}/>
                 <FileUpload.HiddenInput accept=".epub" multiple/>
                 <Menu.Root>
                     <Menu.Trigger asChild>
