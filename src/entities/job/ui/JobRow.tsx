@@ -1,4 +1,4 @@
-import {Box, Flex, Text} from "@chakra-ui/react";
+import {Box, Flex, Progress, Text} from "@chakra-ui/react";
 import type {JobModel} from "@/entities/job/model/JobModel";
 import {JobStatusBadge} from "./JobStatusBadge";
 import {LuClock, LuCircleCheck, LuCircleX} from "react-icons/lu";
@@ -11,6 +11,7 @@ const jobNameLabels: Record<string, string> = {
     "soft-delete-book": "Remove Book",
     "file-removed": "File Removed",
     "rename-legacy-file": "Rename File",
+    "scan-duplicates": "Duplicate Scan",
 };
 
 function formatTime(iso: string | null): string {
@@ -61,6 +62,13 @@ export function JobRow({job}: JobRowProps) {
                     </Text>
                     <JobStatusBadge status={job.status}/>
                 </Flex>
+                {job.status === "active" && typeof job.progress === "number" && job.progress > 0 && (
+                    <Progress.Root size="xs" value={job.progress} mt={1} colorPalette="blue">
+                        <Progress.Track>
+                            <Progress.Range/>
+                        </Progress.Track>
+                    </Progress.Root>
+                )}
                 {description && (
                     <Text fontSize="xs" color="fg.muted" truncate>
                         {description}

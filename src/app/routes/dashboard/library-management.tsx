@@ -16,7 +16,7 @@ import {
     Tabs,
     Text,
 } from "@chakra-ui/react";
-import {LuChevronLeft, LuChevronRight, LuFolderSync, LuPlay, LuRefreshCw, LuSettings, LuUserCheck} from "react-icons/lu";
+import {LuChevronLeft, LuChevronRight, LuCopy, LuFolderSync, LuPlay, LuRefreshCw, LuSettings, LuUserCheck} from "react-icons/lu";
 import {
     useGetJobsQuery,
     useTriggerLibraryScanMutation,
@@ -34,6 +34,13 @@ import ToastFactory from "@/app/utils/toast_handler";
 import {handleRtkError} from "@/shared/api/rtk-query";
 import type {BookModel} from "@/entities/book";
 import type {UserModel} from "@/entities/user";
+import {useJobStream} from "@/shared";
+import {
+    useListDuplicatesQuery,
+    useTriggerDuplicateScanMutation,
+    useResolveDuplicateMutation,
+} from "@/entities/book";
+import type {BookDuplicateWithBooksModel, ResolveDuplicateAction} from "@/entities/book";
 
 export function meta({}: Route.MetaArgs) {
     return [
@@ -209,6 +216,87 @@ function PaginationControls({
     );
 }
 
+// ---- Duplicate pair sub-component ----
+
+function DuplicatePairCard({
+    item,
+    onResolve,
+    isResolving,
+}: {
+    item: BookDuplicateWithBooksModel;
+    onResolve: (action: ResolveDuplicateAction) => void;
+    isResolving: boolean;
+}) {
+    const {suspectBook, originalBook} = item;
+
+    return (
+        <Box borderWidth="1px" borderRadius="md" p={4}>
+            <Flex gap={4} direction={{base: "column", md: "row"}} align="flex-start">
+                {/* Suspect book */}
+                <Stack flex={1} gap={1}>
+                    <Text fontSize="xs" fontWeight="semibold" textTransform="uppercase" color="orange.500">
+                        New Upload
+                    </Text>
+                    <Text fontWeight="medium" fontSize="sm" truncate>{suspectBook.title}</Text>
+                    <Text fontSize="xs" color="fg.muted">{suspectBook.author}</Text>
+                    {suspectBook.isbn && (
+                        <Text fontSize="xs" color="fg.muted">ISBN: {suspectBook.isbn}</Text>
+                    )}
+                </Stack>
+
+                <Flex align="center" px={2} color="fg.muted" display={{base: "none", md: "flex"}}>
+                    <LuCopy size={14}/>
+                </Flex>
+
+                {/* Original book */}
+                <Stack flex={1} gap={1}>
+                    <Text fontSize="xs" fontWeight="semibold" textTransform="uppercase" color="blue.500">
+                        Existing Book
+                    </Text>
+                    <Text fontWeight="medium" fontSize="sm" truncate>{originalBook.title}</Text>
+                    <Text fontSize="xs" color="fg.muted">{originalBook.author}</Text>
+                    {originalBook.isbn && (
+                        <Text fontSize="xs" color="fg.muted">ISBN: {originalBook.isbn}</Text>
+                    )}
+                </Stack>
+
+                {/* Actions */}
+                <Flex gap={2} direction="column" align="stretch" minW="120px">
+                    <Button
+                        size="xs"
+                        colorPalette="blue"
+                        variant="outline"
+                        onClick={() => onResolve('merge')}
+                        loading={isResolving}
+                        title="Keep existing book, delete the new upload"
+                    >
+                        Keep Existing
+                    </Button>
+                    <Button
+                        size="xs"
+                        colorPalette="orange"
+                        variant="outline"
+                        onClick={() => onResolve('replace')}
+                        loading={isResolving}
+                        title="Keep the new upload, delete the existing book"
+                    >
+                        Use New
+                    </Button>
+                    <Button
+                        size="xs"
+                        variant="ghost"
+                        onClick={() => onResolve('keep_both')}
+                        loading={isResolving}
+                        title="Keep both books as separate entries"
+                    >
+                        Keep Both
+                    </Button>
+                </Flex>
+            </Flex>
+        </Box>
+    );
+}
+
 // ---- Main page ----
 
 export default function LibraryManagement() {
@@ -230,9 +318,8 @@ export default function LibraryManagement() {
     const jobQueryParams = statusFilter === "all"
         ? {limit: JOBS_PER_PAGE, offset: jobOffset}
         : {status: statusFilter, limit: JOBS_PER_PAGE, offset: jobOffset};
-    const {data: jobsData, isLoading: isLoadingJobs, isFetching: isFetchingJobs} = useGetJobsQuery(jobQueryParams, {
-        pollingInterval: 5000,
-    });
+    const {data: jobsData, isLoading: isLoadingJobs, isFetching: isFetchingJobs} = useGetJobsQuery(jobQueryParams);
+    useJobStream();
     const [triggerScan, {isLoading: isScanTriggering}] = useTriggerLibraryScanMutation();
 
     const jobs = jobsData?.data ?? [];
@@ -255,6 +342,40 @@ export default function LibraryManagement() {
             ToastFactory({message: "Default scan user saved", type: "success"});
         } catch (error) {
             handleRtkError(error);
+        }
+    }
+
+    // Duplicates section (admin only)
+    const [duplicatesPage, setDuplicatesPage] = useState(0);
+    const {data: duplicatesData, isLoading: isLoadingDuplicates} = useListDuplicatesQuery(
+        {limit: BOOKS_PER_PAGE, offset: duplicatesPage * BOOKS_PER_PAGE},
+        {skip: !isAdmin},
+    );
+    const [triggerDuplicateScan, {isLoading: isDuplicateScanTriggering}] = useTriggerDuplicateScanMutation();
+    const [resolveDuplicate, {isLoading: isResolvingAny}] = useResolveDuplicateMutation();
+    const [resolvingId, setResolvingId] = useState<string | null>(null);
+    const duplicates = duplicatesData?.data ?? [];
+    const duplicatesTotal = duplicatesData?.total ?? 0;
+
+    async function handleTriggerDuplicateScan() {
+        try {
+            await triggerDuplicateScan().unwrap();
+            ToastFactory({message: "Duplicate scan enqueued", type: "success"});
+        } catch (error) {
+            handleRtkError(error);
+        }
+    }
+
+    async function handleResolveDuplicate(id: string, action: ResolveDuplicateAction) {
+        setResolvingId(id);
+        try {
+            await resolveDuplicate({id, action}).unwrap();
+            const label = action === 'merge' ? 'Kept existing book' : action === 'replace' ? 'Replaced with new upload' : 'Kept both books';
+            ToastFactory({message: label, type: "success"});
+        } catch (error) {
+            handleRtkError(error);
+        } finally {
+            setResolvingId(null);
         }
     }
 
@@ -544,6 +665,70 @@ export default function LibraryManagement() {
                                     perPage={BOOKS_PER_PAGE}
                                     onPrev={() => setCurrentPage(currentPage - 1)}
                                     onNext={() => setCurrentPage(currentPage + 1)}
+                                />
+                            </Stack>
+                        )}
+                    </Card.Body>
+                </Card.Root>
+            )}
+
+            {/* Admin: Potential Duplicates */}
+            {isAdmin && (
+                <Card.Root>
+                    <Card.Header>
+                        <Flex justify="space-between" align="center" wrap="wrap" gap={3}>
+                            <Stack gap={0}>
+                                <Flex align="center" gap={2}>
+                                    <LuCopy size={16}/>
+                                    <Card.Title>
+                                        Potential Duplicates
+                                        {duplicatesTotal > 0 && (
+                                            <Badge ml={2} colorPalette="orange" size="sm">{duplicatesTotal}</Badge>
+                                        )}
+                                    </Card.Title>
+                                </Flex>
+                                <Text fontSize="sm" color="fg.muted" mt={1}>
+                                    Books with the same file content but different metadata. Review and resolve each pair.
+                                </Text>
+                            </Stack>
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={handleTriggerDuplicateScan}
+                                loading={isDuplicateScanTriggering}
+                            >
+                                <LuPlay size={14}/>
+                                Scan Now
+                            </Button>
+                        </Flex>
+                    </Card.Header>
+                    <Card.Body>
+                        {isLoadingDuplicates ? (
+                            <Flex justify="center" py={6}><Loader/></Flex>
+                        ) : duplicates.length === 0 ? (
+                            <Text color="fg.muted" textAlign="center" py={6} fontSize="sm">
+                                No potential duplicates found
+                            </Text>
+                        ) : (
+                            <Stack gap={3}>
+                                <Stack gap={2}>
+                                    <For each={duplicates}>
+                                        {(item) => (
+                                            <DuplicatePairCard
+                                                key={item.duplicate.id}
+                                                item={item}
+                                                onResolve={(action) => handleResolveDuplicate(item.duplicate.id, action)}
+                                                isResolving={resolvingId === item.duplicate.id && isResolvingAny}
+                                            />
+                                        )}
+                                    </For>
+                                </Stack>
+                                <PaginationControls
+                                    page={duplicatesPage}
+                                    total={duplicatesTotal}
+                                    perPage={BOOKS_PER_PAGE}
+                                    onPrev={() => setDuplicatesPage((p) => p - 1)}
+                                    onNext={() => setDuplicatesPage((p) => p + 1)}
                                 />
                             </Stack>
                         )}

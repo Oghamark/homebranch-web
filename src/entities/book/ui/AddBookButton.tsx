@@ -10,7 +10,7 @@ import {UploadProgressDialog} from "./UploadProgressDialog";
 
 export type FileUploadStatus = {
     name: string;
-    status: "pending" | "uploading" | "success" | "failed";
+    status: "pending" | "uploading" | "success" | "skipped" | "failed";
     error?: string;
 };
 
@@ -58,11 +58,12 @@ export function AddBookButton(buttonProps: ButtonProps) {
                     isFavorite: false,
                 };
 
-                await createBook(createBookRequest).unwrap();
+                const result = await createBook(createBookRequest).unwrap();
+                const wasSkipped = 'skipped' in result && result.skipped === true;
                 setUploadStatuses(prev =>
-                    prev.map((s, idx) => idx === i ? {...s, status: "success"} : s)
+                    prev.map((s, idx) => idx === i ? {...s, status: wasSkipped ? "skipped" : "success"} : s)
                 );
-                successCount++;
+                if (!wasSkipped) successCount++;
             } catch (e) {
                 setUploadStatuses(prev =>
                     prev.map((s, idx) =>

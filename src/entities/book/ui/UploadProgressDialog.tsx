@@ -20,7 +20,9 @@ function StatusBadge({status}: { status: FileUploadStatus["status"] }) {
                 </HStack>
             );
         case "success":
-            return <Badge colorPalette="green">Success</Badge>;
+            return <Badge colorPalette="green">Added</Badge>;
+        case "skipped":
+            return <Badge colorPalette="yellow">Already Exists</Badge>;
         case "failed":
             return <Badge colorPalette="red">Failed</Badge>;
     }
@@ -28,6 +30,7 @@ function StatusBadge({status}: { status: FileUploadStatus["status"] }) {
 
 export function UploadProgressDialog({statuses, isOpen, isUploading, onClose}: UploadProgressDialogProps) {
     const successCount = statuses.filter(s => s.status === "success").length;
+    const skippedCount = statuses.filter(s => s.status === "skipped").length;
     const failedCount = statuses.filter(s => s.status === "failed").length;
 
     return (
@@ -66,6 +69,11 @@ export function UploadProgressDialog({statuses, isOpen, isUploading, onClose}: U
                                     {successCount > 0 && (
                                         <Text fontSize="sm" color="green.600">
                                             {successCount} book{successCount !== 1 ? "s" : ""} added successfully.
+                                        </Text>
+                                    )}
+                                    {skippedCount > 0 && (
+                                        <Text fontSize="sm" color="yellow.600">
+                                            {skippedCount} book{skippedCount !== 1 ? "s" : ""} already exist{skippedCount === 1 ? "s" : ""} in the library.
                                         </Text>
                                     )}
                                     {failedCount > 0 && (

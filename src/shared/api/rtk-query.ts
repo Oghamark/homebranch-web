@@ -86,7 +86,7 @@ const baseQueryWithResultUnwrap: BaseQueryFn<
 
 export const homebranchApi = createApi({
     baseQuery: baseQueryWithResultUnwrap,
-    tagTypes: ['Book', 'BookShelf', 'User', 'Author', 'Job'],
+    tagTypes: ['Book', 'BookShelf', 'User', 'Author', 'Job', 'BookDuplicate'],
     endpoints: () => ({})
 })
 
