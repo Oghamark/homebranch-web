@@ -11,6 +11,7 @@ export default [
         route("authors/:authorName", "routes/dashboard/author.tsx"),
         index("routes/dashboard/library.tsx"),
         route("settings", "routes/dashboard/settings.tsx"),
+        route("library-management", "routes/dashboard/library-management.tsx"),
         route("statistics", "routes/dashboard/statistics.tsx"),
         route("users", "routes/dashboard/users.tsx")
     ]),

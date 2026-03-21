@@ -44,6 +44,8 @@ It provides a user-friendly interface to organize, search, and read your ebooks 
 - User management and roles
 - Book upload (up to 50 MB)
 - SSO login via OIDC (configurable in the Settings page)
+- Library Management page (admin): paginated job history with status filtering, book ownership management, and book deduplication
+- Real-time library updates via SSE — new, removed, or updated books reflect automatically without a manual page refresh; job progress streams live as jobs run
 
 ---
 

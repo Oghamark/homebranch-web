@@ -4,6 +4,10 @@ import type {PaginationResult} from "@/shared/api/api_response";
 import {config} from "@/shared";
 import type {QueriedSearch} from "@/entities/book/api/types";
 import type {GetBooksByIdsRequest} from "@/entities/book/api/dtos";
+import type {BookDuplicateWithBooksModel} from "@/entities/book/model/BookDuplicateModel";
+
+export type CreateBookResult = BookModel | {skipped: true; existingBook: BookModel};
+export type ResolveDuplicateAction = 'merge' | 'keep_both' | 'replace';
 
 /**
  * Parse a search query string for keyword prefixes like `isbn:`, `genre:`, `series:`, `author:`.
@@ -199,7 +203,7 @@ export const booksApi = homebranchApi.injectEndpoints({
                 }
             }
         }),
-        createBook: build.mutation<BookModel, CreateBookRequest>({
+        createBook: build.mutation<CreateBookResult, CreateBookRequest>({
             query: (book: CreateBookRequest) => {
                 const formData = new FormData();
                 Object.entries(book).forEach(([key, value]) => {
@@ -210,7 +214,7 @@ export const booksApi = homebranchApi.injectEndpoints({
                         case "undefined":
                             break;
                         default:
-                            formData.append(key, value);
+                            formData.append(key, value as string | Blob);
                             break;
                     }
                 })
@@ -234,6 +238,29 @@ export const booksApi = homebranchApi.injectEndpoints({
             query: (id: string) => ({url: `/books/${id}/fetch-metadata`, method: 'POST'}),
             invalidatesTags: result => result ? [{type: 'Book' as const, id: result.id}] : []
         }),
+        listDuplicates: build.query<PaginationResult<BookDuplicateWithBooksModel[]>, { limit?: number; offset?: number }>({
+            query: ({limit = 20, offset = 0}) => ({
+                url: `/books/duplicates?limit=${limit}&offset=${offset}`,
+            }),
+            providesTags: (result) =>
+                result
+                    ? [
+                        ...result.data.map(({duplicate}) => ({type: 'BookDuplicate' as const, id: duplicate.id})),
+                        {type: 'BookDuplicate', id: 'LIST'},
+                    ]
+                    : [{type: 'BookDuplicate', id: 'LIST'}],
+        }),
+        triggerDuplicateScan: build.mutation<{message: string}, void>({
+            query: () => ({url: '/books/duplicates/scan', method: 'POST'}),
+            invalidatesTags: [{type: 'BookDuplicate', id: 'LIST'}],
+        }),
+        resolveDuplicate: build.mutation<void, {id: string; action: ResolveDuplicateAction}>({
+            query: ({id, action}) => ({url: `/books/duplicates/${id}/resolve`, method: 'POST', body: {action}}),
+            invalidatesTags: (_result, _error, {id}) => [
+                {type: 'BookDuplicate' as const, id},
+                {type: 'BookDuplicate', id: 'LIST'},
+            ],
+        }),
     }),
 });
 
@@ -249,4 +276,7 @@ export const {
     useDeleteBookMutation,
     useGenerateBookSummaryMutation,
     useFetchBookMetadataMutation,
+    useListDuplicatesQuery,
+    useTriggerDuplicateScanMutation,
+    useResolveDuplicateMutation,
 } = booksApi;

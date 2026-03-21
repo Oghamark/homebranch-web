@@ -11,6 +11,21 @@ server {
 
     client_max_body_size 50m;
 
+    # SSE endpoints — disable buffering so events are delivered immediately
+    location ~ ^/api/(jobs/stream|library/events)$ {
+        proxy_pass ${API_BACKEND}/$1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+
+        proxy_http_version 1.1;
+        proxy_set_header Connection '';
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 3600s;
+        add_header X-Accel-Buffering no;
+    }
+
     location /api/ {
         proxy_pass ${API_BACKEND}/;
         proxy_set_header Host $host;

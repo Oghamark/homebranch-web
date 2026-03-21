@@ -4,6 +4,7 @@ import {MobileNavigation} from "@/components/navigation/MobileNavigation";
 import {MobileNavProvider} from "@/components/navigation/MobileNavContext";
 import React from "react";
 import {Outlet, redirect} from "react-router";
+import {useLibraryEvents} from "@/shared/hooks";
 
 export async function clientLoader() {
     let user_id = sessionStorage.getItem("user_id");
@@ -14,6 +15,8 @@ export async function clientLoader() {
 }
 
 export default function Layout() {
+    useLibraryEvents();
+
     return (
         <MobileNavProvider>
             <MobileNavigation/>
