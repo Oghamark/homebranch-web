@@ -16,31 +16,35 @@ import {
     Tabs,
     Text,
 } from "@chakra-ui/react";
-import {LuChevronLeft, LuChevronRight, LuCopy, LuFolderSync, LuPlay, LuRefreshCw, LuSettings, LuUserCheck} from "react-icons/lu";
 import {
-    useGetJobsQuery,
-    useTriggerLibraryScanMutation,
-    useGetUnownedBooksQuery,
-    useGetOrphanedBooksMutation,
+    LuChevronLeft,
+    LuChevronRight,
+    LuCopy,
+    LuFolderSync,
+    LuPlay,
+    LuRefreshCw,
+    LuSettings,
+    LuUserCheck
+} from "react-icons/lu";
+import {
     useBulkAssignBookOwnerMutation,
-    useGetLibrarySettingQuery,
-    useUpsertLibrarySettingMutation,
     useGetAdminBooksQuery,
+    useGetJobsQuery,
+    useGetLibrarySettingQuery,
+    useGetOrphanedBooksMutation,
+    useGetUnownedBooksQuery,
+    useTriggerLibraryScanMutation,
+    useUpsertLibrarySettingMutation,
 } from "@/entities/job";
+import type {UserModel} from "@/entities/user";
 import {useGetUsersQuery} from "@/entities/user";
 import {JobRow} from "@/entities/job/ui/JobRow";
 import {useCallback, useEffect, useMemo, useState} from "react";
 import ToastFactory from "@/app/utils/toast_handler";
 import {handleRtkError} from "@/shared/api/rtk-query";
-import type {BookModel} from "@/entities/book";
-import type {UserModel} from "@/entities/user";
+import type {BookDuplicateWithBooksModel, BookModel, ResolveDuplicateAction} from "@/entities/book";
+import {useListDuplicatesQuery, useResolveDuplicateMutation, useTriggerDuplicateScanMutation,} from "@/entities/book";
 import {useJobStream} from "@/shared";
-import {
-    useListDuplicatesQuery,
-    useTriggerDuplicateScanMutation,
-    useResolveDuplicateMutation,
-} from "@/entities/book";
-import type {BookDuplicateWithBooksModel, ResolveDuplicateAction} from "@/entities/book";
 
 export function meta({}: Route.MetaArgs) {
     return [
@@ -62,11 +66,11 @@ const statusFilters: { value: string; label: string }[] = [
 // ---- Shared sub-components ----
 
 function BookTableHeader({
-    allSelected,
-    someSelected,
-    onToggleAll,
-    showOwner,
-}: {
+                             allSelected,
+                             someSelected,
+                             onToggleAll,
+                             showOwner,
+                         }: {
     allSelected: boolean;
     someSelected: boolean;
     onToggleAll: () => void;
@@ -102,11 +106,11 @@ function BookTableHeader({
 }
 
 function BookRow({
-    book,
-    selected,
-    onToggle,
-    ownerLabel,
-}: {
+                     book,
+                     selected,
+                     onToggle,
+                     ownerLabel,
+                 }: {
     book: BookModel;
     selected: boolean;
     onToggle: () => void;
@@ -133,24 +137,27 @@ function BookRow({
                 <Checkbox.Control/>
             </Checkbox.Root>
             <Text flex={2} fontSize="sm" fontWeight="medium" truncate>{book.title}</Text>
-            <Text flex={1} fontSize="sm" color="fg.muted" truncate display={{base: "none", md: "block"}}>{book.author}</Text>
+            <Text flex={1} fontSize="sm" color="fg.muted" truncate
+                  display={{base: "none", md: "block"}}>{book.author}</Text>
             {ownerLabel !== undefined ? (
-                <Text flex={1} fontSize="xs" color="fg.muted" truncate display={{base: "none", lg: "block"}}>{ownerLabel}</Text>
+                <Text flex={1} fontSize="xs" color="fg.muted" truncate
+                      display={{base: "none", lg: "block"}}>{ownerLabel}</Text>
             ) : (
-                <Text flex={1} fontSize="xs" color="fg.muted" truncate display={{base: "none", lg: "block"}}>{book.fileName}</Text>
+                <Text flex={1} fontSize="xs" color="fg.muted" truncate
+                      display={{base: "none", lg: "block"}}>{book.fileName}</Text>
             )}
         </Flex>
     );
 }
 
 function BulkActionBar({
-    selectedCount,
-    users,
-    assignToUserId,
-    onAssignUserChange,
-    onAssign,
-    isAssigning,
-}: {
+                           selectedCount,
+                           users,
+                           assignToUserId,
+                           onAssignUserChange,
+                           onAssign,
+                           isAssigning,
+                       }: {
     selectedCount: number;
     users: UserModel[];
     assignToUserId: string;
@@ -186,12 +193,12 @@ function BulkActionBar({
 }
 
 function PaginationControls({
-    page,
-    total,
-    perPage,
-    onPrev,
-    onNext,
-}: {
+                                page,
+                                total,
+                                perPage,
+                                onPrev,
+                                onNext,
+                            }: {
     page: number;
     total: number;
     perPage: number;
@@ -219,10 +226,10 @@ function PaginationControls({
 // ---- Duplicate pair sub-component ----
 
 function DuplicatePairCard({
-    item,
-    onResolve,
-    isResolving,
-}: {
+                               item,
+                               onResolve,
+                               isResolving,
+                           }: {
     item: BookDuplicateWithBooksModel;
     onResolve: (action: ResolveDuplicateAction) => void;
     isResolving: boolean;
@@ -327,7 +334,9 @@ export default function LibraryManagement() {
     const activeCount = jobs.filter((j) => j.status === "active" || j.status === "waiting").length;
 
     // Reset job page when filter changes
-    useEffect(() => { setJobPage(0); }, [statusFilter]);
+    useEffect(() => {
+        setJobPage(0);
+    }, [statusFilter]);
 
     // Default scan user setting (admin only)
     const {data: defaultScanUserSetting} = useGetLibrarySettingQuery("default_scan_user_id", {skip: !isAdmin});
@@ -394,7 +403,9 @@ export default function LibraryManagement() {
     }, [allBooksSearch]);
 
     // Reset page when search changes
-    useEffect(() => { setAllBooksPage(0); }, [allBooksSearchDebounced]);
+    useEffect(() => {
+        setAllBooksPage(0);
+    }, [allBooksSearchDebounced]);
 
     // Reset selections when tab changes
     const [selectedBookIds, setSelectedBookIds] = useState<Set<string>>(new Set());
@@ -486,6 +497,7 @@ export default function LibraryManagement() {
 
     const currentTotal = assignTab === "unowned" ? unownedTotal : assignTab === "orphaned" ? orphanedTotal : allBooksTotal;
     const currentPage = assignTab === "unowned" ? unownedPage : assignTab === "orphaned" ? orphanedPage : allBooksPage;
+
     function setCurrentPage(p: number) {
         if (assignTab === "unowned") setUnownedPage(p);
         else if (assignTab === "orphaned") setOrphanedPage(p);
@@ -688,12 +700,12 @@ export default function LibraryManagement() {
                                     </Card.Title>
                                 </Flex>
                                 <Text fontSize="sm" color="fg.muted" mt={1}>
-                                    Books with the same file content but different metadata. Review and resolve each pair.
+                                    Books with the same file content but different metadata. Review and resolve each
+                                    pair.
                                 </Text>
                             </Stack>
                             <Button
                                 size="sm"
-                                variant="outline"
                                 onClick={handleTriggerDuplicateScan}
                                 loading={isDuplicateScanTriggering}
                             >
