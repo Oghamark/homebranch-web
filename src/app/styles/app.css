@@ -14,3 +14,11 @@ body {
     0%, 100% { opacity: 0.4; }
     50% { opacity: 0.8; }
 }
+
+/* Readium navigator iframes are position:absolute — they fill the container */
+.readium-navigator-iframe {
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: none;
+}
