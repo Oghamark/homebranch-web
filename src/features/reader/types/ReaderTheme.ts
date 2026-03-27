@@ -1,9 +1,20 @@
 export type ThemeColorMode = 'light' | 'dark' | 'sepia';
 
+export type TextAlignPreference = 'start' | 'left' | 'right' | 'justify' | null;
+
 export interface ReaderThemeState {
     mode: ThemeColorMode;
     fontFamily: string;
     fontSize: number;
+    scroll: boolean;
+    columnCount: 1 | 2 | null;
+    textAlign: TextAlignPreference;
+    lineHeight: number | null;
+    letterSpacing: number | null;
+    wordSpacing: number | null;
+    paragraphSpacing: number | null;
+    hyphens: boolean | null;
+    pageGutter: number | null;
 }
 
 export interface ThemeColors {

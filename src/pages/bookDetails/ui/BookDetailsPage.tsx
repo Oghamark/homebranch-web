@@ -9,7 +9,7 @@ import {Tooltip} from "@/components/ui/tooltip";
 import {deleteSavedPosition, getSavedPosition} from "@/features/reader/api/savedPositionApi";
 import ToastFactory from "@/app/utils/toast_handler";
 import {handleRtkError} from "@/shared/api/rtk-query";
-import {getStoredProgress, removeStoredProgress, clearLocationsCache} from "@/features/reader";
+import {getStoredProgress, removeStoredProgress} from "@/features/reader";
 
 const SUMMARY_CHAR_LIMIT = 400;
 
@@ -128,7 +128,6 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
         }
         const userId = sessionStorage.getItem("user_id");
         if (userId) removeStoredProgress(userId, bookId);
-        clearLocationsCache(bookId);
         setProgress(undefined);
         const currentlyReading = JSON.parse(
             localStorage.getItem(`currentlyReading_${sessionStorage.getItem("user_id")}`) ?? "{}"
