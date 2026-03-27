@@ -33,7 +33,7 @@ It provides a user-friendly interface to organize, search, and read your ebooks 
 
 ## Features
 
-- EPUB reader with cross-device position sync
+- EPUB reader powered by the Readium TypeScript toolkit — table of contents, reading preferences (font, size, spacing, columns, scroll mode, themes), and cross-device position sync
 - Library with infinite scroll and search
   - Keyword search: `isbn:<value>`, `genre:<value>`, `series:<value>`, `author:<value>` prefixes narrow results by metadata field
 - Book detail page with enriched metadata: genres, series, ISBN, page count, publisher, language, ratings
