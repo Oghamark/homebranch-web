@@ -1,7 +1,5 @@
 import {authenticationAxiosInstance} from "@/features/authentication/api/axios";
 import {replace} from "react-router";
-import {store} from "@/app/store";
-import {homebranchApi} from "@/shared/api/rtk-query";
 
 export async function logout() {
     try {
@@ -21,6 +19,5 @@ export async function logout() {
 
     sessionStorage.removeItem('user_id');
     sessionStorage.removeItem('user_role');
-    store.dispatch(homebranchApi.util.resetApiState());
     return replace('/login');
 }
