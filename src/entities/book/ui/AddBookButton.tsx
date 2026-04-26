@@ -1,7 +1,7 @@
 import {type ButtonProps, FileUpload, Menu, useFileUploadContext} from "@chakra-ui/react";
 import {HiPlus} from "react-icons/hi";
-import SubmitButton from "@/components/ui/SubmitButton";
-import {toaster} from "@/components/ui/toaster";
+import SubmitButton from "@/shared/ui/SubmitButton";
+import {toaster} from "@/shared/ui/toaster";
 import {type CreateBookRequest, useCreateBookMutation} from "@/entities/book";
 import {isFetchBaseQueryError, isErrorWithMessage} from "@/shared/api/rtk-query";
 import type {FileAcceptDetails} from "@zag-js/file-upload";
@@ -108,17 +108,17 @@ export function AddBookButton(buttonProps: ButtonProps) {
         const fileList = e.target.files;
         if (!fileList) return;
 
-        const epubFiles = Array.from(fileList).filter(f => f.name.endsWith(".epub"));
+        const supportedFiles = Array.from(fileList).filter(f => /\.(epub|pdf)$/i.test(f.name));
 
-        if (epubFiles.length === 0) {
+        if (supportedFiles.length === 0) {
             toaster.create({
-                title: "No EPUB files found in the selected directory.",
+                title: "No EPUB or PDF files found in the selected directory.",
                 type: "warning",
             });
             return;
         }
 
-        await processFiles(epubFiles);
+        await processFiles(supportedFiles);
         e.target.value = "";
     };
 
@@ -141,12 +141,12 @@ export function AddBookButton(buttonProps: ButtonProps) {
             />
 
             <FileUpload.Root
-                accept={".epub"}
+                accept={".epub,.pdf"}
                 maxFiles={Number.MAX_SAFE_INTEGER}
                 onFileAccept={_handleMultiSelect}
             >
                 <ClearFilesOnComplete isUploading={isUploading}/>
-                <FileUpload.HiddenInput accept=".epub" multiple/>
+                <FileUpload.HiddenInput accept=".epub,.pdf" multiple/>
                 <Menu.Root>
                     <Menu.Trigger asChild>
                         <SubmitButton
