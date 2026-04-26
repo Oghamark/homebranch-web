@@ -1,5 +1,5 @@
 import {axiosInstance} from "@/shared/api/axios";
-import type {SavedPosition} from "../types/SavedPosition";
+import type {SavedPosition, SavePositionRequest} from "../types/SavedPosition";
 
 function getUserId(): string {
     const userId = sessionStorage.getItem("user_id");
@@ -24,9 +24,9 @@ export async function getSavedPosition(bookId: string): Promise<SavedPosition | 
     }
 }
 
-export async function savePosition(bookId: string, position: string, deviceName: string): Promise<void> {
+export async function savePosition(bookId: string, request: SavePositionRequest): Promise<void> {
     const userId = getUserId();
-    await axiosInstance.put(`/users/${userId}/saved-positions/${bookId}`, {position, deviceName});
+    await axiosInstance.put(`/users/${userId}/saved-positions/${bookId}`, request);
 }
 
 export async function deleteSavedPosition(bookId: string): Promise<void> {

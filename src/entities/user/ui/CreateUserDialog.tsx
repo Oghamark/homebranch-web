@@ -2,9 +2,9 @@ import {Button, CloseButton, Dialog, Portal, Stack} from "@chakra-ui/react";
 import {useState} from "react";
 import {useCreateUserMutation} from "@/entities/user/api/api";
 import type {CreateUserRequest} from "@/entities/user/api/dtos";
-import TextField from "@/components/ui/TextField";
+import TextField from "@/shared/ui/TextField";
 import {handleRtkError} from "@/shared/api/rtk-query";
-import {toaster} from "@/components/ui/toaster";
+import {toaster} from "@/shared/ui/toaster";
 import {LuUserPlus} from "react-icons/lu";
 
 export function CreateUserDialog() {

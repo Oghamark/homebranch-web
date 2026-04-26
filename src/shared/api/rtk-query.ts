@@ -8,7 +8,7 @@ import {
 } from "@reduxjs/toolkit/query/react";
 import {fetchBaseQuery} from "@reduxjs/toolkit/query";
 import {config, type Result} from "@/shared";
-import ToastFactory from "@/app/utils/toast_handler";
+import ToastFactory from "@/shared/lib/toast/toast";
 import {Mutex} from "async-mutex";
 
 // Create a mutex to prevent multiple refresh attempts

@@ -16,9 +16,9 @@ import {useGetUserByIdQuery} from "@/entities/user";
 import {useGetAuthConfigQuery, useUpdateAuthConfigMutation} from "@/entities/authConfig";
 import {LuKeyRound, LuMail, LuSettings, LuShieldCheck, LuUser, LuUserPlus} from "react-icons/lu";
 import {handleRtkError} from "@/shared/api/rtk-query";
-import TextField from "@/components/ui/TextField";
-import PasswordTextField from "@/components/ui/PasswordTextField";
-import ToastFactory from "@/app/utils/toast_handler";
+import TextField from "@/shared/ui/TextField";
+import PasswordTextField from "@/shared/ui/PasswordTextField";
+import ToastFactory from "@/shared/lib/toast/toast";
 
 export function meta({}: Route.MetaArgs) {
     return [

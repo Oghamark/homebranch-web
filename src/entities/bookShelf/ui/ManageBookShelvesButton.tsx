@@ -1,6 +1,6 @@
 import {Box, Checkbox, IconButton, Popover, Portal, Spinner, Stack, Text} from "@chakra-ui/react";
 import {LuLibrary} from "react-icons/lu";
-import {Tooltip} from "@/components/ui/tooltip";
+import {Tooltip} from "@/shared/ui/tooltip";
 import {
     useAddBookToBookShelfMutation,
     useGetBookShelvesByBookQuery,

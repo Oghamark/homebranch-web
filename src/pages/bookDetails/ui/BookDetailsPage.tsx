@@ -1,15 +1,31 @@
-import {type BookModel, useDeleteBookMutation, useGenerateBookSummaryMutation, useUpdateBookMutation, useFetchBookMetadataMutation, useToggleFavoriteMutation} from "@/entities/book";
+import {
+    type BookModel,
+    useDeleteBookMutation,
+    useGenerateBookSummaryMutation,
+    useUpdateBookMutation,
+    useFetchBookMetadataMutation,
+    useToggleFavoriteMutation,
+} from "@/entities/book";
 import {config} from "@/shared";
 import {Badge, Box, Button, CloseButton, Dialog, Flex, Heading, IconButton, Image, Menu, Portal, SimpleGrid, Stack, Text,} from "@chakra-ui/react";
-import {useEffect, useState} from "react";
+import {useEffect, useMemo, useState} from "react";
 import {LuBookOpen, LuDownload, LuEllipsis, LuHeart, LuLibrary, LuLoader, LuRefreshCw, LuStar, LuTrash2, LuX} from "react-icons/lu";
 import {Link, useNavigate} from "react-router";
 import {ManageBookShelvesButton} from "@/entities/bookShelf";
-import {Tooltip} from "@/components/ui/tooltip";
+import {Tooltip} from "@/shared/ui/tooltip";
 import {deleteSavedPosition, getSavedPosition} from "@/features/reader/api/savedPositionApi";
-import ToastFactory from "@/app/utils/toast_handler";
+import ToastFactory from "@/shared/lib/toast/toast";
 import {handleRtkError} from "@/shared/api/rtk-query";
-import {getStoredProgress, removeStoredProgress, clearLocationsCache} from "@/features/reader";
+import {getStoredProgress, removeStoredProgress} from "@/features/reader";
+import {
+    getAvailableBookFormats,
+    getBookFormatExtension,
+    getBookFormatLabel,
+    getPreferredBookFormat,
+    supportsBookFormatReading,
+    type BookFormatType
+} from "@/entities/book/model/bookFormats";
+import {ManageBookFormatsButton} from "@/pages/bookDetails/ui/ManageBookFormatsButton";
 
 const SUMMARY_CHAR_LIMIT = 400;
 
@@ -93,6 +109,13 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
     const [fetchMetadata, {isLoading: fetchingMetadata}] = useFetchBookMetadataMutation();
     const navigate = useNavigate();
     const [deleteOpen, setDeleteOpen] = useState(false);
+    const availableFormats = useMemo(() => getAvailableBookFormats(book), [book]);
+    const preferredFormat = useMemo(() => getPreferredBookFormat(availableFormats), [availableFormats]);
+    const [selectedFormat, setSelectedFormat] = useState<BookFormatType | undefined>(preferredFormat?.format);
+
+    useEffect(() => {
+        setSelectedFormat(preferredFormat?.format);
+    }, [preferredFormat?.format]);
 
     const currentUserId = sessionStorage.getItem('user_id');
     const currentUserRole = sessionStorage.getItem('user_role');
@@ -119,6 +142,22 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
         return () => { cancelled = true; };
     }, [book.id, isCurrentlyReading]);
 
+    const activeFormat = availableFormats.find((format) => format.format === selectedFormat) ?? preferredFormat;
+    const canReadActiveFormat = activeFormat ? supportsBookFormatReading(activeFormat.format) : false;
+    const activeTitle = activeFormat?.title ?? book.title;
+    const activeAuthor = activeFormat?.author ?? book.author;
+    const activeGenres = activeFormat?.genres ?? book.genres;
+    const activePublishedYear = activeFormat?.publishedYear ?? book.publishedYear;
+    const activeCoverImageFileName = activeFormat?.coverImageFileName ?? book.coverImageFileName;
+    const activeSummary = activeFormat?.summary ?? book.summary;
+    const activeSeries = activeFormat?.series ?? book.series;
+    const activeSeriesPosition = activeFormat?.seriesPosition ?? book.seriesPosition;
+    const activeIsbn = activeFormat?.isbn ?? book.isbn;
+    const activePageCount = activeFormat?.pageCount ?? book.pageCount;
+    const activePublisher = activeFormat?.publisher ?? book.publisher;
+    const activeLanguage = activeFormat?.language ?? book.language;
+    const sanitizedTitle = activeTitle.replace(/[/\\:*?"<>|]/g, '_');
+
     const removeCurrentlyReading = async (bookId: string) => {
         try {
             await deleteSavedPosition(bookId);
@@ -128,7 +167,6 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
         }
         const userId = sessionStorage.getItem("user_id");
         if (userId) removeStoredProgress(userId, bookId);
-        clearLocationsCache(bookId);
         setProgress(undefined);
         const currentlyReading = JSON.parse(
             localStorage.getItem(`currentlyReading_${sessionStorage.getItem("user_id")}`) ?? "{}"
@@ -143,16 +181,20 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
             <Flex direction={{base: "column", md: "row"}} align={{base: "center", md: "start"}} gap={{base: 6, md: 10}}>
                 {/* Cover image with frosted-glass reading progress overlay */}
                 <Box flexShrink={0} position="relative" w={{base: "200px", md: "240px"}}>
-                    <Image
-                        src={`${config.apiUrl}/uploads/cover-images/${book.coverImageFileName}`}
-                        alt={book.title}
-                        w="full"
-                        aspectRatio="2/3"
-                        objectFit="cover"
-                        borderRadius="lg"
-                        boxShadow="lg"
-                        display="block"
-                    />
+                    {activeCoverImageFileName ? (
+                        <Image
+                            src={`${config.apiUrl}/uploads/cover-images/${activeCoverImageFileName}`}
+                            alt={activeTitle}
+                            w="full"
+                            aspectRatio="2/3"
+                            objectFit="cover"
+                            borderRadius="lg"
+                            boxShadow="lg"
+                            display="block"
+                        />
+                    ) : (
+                        <Box w="full" aspectRatio="2/3" borderRadius="lg" bg="bg.muted" boxShadow="lg"/>
+                    )}
                     {progress !== undefined && progress > 0 && (
                         <Box
                             position="absolute"
@@ -186,27 +228,27 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
                 <Stack flex={1} gap={4} align={{base: "center", md: "start"}} textAlign={{base: "center", md: "start"}} w="full">
                     {/* Title & author · year · series */}
                     <Box>
-                        <Heading size={{base: "xl", md: "2xl"}} mb={1}>{book.title}</Heading>
-                        {book.series && (
+                        <Heading size={{base: "xl", md: "2xl"}} mb={1}>{activeTitle}</Heading>
+                        {activeSeries && (
                             <Text fontSize="sm" color="fg.muted" mb={1}>
-                                {book.series}{book.seriesPosition != null ? ` #${book.seriesPosition}` : ''}
+                                {activeSeries}{activeSeriesPosition != null ? ` #${activeSeriesPosition}` : ''}
                             </Text>
                         )}
                         <Flex align="center" gap={2} color="fg.muted" fontSize="md" justify={{base: "center", md: "start"}} flexWrap="wrap">
-                            {book.author && book.author.trim() ? (
+                            {activeAuthor && activeAuthor.trim() ? (
                                 <Link
-                                    to={`/authors/${encodeURIComponent(book.author)}`}
+                                    to={`/authors/${encodeURIComponent(activeAuthor)}`}
                                     style={{textDecoration: "none", color: "inherit"}}
                                 >
-                                    <Box as="span" _hover={{textDecoration: "underline"}}>{book.author}</Box>
+                                    <Box as="span" _hover={{textDecoration: "underline"}}>{activeAuthor}</Box>
                                 </Link>
                             ) : (
-                                <Box as="span">{book.author || "Unknown Author"}</Box>
+                                <Box as="span">{activeAuthor || "Unknown Author"}</Box>
                             )}
-                            {book.publishedYear && (
+                            {activePublishedYear && (
                                 <>
                                     <Text as="span" color="fg.subtle" userSelect="none">·</Text>
-                                    <Text as="span" color="fg.subtle">{book.publishedYear}</Text>
+                                    <Text as="span" color="fg.subtle">{activePublishedYear}</Text>
                                 </>
                             )}
                         </Flex>
@@ -217,8 +259,8 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
                         )}
                     </Box>
 
-                    {book.summary && book.summary.trim() ? (
-                        <Summary html={book.summary}/>
+                    {activeSummary && activeSummary.trim() ? (
+                        <Summary html={activeSummary}/>
                     ) : (
                         <Button
                             variant="subtle"
@@ -240,36 +282,58 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
                     )}
 
                     {/* Genres */}
-                    {book.genres && book.genres.filter(g => g.trim()).length > 0 && (
+                    {activeGenres && activeGenres.filter(g => g.trim()).length > 0 && (
                         <Flex gap={2} flexWrap="wrap">
-                            {book.genres.filter(g => g.trim()).map(genre => (
+                            {activeGenres.filter(g => g.trim()).map(genre => (
                                 <Badge key={genre} variant="subtle" colorPalette="teal" size="sm">{genre}</Badge>
                             ))}
                         </Flex>
                     )}
 
                     {/* Metadata grid */}
-                    {(book.isbn || book.pageCount || book.publisher || book.language) && (
+                    {(activeIsbn || activePageCount || activePublisher || activeLanguage) && (
                         <SimpleGrid columns={{base: 2, md: 3}} gap={4} pt={1}>
-                            {book.isbn && <MetaItem label="ISBN" value={book.isbn}/>}
-                            {book.pageCount && <MetaItem label="Pages" value={String(book.pageCount)}/>}
-                            {book.publisher && <MetaItem label="Publisher" value={book.publisher}/>}
-                            {book.language && <MetaItem label="Language" value={book.language.toUpperCase()}/>}
+                            {activeIsbn && <MetaItem label="ISBN" value={activeIsbn}/>}
+                            {activePageCount && <MetaItem label="Pages" value={String(activePageCount)}/>}
+                            {activePublisher && <MetaItem label="Publisher" value={activePublisher}/>}
+                            {activeLanguage && <MetaItem label="Language" value={activeLanguage.toUpperCase()}/>}
                         </SimpleGrid>
                     )}
 
                     {/* Unified action row: labeled CTAs + divider + icon actions */}
+                    {availableFormats.length > 0 && (
+                        <Stack gap={2} align={{base: "center", md: "start"}}>
+                            <Text fontSize="xs" color="fg.subtle" textTransform="uppercase" letterSpacing="wide">Available Formats</Text>
+                            <Flex gap={2} flexWrap="wrap" justify={{base: "center", md: "start"}}>
+                                {availableFormats.map((format) => (
+                                    <Button
+                                        key={format.id}
+                                        size="sm"
+                                        variant={activeFormat?.format === format.format ? "solid" : "outline"}
+                                        onClick={() => setSelectedFormat(format.format)}
+                                    >
+                                        {getBookFormatLabel(format.format)}
+                                    </Button>
+                                ))}
+                            </Flex>
+                        </Stack>
+                    )}
                     <Flex align="center" gap={3} flexWrap="wrap" w={{base: "full", md: "auto"}} justify={{base: "center", md: "start"}}>
-                        <Button variant="solid" w={{base: "full", md: "auto"}} minW="120px" asChild>
-                            <Link to={`/books/${book.id}/read`}>
-                                <LuBookOpen/> Read
-                            </Link>
-                        </Button>
+                        {canReadActiveFormat ? (
+                            <Button variant="solid" w={{base: "full", md: "auto"}} minW="120px" asChild>
+                                <Link to={`/books/${book.id}/read${activeFormat ? `?format=${activeFormat.format}` : ''}`}>
+                                    <LuBookOpen/> Read
+                                </Link>
+                            </Button>
+                        ) : (
+                            <Button variant="solid" w={{base: "full", md: "auto"}} minW="120px" disabled>
+                                <LuBookOpen/> Read unavailable
+                            </Button>
+                        )}
                         <Button variant="outline" w={{base: "full", md: "auto"}} minW="130px" asChild>
                             <a
-                                href={`${config.apiUrl}/books/${book.id}/download`}
-                                // Replace characters invalid in filenames with underscores
-                                download={`${book.title.replace(/[/\\:*?"<>|]/g, '_')}.epub`}
+                                href={`${config.apiUrl}/books/${book.id}/download${activeFormat ? `?format=${activeFormat.format}` : ''}`}
+                                download={`${sanitizedTitle}${getBookFormatExtension(activeFormat?.format ?? "EPUB")}`}
                             >
                                 <LuDownload/> Download
                             </a>
@@ -289,6 +353,7 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
                                 </IconButton>
                             </Tooltip>
                             <ManageBookShelvesButton bookId={book.id} variant="ghost"/>
+                            <ManageBookFormatsButton book={book} canManage={canDelete}/>
                             {/* Overflow menu for destructive / contextual actions */}
                             <Menu.Root>
                                 <Menu.Trigger asChild>

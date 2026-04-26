@@ -2,7 +2,7 @@ import {IconButton, Loader, Menu, Portal} from "@chakra-ui/react";
 import {LuEllipsis, LuTrash2} from "react-icons/lu";
 import {useMatch, useNavigate} from "react-router";
 import {useDeleteBookShelfMutation} from "@/entities/bookShelf";
-import ToastFactory from "@/app/utils/toast_handler";
+import ToastFactory from "@/shared/lib/toast/toast";
 
 interface BookShelfOptionsMenuProps {
     bookShelfId: string;

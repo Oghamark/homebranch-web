@@ -1,6 +1,6 @@
 import axios from "axios";
 import {ApiErrorResponse, config} from "@/shared";
-import ToastFactory from "@/app/utils/toast_handler";
+import ToastFactory from "@/shared/lib/toast/toast";
 
 export const authenticationAxiosInstance = axios.create({
     baseURL: config.authenticationUrl,

@@ -8,7 +8,7 @@ import {
 import {useGetBooksInfiniteQuery} from "@/entities/book";
 import {Box, HStack, IconButton, Image, Loader, Popover, Portal, Spinner, Stack, Text} from "@chakra-ui/react";
 import {HiCollection, HiPlus} from "react-icons/hi";
-import TextField from "@/components/ui/TextField";
+import TextField from "@/shared/ui/TextField";
 import InfiniteScroll from "react-infinite-scroll-component";
 import {config} from "@/shared";
 import {HiMinus} from "react-icons/hi2";

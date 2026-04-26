@@ -9,7 +9,7 @@ import {
 } from "@/entities/bookShelf";
 import {LibraryPage} from "@/pages/library";
 import type {Route} from "./+types/book-shelf";
-import ToastFactory from "@/app/utils/toast_handler";
+import ToastFactory from "@/shared/lib/toast/toast";
 import {HiCollection} from "react-icons/hi";
 import {useLibrarySearch} from "@/features/library";
 import {useMobileNav} from "@/components/navigation/MobileNavContext";

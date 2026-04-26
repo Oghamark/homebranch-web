@@ -5,7 +5,7 @@ import {useCallback, useEffect, useRef, useState} from "react";
 import {NavigationContent} from "./NavigationContent";
 import {useMobileNav} from "./MobileNavContext";
 import {ShowAllUsersButton} from "@/features/library";
-import {useColorMode} from "@/components/ui/color-mode";
+import {useColorMode} from "@/shared/ui/color-mode";
 
 const pathnameToTitle: Record<string, string> = {
     "/": "Library",

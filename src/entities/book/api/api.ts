@@ -226,6 +226,29 @@ export const booksApi = homebranchApi.injectEndpoints({
             query: (book: BookModel) => ({url: `/books/${book.id}`, method: 'PUT', body: book}),
             invalidatesTags: result => result ? [{type: 'Book' as const, id: result.id}] : []
         }),
+        linkBooks: build.mutation<BookModel, {targetBookId: string; sourceBookId: string}>({
+            query: ({targetBookId, sourceBookId}) => ({
+                url: `/books/${targetBookId}/link`,
+                method: 'POST',
+                body: {sourceBookId},
+            }),
+            invalidatesTags: (_result, _error, {targetBookId, sourceBookId}) => [
+                {type: 'Book' as const, id: targetBookId},
+                {type: 'Book' as const, id: sourceBookId},
+                {type: 'Book', id: 'LIST'},
+                'Book',
+            ],
+        }),
+        unlinkBookFormat: build.mutation<BookModel, {bookId: string; formatId: string}>({
+            query: ({bookId, formatId}) => ({
+                url: `/books/${bookId}/formats/${formatId}`,
+                method: 'DELETE',
+            }),
+            invalidatesTags: (_result, _error, {bookId}) => [
+                {type: 'Book' as const, id: bookId},
+                {type: 'Book', id: 'LIST'},
+            ],
+        }),
         toggleFavorite: build.mutation<{ isFavorite: boolean }, string>({
             query: (bookId: string) => ({url: `/books/${bookId}/favorite`, method: 'PUT'}),
             invalidatesTags: (_result, _error, bookId) => [{type: 'Book' as const, id: bookId}, 'Book'],
@@ -272,6 +295,8 @@ export const {
     useSearchBooksQuery,
     useCreateBookMutation,
     useUpdateBookMutation,
+    useLinkBooksMutation,
+    useUnlinkBookFormatMutation,
     useToggleFavoriteMutation,
     useDeleteBookMutation,
     useGenerateBookSummaryMutation,
