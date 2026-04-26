@@ -3,6 +3,7 @@ import { Box, useMediaQuery } from "@chakra-ui/react";
 import { useAppSelector } from "@/app/hooks";
 import { getThemeColors } from "../types/ReaderTheme";
 import type { BookModel } from "@/entities/book/model/BookModel";
+import type {BookFormatType} from "@/entities/book/model/bookFormats";
 import { useDeviceName } from "../hooks/useDeviceName";
 import { useSavePositionSync } from "../hooks/useSavePositionSync";
 import { useEpubNavigator } from "../hooks/useEpubNavigator";
@@ -17,9 +18,10 @@ const KEYBOARD_HINT_KEY = "reader-keyboard-hint-shown";
 
 interface ReaderProps {
     book: BookModel;
+    format: BookFormatType;
 }
 
-export function Reader({ book }: ReaderProps) {
+export function Reader({ book, format }: ReaderProps) {
     const deviceName = useDeviceName();
     const themeState = useAppSelector((state) => state.readerTheme);
     const colors = getThemeColors(themeState.mode);
@@ -29,10 +31,10 @@ export function Reader({ book }: ReaderProps) {
         return !localStorage.getItem(KEYBOARD_HINT_KEY);
     });
 
-    const { onLocationChange } = useSavePositionSync(book.id, deviceName);
+    const { onLocationChange, saveImmediate } = useSavePositionSync(book.id, format, deviceName);
 
     const { containerRef, navigatorRef, isLoading, isLoaded, loadError, percentage, tocItems } =
-        useEpubNavigator(book, themeState, onLocationChange);
+        useEpubNavigator(book, format, themeState, onLocationChange);
 
     const { modalCase, setModalCase, handleJump, handleKeepLocal } = usePositionConflict(
         book.id,
@@ -40,6 +42,7 @@ export function Reader({ book }: ReaderProps) {
         deviceName,
         isLoaded,
         onLocationChange,
+        saveImmediate,
     );
 
     useKeyboardNavigation(navigatorRef);

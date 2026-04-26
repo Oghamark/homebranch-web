@@ -1,23 +1,26 @@
 import { Box, Flex, Text, IconButton } from "@chakra-ui/react";
 import { LuX } from "react-icons/lu";
-import type { EpubNavigator } from "@readium/navigator";
-import type { Link } from "@readium/shared";
 import type { ThemeColors } from "../types/ReaderTheme";
 
-interface TocEntryProps {
-    link: Link;
+export interface ReaderTocItem {
+    id: string;
+    label: string;
+    children?: ReaderTocItem[];
+}
+
+interface TocEntryProps<TItem extends ReaderTocItem> {
+    item: TItem;
     depth: number;
-    navigatorRef: React.RefObject<EpubNavigator | null>;
-    onNavigate: () => void;
+    getChildren: (item: TItem) => TItem[] | undefined;
+    onNavigate: (item: TItem) => void;
     colors: ThemeColors;
 }
 
-function TocEntry({ link, depth, navigatorRef, onNavigate, colors }: TocEntryProps) {
-    const children = link.children?.items ?? [];
+function TocEntry<TItem extends ReaderTocItem>({ item, depth, getChildren, onNavigate, colors }: TocEntryProps<TItem>) {
+    const children = getChildren(item) ?? [];
 
     const handleClick = () => {
-        navigatorRef.current?.goLink(link, false, () => {});
-        onNavigate();
+        onNavigate(item);
     };
 
     return (
@@ -35,14 +38,14 @@ function TocEntry({ link, depth, navigatorRef, onNavigate, colors }: TocEntryPro
                 _hover={{ bg: colors.hoverBg }}
                 onClick={handleClick}
             >
-                {link.title ?? link.href}
+                {item.label}
             </Box>
             {children.map((child, index) => (
                 <TocEntry
-                    key={`${child.href}-${index}`}
-                    link={child}
+                    key={`${child.id}-${index}`}
+                    item={child}
                     depth={depth + 1}
-                    navigatorRef={navigatorRef}
+                    getChildren={getChildren}
                     onNavigate={onNavigate}
                     colors={colors}
                 />
@@ -51,15 +54,25 @@ function TocEntry({ link, depth, navigatorRef, onNavigate, colors }: TocEntryPro
     );
 }
 
-interface ReaderTocProps {
+interface ReaderTocProps<TItem extends ReaderTocItem> {
     isOpen: boolean;
     onClose: () => void;
-    tocItems: Link[];
-    navigatorRef: React.RefObject<EpubNavigator | null>;
+    tocItems: TItem[];
+    getChildren: (item: TItem) => TItem[] | undefined;
+    onNavigate: (item: TItem) => void;
     colors: ThemeColors;
+    title?: string;
 }
 
-export function ReaderToc({ isOpen, onClose, tocItems, navigatorRef, colors }: ReaderTocProps) {
+export function ReaderToc<TItem extends ReaderTocItem>({
+    isOpen,
+    onClose,
+    tocItems,
+    getChildren,
+    onNavigate,
+    colors,
+    title = "Table of Contents",
+}: ReaderTocProps<TItem>) {
     if (!isOpen) return null;
 
     return (
@@ -97,7 +110,7 @@ export function ReaderToc({ isOpen, onClose, tocItems, navigatorRef, colors }: R
                     flexShrink={0}
                 >
                     <Text fontWeight="semibold" fontSize="sm">
-                        Table of Contents
+                        {title}
                     </Text>
                     <IconButton
                         aria-label="Close table of contents"
@@ -119,11 +132,14 @@ export function ReaderToc({ isOpen, onClose, tocItems, navigatorRef, colors }: R
                     ) : (
                         tocItems.map((link, index) => (
                             <TocEntry
-                                key={`${link.href}-${index}`}
-                                link={link}
+                                key={`${link.id}-${index}`}
+                                item={link}
                                 depth={0}
-                                navigatorRef={navigatorRef}
-                                onNavigate={onClose}
+                                getChildren={getChildren}
+                                onNavigate={(item) => {
+                                    onNavigate(item);
+                                    onClose();
+                                }}
                                 colors={colors}
                             />
                         ))

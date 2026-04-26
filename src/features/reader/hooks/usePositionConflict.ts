@@ -6,31 +6,33 @@ import { getSavedPosition, savePosition } from "../api/savedPositionApi";
 import type { SavedPosition } from "../types/SavedPosition";
 import type { ModalCase } from "../components/JumpToSavedPositionModal";
 import { getInitialLocator, isCfi, formatLocatorLabel } from "../utils/locatorUtils";
-import ToastFactory from "@/app/utils/toast_handler";
+import ToastFactory from "@/shared/lib/toast/toast";
+import {getResumeFormatPosition} from "../utils/savedPositionState";
 
 function buildConflictModal(
     serverPos: SavedPosition,
     localLocator: Locator | null,
     deviceName: string,
 ): ModalCase | null {
-    if (isCfi(serverPos.position)) return null;
+    const exactServerPosition = getResumeFormatPosition(serverPos.position, "EPUB");
+    if (!exactServerPosition || isCfi(exactServerPosition)) return null;
 
     let serverLocator: Locator | undefined;
     try {
-        serverLocator = Locator.deserialize(JSON.parse(serverPos.position));
+        serverLocator = Locator.deserialize(JSON.parse(exactServerPosition));
     } catch {
         return null;
     }
     if (!serverLocator) return null;
 
-    if (localLocator && JSON.stringify(localLocator.serialize()) === serverPos.position) return null;
+    if (localLocator && JSON.stringify(localLocator.serialize()) === exactServerPosition) return null;
 
     const serverLabel = formatLocatorLabel(serverLocator);
 
     if (localLocator && serverPos.deviceName === deviceName) {
         return {
             type: "conflict",
-            serverPosition: serverPos.position,
+            serverPosition: exactServerPosition,
             localPosition: JSON.stringify(localLocator.serialize()),
             serverLabel,
             localLabel: formatLocatorLabel(localLocator),
@@ -41,7 +43,7 @@ function buildConflictModal(
         type: "jump",
         deviceName: serverPos.deviceName,
         updatedAt: serverPos.updatedAt,
-        serverPosition: serverPos.position,
+        serverPosition: exactServerPosition,
         serverLabel,
     };
 }
@@ -51,7 +53,8 @@ export function usePositionConflict(
     navigatorRef: RefObject<EpubNavigator | null>,
     deviceName: string,
     isLoaded: boolean,
-    onLocationChange: (loc: string) => void,
+    onLocationChange: (loc: string, percentage?: number) => void,
+    saveImmediate: (loc: string, percentage?: number) => Promise<void>,
 ) {
     const [modalCase, setModalCase] = useState<ModalCase | null>(null);
 
@@ -65,7 +68,7 @@ export function usePositionConflict(
                 const serverPos = await getSavedPosition(bookId);
                 if (cancelled || !serverPos) return;
 
-                const localLocator = getInitialLocator(bookId);
+                const localLocator = getInitialLocator(bookId, true);
                 const mc = buildConflictModal(serverPos, localLocator, deviceName);
                 if (mc) setModalCase(mc);
             } catch {
@@ -90,7 +93,8 @@ export function usePositionConflict(
                     // ignore malformed position
                 }
             }
-            onLocationChange(position);
+            const locator = Locator.deserialize(JSON.parse(position));
+            onLocationChange(position, locator?.locations?.totalProgression);
             setModalCase(null);
         },
         [navigatorRef, onLocationChange],
@@ -101,11 +105,14 @@ export function usePositionConflict(
         const nav = navigatorRef.current;
         if (!nav) return;
         try {
-            await savePosition(bookId, JSON.stringify(nav.currentLocator.serialize()), deviceName);
+            await saveImmediate(
+                JSON.stringify(nav.currentLocator.serialize()),
+                nav.currentLocator.locations?.totalProgression,
+            );
         } catch {
             ToastFactory({ message: "Failed to sync local position to cloud", type: "warning" });
         }
-    }, [bookId, deviceName, navigatorRef]);
+    }, [navigatorRef, saveImmediate]);
 
     return { modalCase, setModalCase, handleJump, handleKeepLocal };
 }

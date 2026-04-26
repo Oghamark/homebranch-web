@@ -1,11 +1,13 @@
+import type {BookFormatModel} from "./bookFormats";
+
 export type BookModel = {
     id: string;
     title: string;
     author: string;
     fileName: string;
     isFavorite: boolean;
-    publishedYear: string;
-    coverImageFileName: string;
+    publishedYear?: number;
+    coverImageFileName?: string;
     summary?: string;
     uploadedByUserId: string;
     genres?: string[];
@@ -18,4 +20,5 @@ export type BookModel = {
     averageRating?: number;
     ratingsCount?: number;
     metadataFetchedAt?: string;
-}
+    formats?: BookFormatModel[];
+} 

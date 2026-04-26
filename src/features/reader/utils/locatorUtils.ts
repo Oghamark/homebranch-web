@@ -1,21 +1,13 @@
 import { Locator } from "@readium/shared";
+import {getStoredLocator} from "./savedPositionState";
 
 export function isCfi(position: string): boolean {
     return position.startsWith("epubcfi(");
 }
 
-export function getInitialLocator(bookId: string): Locator | null {
+export function getInitialLocator(bookId: string, onlyIfActive = true): Locator | null {
     if (typeof window === "undefined") return null;
-    try {
-        const map: Record<string, unknown> = JSON.parse(
-            localStorage.getItem(`currentlyReading_${sessionStorage.getItem("user_id")}`) ?? "{}",
-        );
-        const stored = map[bookId];
-        if (!stored || isCfi(String(stored))) return null;
-        return Locator.deserialize(JSON.parse(String(stored))) ?? null;
-    } catch {
-        return null;
-    }
+    return getStoredLocator(bookId, onlyIfActive);
 }
 
 export function formatLocatorLabel(locator: Locator): string {

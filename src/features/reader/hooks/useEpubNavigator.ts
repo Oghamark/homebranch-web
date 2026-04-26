@@ -8,6 +8,9 @@ import { getInitialLocator } from "../utils/locatorUtils";
 import { buildEpubPreferences } from "../utils/epubPreferences";
 import type { ReaderThemeState } from "../types/ReaderTheme";
 import type { BookModel } from "@/entities/book/model/BookModel";
+import type {BookFormatType} from "@/entities/book/model/bookFormats";
+import { getSavedPosition } from "../api/savedPositionApi";
+import { getApproximateLocator, getExactFormatPosition, getResumeFormatPosition } from "../utils/savedPositionState";
 
 export interface UseEpubNavigatorResult {
     containerRef: React.RefObject<HTMLDivElement | null>;
@@ -21,9 +24,19 @@ export interface UseEpubNavigatorResult {
 
 export function useEpubNavigator(
     book: BookModel,
+    format: BookFormatType,
     themeState: ReaderThemeState,
-    onLocationChange: (loc: string) => void,
+    onLocationChange: (loc: string, percentage?: number) => void,
 ): UseEpubNavigatorResult {
+    function deserializeLocator(position?: string | null): Locator | null {
+        if (!position) return null;
+        try {
+            return Locator.deserialize(JSON.parse(position)) ?? null;
+        } catch {
+            return null;
+        }
+    }
+
     const containerRef = useRef<HTMLDivElement>(null);
     const navigatorRef = useRef<EpubNavigator | null>(null);
     const themeStateRef = useRef(themeState);
@@ -52,7 +65,7 @@ export function useEpubNavigator(
         async function init() {
             try {
                 const { data: manifestJson } = await axiosInstance.get(
-                    `/books/${book.id}/manifest`,
+                    `/books/${book.id}/manifest?format=${format}`,
                     { headers: { Accept: "application/webpub+json" } },
                 );
 
@@ -81,8 +94,19 @@ export function useEpubNavigator(
                     }),
                 );
 
-                const savedLocator = getInitialLocator(book.id);
-                const initialLocator = savedLocator ?? positions[0];
+                const savedPosition = await getSavedPosition(book.id).catch(() => null);
+                const activeLocalLocator = getInitialLocator(book.id, true);
+                const fallbackLocalLocator = getInitialLocator(book.id, false);
+                const activeCloudLocator = deserializeLocator(getResumeFormatPosition(savedPosition?.position, "EPUB"));
+                const fallbackCloudLocator = deserializeLocator(getExactFormatPosition(savedPosition?.position, "EPUB"));
+                const approximateLocator = getApproximateLocator(positions, savedPosition);
+                const initialLocator =
+                    activeLocalLocator ??
+                    activeCloudLocator ??
+                    approximateLocator ??
+                    fallbackLocalLocator ??
+                    fallbackCloudLocator ??
+                    positions[0];
 
                 const listeners: EpubNavigatorListeners = {
                     frameLoaded: () => {},
@@ -94,7 +118,7 @@ export function useEpubNavigator(
                             const userId = sessionStorage.getItem("user_id");
                             if (userId) storeProgress(userId, book.id, progress);
                         }
-                        onLocationChangeRef.current(JSON.stringify(locator.serialize()));
+                        onLocationChangeRef.current(JSON.stringify(locator.serialize()), progress);
                     },
                     tap: (e) => e.interactiveElement == null,
                     click: (e) => e.interactiveElement == null,
@@ -144,7 +168,7 @@ export function useEpubNavigator(
             nav?.destroy();
             navigatorRef.current = null;
         };
-    }, [book.id]);
+    }, [book.id, format]);
 
     // Sync theme preferences to a live navigator
     useEffect(() => {

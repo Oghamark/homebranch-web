@@ -1,4 +1,5 @@
 export {Reader} from "./components/Reader";
+export {BookReader} from "./components/BookReader";
 export {JumpToSavedPositionModal} from "./components/JumpToSavedPositionModal";
 export {StorageIndicator} from "./components/StorageIndicator";
 export {ReadingProgressBadge} from "./components/ReadingProgressBadge";

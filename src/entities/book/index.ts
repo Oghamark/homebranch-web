@@ -4,6 +4,7 @@ export {AddBookButton} from "./ui/AddBookButton";
 
 // Model
 export type {BookModel} from "./model/BookModel";
+export type {BookFormatModel, BookFormatType} from "./model/bookFormats";
 export type {BookDuplicateModel, BookDuplicateWithBooksModel} from "./model/BookDuplicateModel";
 
 // API
@@ -15,6 +16,8 @@ export {
     useSearchBooksQuery,
     useCreateBookMutation,
     useUpdateBookMutation,
+    useLinkBooksMutation,
+    useUnlinkBookFormatMutation,
     useToggleFavoriteMutation,
     useDeleteBookMutation,
     useGenerateBookSummaryMutation,

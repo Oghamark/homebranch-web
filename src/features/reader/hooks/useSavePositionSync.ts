@@ -1,10 +1,13 @@
 import {useCallback, useEffect, useRef} from "react";
 import {savePosition} from "../api/savedPositionApi";
-import ToastFactory from "@/app/utils/toast_handler";
+import ToastFactory from "@/shared/lib/toast/toast";
+import type {BookFormatType} from "@/entities/book/model/bookFormats";
+import {saveStoredFormatPosition} from "../utils/savedPositionState";
 
-export function useSavePositionSync(bookId: string, deviceName: string) {
+export function useSavePositionSync(bookId: string, format: BookFormatType, deviceName: string) {
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const failedRef = useRef(false);
+    const lastSerializedRef = useRef<string | null>(null);
 
     useEffect(() => {
         return () => {
@@ -13,17 +16,14 @@ export function useSavePositionSync(bookId: string, deviceName: string) {
     }, []);
 
     const onLocationChange = useCallback(
-        (location: string | number) => {
-            const currentlyReading = JSON.parse(
-                localStorage.getItem(`currentlyReading_${sessionStorage.getItem("user_id")}`) ?? "{}",
-            );
-            currentlyReading[bookId] = location;
-            localStorage.setItem(`currentlyReading_${sessionStorage.getItem("user_id")}`, JSON.stringify(currentlyReading));
+        (location: string | number, percentage?: number) => {
+            const serialized = saveStoredFormatPosition(bookId, format, String(location));
+            lastSerializedRef.current = serialized;
 
             if (timerRef.current) clearTimeout(timerRef.current);
             timerRef.current = setTimeout(async () => {
                 try {
-                    await savePosition(bookId, String(location), deviceName);
+                    await savePosition(bookId, {position: serialized, deviceName, percentage});
                     if (failedRef.current) {
                         failedRef.current = false;
                         ToastFactory({message: "Position sync restored", type: "success"});
@@ -36,8 +36,17 @@ export function useSavePositionSync(bookId: string, deviceName: string) {
                 }
             }, 1000);
         },
-        [bookId, deviceName],
+        [bookId, deviceName, format],
     );
 
-    return {onLocationChange};
+    const saveImmediate = useCallback(
+        async (location: string | number, percentage?: number) => {
+            const serialized = saveStoredFormatPosition(bookId, format, String(location));
+            lastSerializedRef.current = serialized;
+            await savePosition(bookId, {position: serialized, deviceName, percentage});
+        },
+        [bookId, deviceName, format],
+    );
+
+    return {onLocationChange, saveImmediate};
 }

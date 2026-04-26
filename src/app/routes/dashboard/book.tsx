@@ -1,9 +1,9 @@
 import type {Route} from "./+types/book";
 
-import BookDetailsPage from "@/pages/bookDetails/ui/BookDetailsPage";
+import {BookDetailsPage} from "@/pages/bookDetails";
 import {useGetBookByIdQuery} from "@/entities/book";
 import {Loader} from "@chakra-ui/react";
-import ToastFactory from "@/app/utils/toast_handler";
+import ToastFactory from "@/shared/lib/toast/toast";
 import {Navigate} from "react-router";
 import {handleRtkError} from "@/shared/api/rtk-query";
 import {useEffect} from "react";

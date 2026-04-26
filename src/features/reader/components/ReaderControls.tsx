@@ -6,7 +6,7 @@ import type { EpubNavigator } from "@readium/navigator";
 import type { Link } from "@readium/shared";
 import type { ReaderThemeState, ThemeColors } from "../types/ReaderTheme";
 import { ReaderSettingsMenu } from "./ReaderSettingsMenu";
-import { ReaderToc } from "./ReaderToc";
+import { ReaderToc, type ReaderTocItem } from "./ReaderToc";
 
 interface ReaderControlsProps {
     themeState: ReaderThemeState;
@@ -37,6 +37,13 @@ export function ReaderControls({
 
     const goBackward = () => navigatorRef.current?.goBackward(false, () => {});
     const goForward = () => navigatorRef.current?.goForward(false, () => {});
+    const tocItemsForDrawer: ReaderTocItem[] = tocItems.map(function mapLink(link, index): ReaderTocItem {
+        return {
+            id: `${link.href ?? link.title ?? "toc"}-${index}`,
+            label: link.title ?? link.href ?? "Untitled",
+            children: (link.children?.items ?? []).map(mapLink),
+        };
+    });
 
     return (
         <>
@@ -61,8 +68,24 @@ export function ReaderControls({
             <ReaderToc
                 isOpen={isTocOpen}
                 onClose={() => setIsTocOpen(false)}
-                tocItems={tocItems}
-                navigatorRef={navigatorRef}
+                tocItems={tocItemsForDrawer}
+                getChildren={(item) => item.children}
+                onNavigate={(item) => {
+                    const navigateTo = (items: Link[]): Link | null => {
+                        for (const link of items) {
+                            if ((link.href ?? link.title ?? "") === item.id) {
+                                return link;
+                            }
+                            const nested = navigateTo(link.children?.items ?? []);
+                            if (nested) return nested;
+                        }
+                        return null;
+                    };
+                    const target = navigateTo(tocItems);
+                    if (target) {
+                        navigatorRef.current?.goLink(target, false, () => {});
+                    }
+                }}
                 colors={colors}
             />
 
