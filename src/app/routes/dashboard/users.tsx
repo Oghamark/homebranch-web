@@ -1,5 +1,5 @@
 import type {Route} from "./+types/users";
-import {UserManagementPage} from "@/pages/userManagement/ui/UserManagementPage";
+import {UserManagementPage} from "@/pages/userManagement";
 import {redirect} from "react-router";
 
 export function clientLoader() {

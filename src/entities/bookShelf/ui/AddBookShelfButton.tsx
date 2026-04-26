@@ -1,8 +1,8 @@
 import {useState} from "react";
 import {Button} from "@chakra-ui/react";
 import {LuPlus} from "react-icons/lu";
-import TextField from "@/components/ui/TextField";
-import {toaster} from "@/components/ui/toaster";
+import TextField from "@/shared/ui/TextField";
+import {toaster} from "@/shared/ui/toaster";
 import {useCreateBookShelfMutation} from "@/entities/bookShelf";
 import {handleRtkError} from "@/shared/api/rtk-query";
 

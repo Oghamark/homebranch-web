@@ -4,8 +4,8 @@ import {Provider as ReduxProvider} from 'react-redux';
 
 import "@/app/styles/app.css";
 import type {Route} from "./+types/root";
-import {Provider} from "@/components/ui/provider";
-import {Toaster} from "@/components/ui/toaster";
+import {Provider} from "@/shared/ui/provider";
+import {Toaster} from "@/shared/ui/toaster";
 import {AuthContextProvider} from "@/shared/api/context";
 import {store} from "@/app/store";
 

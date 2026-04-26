@@ -1,14 +1,14 @@
 import type {Route} from "./+types/login";
 
-import TextField from "@/components/ui/TextField";
+import TextField from "@/shared/ui/TextField";
 import {Box, Button, Card, Center, Separator, Stack, Text} from "@chakra-ui/react";
 import {Link, useFetcher, useSearchParams} from "react-router";
 import {login} from "@/features/authentication/api/login";
 import {config} from "@/shared";
 import {getPublicAuthConfig} from "@/features/authentication/api/publicConfig";
 import {useEffect} from "react";
-import ToastFactory from "@/app/utils/toast_handler";
-import {useColorMode} from "@/components/ui/color-mode";
+import ToastFactory from "@/shared/lib/toast/toast";
+import {useColorMode} from "@/shared/ui/color-mode";
 
 export async function clientLoader() {
     try {

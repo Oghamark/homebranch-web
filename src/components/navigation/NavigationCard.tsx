@@ -1,6 +1,6 @@
 import {Card, Flex, Separator} from "@chakra-ui/react";
 import {NavigationContent} from "./NavigationContent";
-import {useColorMode} from "@/components/ui/color-mode";
+import {useColorMode} from "@/shared/ui/color-mode";
 
 export function NavigationCard() {
     const {colorMode} = useColorMode();

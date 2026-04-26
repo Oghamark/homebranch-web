@@ -1,4 +1,4 @@
-import TextField from "@/components/ui/TextField";
+import TextField from "@/shared/ui/TextField";
 import {Button, Field, Flex, Heading, Image, Stack, Textarea, VStack,} from "@chakra-ui/react";
 import {Form} from "react-router";
 

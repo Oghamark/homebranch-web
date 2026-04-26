@@ -1,12 +1,12 @@
 import type {Route} from "./+types/sign-up";
 
-import TextField from "@/components/ui/TextField";
+import TextField from "@/shared/ui/TextField";
 import {Box, Button, Card, Center, Separator, Stack, Text} from "@chakra-ui/react";
 import {Link, redirect, useFetcher} from "react-router";
 import signUp from "@/features/authentication/api/signUp";
 import {config} from "@/shared";
 import {getPublicAuthConfig} from "@/features/authentication/api/publicConfig";
-import {useColorMode} from "@/components/ui/color-mode";
+import {useColorMode} from "@/shared/ui/color-mode";
 
 export async function clientLoader() {
     if (!config.signupEnabled) {

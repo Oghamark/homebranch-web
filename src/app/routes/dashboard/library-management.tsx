@@ -40,7 +40,7 @@ import type {UserModel} from "@/entities/user";
 import {useGetUsersQuery} from "@/entities/user";
 import {JobRow} from "@/entities/job/ui/JobRow";
 import {useCallback, useEffect, useMemo, useState} from "react";
-import ToastFactory from "@/app/utils/toast_handler";
+import ToastFactory from "@/shared/lib/toast/toast";
 import {handleRtkError} from "@/shared/api/rtk-query";
 import type {BookDuplicateWithBooksModel, BookModel, ResolveDuplicateAction} from "@/entities/book";
 import {useListDuplicatesQuery, useResolveDuplicateMutation, useTriggerDuplicateScanMutation,} from "@/entities/book";

@@ -18,9 +18,9 @@ import {
     useUpdateUserRoleMutation,
 } from "@/entities/user";
 import {handleRtkError} from "@/shared/api/rtk-query";
-import {toaster} from "@/components/ui/toaster";
+import {toaster} from "@/shared/ui/toaster";
 import {LuCrown, LuUser, LuUsers} from "react-icons/lu";
-import {DeleteConfirmationDialog} from "@/components/ui/modals/DeleteConfirmationDialog";
+import {DeleteConfirmationDialog} from "@/shared/ui/modals/DeleteConfirmationDialog";
 
 function UserActions({user}: { user: UserModel }) {
     const [deleteUser, {isLoading: isDeleting}] = useDeleteUserMutation();

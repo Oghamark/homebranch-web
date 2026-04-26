@@ -1,4 +1,4 @@
-import TextField from "@/components/ui/TextField";
+import TextField from "@/shared/ui/TextField";
 import {useAppDispatch, useAppSelector} from "@/app/hooks";
 import React from "react";
 import {updateQuery} from "@/features/library/store/librarySlice";
