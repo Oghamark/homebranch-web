@@ -33,18 +33,18 @@ It provides a user-friendly interface to organize, search, and read your ebooks 
 
 ## Features
 
-- EPUB reader powered by the Readium TypeScript toolkit — table of contents, reading preferences (font, size, spacing, columns, scroll mode, themes), and cross-device position sync
+- EPUB and PDF in-browser reading — Readium powers the EPUB reader, while PDF reading is built into the web app with shared position sync
 - Library with infinite scroll and search
   - Keyword search: `isbn:<value>`, `genre:<value>`, `series:<value>`, `author:<value>` prefixes narrow results by metadata field
-- Book detail page with enriched metadata: genres, series, ISBN, page count, publisher, language, ratings
+- Book detail page with enriched metadata and format-aware actions: genres, series, ISBN, page count, publisher, language, ratings, format selection, and linked-format management
 - Automatic metadata enrichment from Open Library and Google Books on upload
 - Book shelves (collections)
 - Currently Reading and Favorites lists
 - Dark and light mode
 - User management and roles
-- Book upload (up to 50 MB)
+- EPUB and PDF upload (up to 50 MB)
 - SSO login via OIDC (configurable in the Settings page)
-- Library Management page (admin): paginated job history with status filtering, book ownership management, and book deduplication
+- Library Management page (admin): paginated job history with status filtering, book ownership management, linked-format maintenance, and book deduplication
 - Real-time library updates via SSE — new, removed, or updated books reflect automatically without a manual page refresh; job progress streams live as jobs run
 
 ---
