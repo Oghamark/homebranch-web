@@ -8,6 +8,11 @@ import type { ReaderThemeState, ThemeColors } from "../types/ReaderTheme";
 import { ReaderSettingsMenu } from "./ReaderSettingsMenu";
 import { ReaderToc, type ReaderTocItem } from "./ReaderToc";
 
+interface TocDrawerItem extends ReaderTocItem {
+    link: Link;
+    children?: TocDrawerItem[];
+}
+
 interface ReaderControlsProps {
     themeState: ReaderThemeState;
     colors: ThemeColors;
@@ -37,10 +42,11 @@ export function ReaderControls({
 
     const goBackward = () => navigatorRef.current?.goBackward(false, () => {});
     const goForward = () => navigatorRef.current?.goForward(false, () => {});
-    const tocItemsForDrawer: ReaderTocItem[] = tocItems.map(function mapLink(link, index): ReaderTocItem {
+    const tocItemsForDrawer: TocDrawerItem[] = tocItems.map(function mapLink(link, index, items): TocDrawerItem {
         return {
-            id: `${link.href ?? link.title ?? "toc"}-${index}`,
+            id: `${items.length}-${index}`,
             label: link.title ?? link.href ?? "Untitled",
+            link,
             children: (link.children?.items ?? []).map(mapLink),
         };
     });
@@ -71,19 +77,8 @@ export function ReaderControls({
                 tocItems={tocItemsForDrawer}
                 getChildren={(item) => item.children}
                 onNavigate={(item) => {
-                    const navigateTo = (items: Link[]): Link | null => {
-                        for (const link of items) {
-                            if ((link.href ?? link.title ?? "") === item.id) {
-                                return link;
-                            }
-                            const nested = navigateTo(link.children?.items ?? []);
-                            if (nested) return nested;
-                        }
-                        return null;
-                    };
-                    const target = navigateTo(tocItems);
-                    if (target) {
-                        navigatorRef.current?.goLink(target, false, () => {});
+                    if (item.link.href) {
+                        navigatorRef.current?.goLink(item.link, false, () => {});
                     }
                 }}
                 colors={colors}
