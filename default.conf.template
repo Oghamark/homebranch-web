@@ -14,7 +14,9 @@ server {
     # SSE endpoints — disable buffering so events are delivered immediately
     location ~ ^/api/(jobs/stream|library/events)$ {
         proxy_pass ${API_BACKEND}/$1;
-        proxy_set_header Host $host;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Forwarded-Host $http_host;
+        proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 
@@ -28,15 +30,28 @@ server {
 
     location /api/ {
         proxy_pass ${API_BACKEND}/;
-        proxy_set_header Host $host;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Forwarded-Host $http_host;
+        proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Prefix /api;
     }
 
+
+#    location ~ ^/(login|sign-up|logout|refresh|me|config|users|oidc) {
+#        proxy_pass ${AUTH_BACKEND}$request_uri;
+#        proxy_set_header Host $host;
+#        proxy_set_header X-Real-IP $remote_addr;
+#        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+#    }
+
+
     location /auth/ {
         proxy_pass ${AUTH_BACKEND}/;
-        proxy_set_header Host $host;
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Forwarded-Host $http_host;
+        proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     }
