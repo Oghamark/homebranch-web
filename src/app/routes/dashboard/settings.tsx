@@ -82,7 +82,7 @@ export default function Settings() {
                 ldapBindPassword: authConfig.ldapBindPassword ?? "",
                 ldapEmailField: authConfig.ldapEmailField ?? "",
                 ldapNameField: authConfig.ldapNameField ?? "",
-            })
+            });
         }
     }, [authConfig]);
 
@@ -107,7 +107,6 @@ export default function Settings() {
 
     const handleSaveLdap = async () => {
         setIsSavingLdap(true);
-
         try {
             await updateAuthConfig({
                 ldapEnabled: ldapForm.ldapEnabled,
@@ -126,8 +125,7 @@ export default function Settings() {
         } finally {
             setIsSavingLdap(false);
         }
-
-    }
+    };
 
     if (isLoading) {
         return (
@@ -305,7 +303,7 @@ export default function Settings() {
                     <Card.Header>
                         <Flex align="center" gap={3}>
                             <LuKeyRound/>
-                            <Card.Title>Lightweight Directory Access Protocl (LDAP)</Card.Title>
+                            <Card.Title>Lightweight Directory Access Protocol (LDAP)</Card.Title>
                         </Flex>
                     </Card.Header>
                     <Card.Body>
@@ -338,6 +336,13 @@ export default function Settings() {
                                 onChange={e => setLdapForm(prev => ({...prev, ldapServerUrl: e.target.value}))}
                             />
                             <TextField
+                                label="Base DN"
+                                tooltip="The DN from which users should be searched"
+                                placeholder="dc=example,dc=com"
+                                value={ldapForm.ldapBaseDn}
+                                onChange={e => setLdapForm(prev => ({...prev, ldapBaseDn: e.target.value}))}
+                            />
+                            <TextField
                                 label="Bind DN"
                                 tooltip="The service or admin user that should be used to bind for user searches"
                                 placeholder="cn=service_user,dc=example,dc=com"
@@ -348,7 +353,7 @@ export default function Settings() {
                                 label="Bind Password"
                                 tooltip="The password (if required) for the bind user"
                                 placeholder=""
-                                value={ldapForm.ldapBindPassword }
+                                value={ldapForm.ldapBindPassword}
                                 onChange={e => setLdapForm(prev => ({...prev, ldapBindPassword: e.target.value}))}
                             />
                             <TextField
@@ -360,7 +365,7 @@ export default function Settings() {
                             />
                             <TextField
                                 label="Users Group"
-                                tooltip="Users must be a member of this group to login"
+                                tooltip="Users must be a member of this group to log in"
                                 placeholder="ou=homebranch-users,dc=example,dc=com"
                                 value={ldapForm.ldapUserGroup}
                                 onChange={e => setLdapForm(prev => ({...prev, ldapUserGroup: e.target.value}))}
