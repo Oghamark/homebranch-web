@@ -13,6 +13,8 @@ import { getSavedPosition } from "../api/savedPositionApi";
 import { getApproximateLocator, getExactFormatPosition, getResumeFormatPosition } from "../utils/savedPositionState";
 
 const CHAPTER_TRANSITION_TIMEOUT_MS = 8000;
+const MOBILE_BOUNDARY_SWIPE_TRIGGER_RATIO = 0.12;
+const MOBILE_BOUNDARY_SWIPE_TRIGGER_PX = 32;
 
 export interface UseEpubNavigatorResult {
     containerRef: React.RefObject<HTMLDivElement | null>;
@@ -65,7 +67,9 @@ export function useEpubNavigator(
     const frameSwipeCleanupRef = useRef<Array<() => void>>([]);
     const trackedSwipeWindowsRef = useRef(new WeakSet<Window>());
     const mobileSwipeStartXRef = useRef<number | null>(null);
+    const mobileSwipeDistanceRef = useRef(0);
     const mobileSwipeDirectionRef = useRef<MobileSwipeDirection | null>(null);
+    const mobileSwipeBoundaryDirectionRef = useRef<MobileSwipeDirection | null>(null);
     const pendingSwipeDirectionRef = useRef<MobileSwipeDirection | null>(null);
     const pendingSwipeDirectionTimeoutRef = useRef<number | null>(null);
     const overlayHideTimeoutRef = useRef<number | null>(null);
@@ -169,6 +173,13 @@ export function useEpubNavigator(
         return true;
     }
 
+    function isChapterBoundaryDirection(direction: MobileSwipeDirection): boolean {
+        const nav = navigatorRef.current;
+        if (!nav) return false;
+        if (direction === "forward") return nav.canGoForward && nav.isScrollEnd;
+        return nav.canGoBackward && nav.isScrollStart;
+    }
+
     // Main navigator lifecycle
     useEffect(() => {
         const container = containerRef.current;
@@ -265,7 +276,9 @@ export function useEpubNavigator(
                         clearPendingSwipeDirectionTimeout();
                         pendingSwipeDirectionRef.current = null;
                         mobileSwipeStartXRef.current = event.touches[0]?.clientX ?? null;
+                        mobileSwipeDistanceRef.current = 0;
                         mobileSwipeDirectionRef.current = null;
+                        mobileSwipeBoundaryDirectionRef.current = null;
                     };
 
                     const touchMove = (event: TouchEvent) => {
@@ -279,6 +292,17 @@ export function useEpubNavigator(
 
                         const direction: MobileSwipeDirection = deltaX >= 0 ? "forward" : "backward";
                         mobileSwipeDirectionRef.current = direction;
+                        mobileSwipeDistanceRef.current = distance;
+
+                        if (!isChapterBoundaryDirection(direction)) {
+                            mobileSwipeBoundaryDirectionRef.current = null;
+                            retreatSwipeOverlay();
+                            return;
+                        }
+
+                        mobileSwipeBoundaryDirectionRef.current = direction;
+                        event.preventDefault();
+                        event.stopPropagation();
                         const progress = Math.min(distance / Math.max(wnd.innerWidth * 0.35, 1), 1);
                         setMobileSwipeOverlay({
                             direction,
@@ -289,11 +313,20 @@ export function useEpubNavigator(
                     };
 
                     const touchEnd = () => {
-                        const direction = mobileSwipeDirectionRef.current;
+                        const direction = mobileSwipeBoundaryDirectionRef.current;
+                        const swipeDistance = mobileSwipeDistanceRef.current;
                         mobileSwipeStartXRef.current = null;
+                        mobileSwipeDistanceRef.current = 0;
                         mobileSwipeDirectionRef.current = null;
+                        mobileSwipeBoundaryDirectionRef.current = null;
 
                         if (!direction) {
+                            retreatSwipeOverlay();
+                            return;
+                        }
+
+                        const swipeThreshold = Math.max(wnd.innerWidth * MOBILE_BOUNDARY_SWIPE_TRIGGER_RATIO, MOBILE_BOUNDARY_SWIPE_TRIGGER_PX);
+                        if (swipeDistance < swipeThreshold || !isChapterBoundaryDirection(direction)) {
                             retreatSwipeOverlay();
                             return;
                         }
@@ -303,18 +336,33 @@ export function useEpubNavigator(
                         pendingSwipeDirectionTimeoutRef.current = window.setTimeout(() => {
                             pendingSwipeDirectionRef.current = null;
                         }, 500);
-
-                        if (!pendingChapterTransitionRef.current) retreatSwipeOverlay();
+                        clearOverlayHideTimeout();
+                        setMobileSwipeOverlay({
+                            direction,
+                            progress: 1,
+                            isLoading: false,
+                            isTracking: false,
+                        });
+                        if (pendingChapterTransitionRef.current) return;
+                        if (direction === "forward") {
+                            nav?.goForward(false, (ok) => {
+                                if (!ok) clearChapterTransition();
+                            });
+                            return;
+                        }
+                        nav?.goBackward(false, (ok) => {
+                            if (!ok) clearChapterTransition();
+                        });
                     };
 
                     wnd.addEventListener("touchstart", touchStart, { passive: true });
-                    wnd.addEventListener("touchmove", touchMove, { passive: true });
+                    wnd.addEventListener("touchmove", touchMove, { passive: false, capture: true });
                     wnd.addEventListener("touchend", touchEnd, { passive: true });
                     wnd.addEventListener("touchcancel", touchEnd, { passive: true });
 
                     frameSwipeCleanupRef.current.push(() => {
                         wnd.removeEventListener("touchstart", touchStart);
-                        wnd.removeEventListener("touchmove", touchMove);
+                        wnd.removeEventListener("touchmove", touchMove, true);
                         wnd.removeEventListener("touchend", touchEnd);
                         wnd.removeEventListener("touchcancel", touchEnd);
                     });
