@@ -1,5 +1,5 @@
 import {isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration} from "react-router";
-import React, {type ReactNode} from "react";
+import {type ReactNode} from "react";
 import {Provider as ReduxProvider} from 'react-redux';
 
 import "@/app/styles/app.css";
@@ -15,6 +15,8 @@ export const links: Route.LinksFunction = () => [
     {rel: "icon", type: "image/png", sizes: "64x64", href: "/Favicon@2x.png"},
     {rel: "icon", type: "image/png", sizes: "32x32", href: "/Favicon.png"},
     {rel: "icon", type: "image/png", sizes: "16x16", href: "/Favicon@0.5x.png"},
+    {rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png"},
+    {rel: "manifest", href: "/manifest.webmanifest"},
     {rel: "preconnect", href: "https://fonts.googleapis.com"},
     {
         rel: "preconnect",
@@ -33,7 +35,15 @@ export function Layout({children}: { children: ReactNode }) {
         <head>
             <title>Homebranch</title>
             <meta charSet="utf-8"/>
-            <meta name="viewport" content="width=device-width, initial-scale=1"/>
+            <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+            <meta name="application-name" content="Homebranch"/>
+            <meta name="description" content="Manage and read your self-hosted ebook collection across devices."/>
+            <meta name="mobile-web-app-capable" content="yes"/>
+            <meta name="apple-mobile-web-app-capable" content="yes"/>
+            <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+            <meta name="apple-mobile-web-app-title" content="Homebranch"/>
+            <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff"/>
+            <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1a1a1a"/>
             <Meta/>
             <Links/>
         </head>
