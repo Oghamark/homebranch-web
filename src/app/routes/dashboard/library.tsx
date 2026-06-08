@@ -29,12 +29,16 @@ export default function Library() {
     const query = useLibrarySearch();
     const showAllUsers = useShowAllUsers();
     const displayMode = useLibraryDisplayMode();
-    useMobileNavConfig(
-        "Library",
+    const mobileNavRightAction = useMemo(() => (
         <LibraryDisplayToggleButton
             displayMode={displayMode}
             onDisplayModeChange={(mode) => dispatch(setDisplayMode(mode))}
         />
+    ), [displayMode, dispatch]);
+
+    useMobileNavConfig(
+        "Library",
+        mobileNavRightAction
     );
     const userId = showAllUsers ? undefined : (sessionStorage.getItem("user_id") ?? undefined);
     const {data, hasNextPage, fetchNextPage, isLoading} = useGetBooksInfiniteQuery({query, userId});
