@@ -11,16 +11,19 @@ interface LibraryPageProps {
     totalBooks?: number;
     fetchMore: () => void;
     displayMode?: LibraryDisplayMode;
-    booksPerRow?: number;
 }
 
 interface BookGridSkeletonsProps {
     count?: number;
     displayMode?: LibraryDisplayMode;
-    booksPerRow?: number;
 }
 
-export function BookGridSkeletons({count = 12, displayMode = "grid", booksPerRow = 4}: BookGridSkeletonsProps = {}) {
+const responsiveGridTemplateColumns = {
+    base: "repeat(2, minmax(0, 1fr))",
+    sm: "repeat(auto-fill, minmax(160px, 1fr))"
+};
+
+export function BookGridSkeletons({count = 12, displayMode = "grid"}: BookGridSkeletonsProps = {}) {
     if (displayMode === "table") {
         return (
             <Table.Root variant="outline" size="sm">
@@ -52,7 +55,7 @@ export function BookGridSkeletons({count = 12, displayMode = "grid", booksPerRow
     }
 
     return (
-        <Grid gridTemplateColumns={{base: "repeat(2, minmax(0, 1fr))", md: `repeat(${booksPerRow}, minmax(0, 1fr))`}} gap={6} p={1}>
+        <Grid gridTemplateColumns={responsiveGridTemplateColumns} gap={6} p={1}>
             {Array.from({length: count}).map((_, i) => (
                 <BookCardSkeleton key={i}/>
             ))}
@@ -60,14 +63,14 @@ export function BookGridSkeletons({count = 12, displayMode = "grid", booksPerRow
     );
 }
 
-export function LibraryPage({books, hasMore, totalBooks, fetchMore, displayMode = "grid", booksPerRow = 4}: LibraryPageProps) {
+export function LibraryPage({books, hasMore, totalBooks, fetchMore, displayMode = "grid"}: LibraryPageProps) {
     const remaining = totalBooks != null ? Math.max(totalBooks - books.length, 0) : 12;
 
     return (
         <InfiniteScroll
             next={fetchMore}
             hasMore={hasMore && books.length > 0}
-            loader={<BookGridSkeletons count={remaining} displayMode={displayMode} booksPerRow={booksPerRow}/>}
+            loader={<BookGridSkeletons count={remaining} displayMode={displayMode}/>}
             dataLength={books.length}
         >
             {displayMode === "table" ? (
@@ -103,7 +106,7 @@ export function LibraryPage({books, hasMore, totalBooks, fetchMore, displayMode 
                 </Table.Root>
             ) : (
                 <Grid
-                    gridTemplateColumns={{base: "repeat(2, minmax(0, 1fr))", md: `repeat(${booksPerRow}, minmax(0, 1fr))`}}
+                    gridTemplateColumns={responsiveGridTemplateColumns}
                     gap={6}
                     p={1}
                     pb={3}

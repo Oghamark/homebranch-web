@@ -97,12 +97,12 @@ export function MobileNavigation() {
                         </IconButton>
                         <Heading size="md">{displayTitle}</Heading>
                     </Flex>
-                    {rightAction && (
-                        <Flex align="center">
+                    {(rightAction || showUserToggle) && (
+                        <Flex align="center" gap={1}>
                             {rightAction}
+                            {showUserToggle && <ShowAllUsersButton/>}
                         </Flex>
                     )}
-                    {showUserToggle && <ShowAllUsersButton/>}
                 </Flex>
             </Box>
             {/* Spacer to prevent content from hiding behind fixed header */}
