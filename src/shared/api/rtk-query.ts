@@ -7,7 +7,7 @@ import {
     type QueryReturnValue
 } from "@reduxjs/toolkit/query/react";
 import {fetchBaseQuery} from "@reduxjs/toolkit/query";
-import {config, type Result} from "@/shared";
+import {config} from "@/shared";
 import ToastFactory from "@/shared/lib/toast/toast";
 import {Mutex} from "async-mutex";
 
@@ -60,27 +60,6 @@ const baseQueryWithResultUnwrap: BaseQueryFn<
         }
     }
 
-    if (result.data) {
-        const response = result.data as Result<unknown>;
-
-        if (response.success) {
-            // Success - unwrap the value
-            return {
-                ...result,
-                data: response.value
-            } as QueryReturnValue<unknown, FetchBaseQueryError, FetchBaseQueryMeta>;
-        } else {
-            // Backend returned success: false - treat as error
-            return {
-                error: {
-                    status: response.error,
-                    data: response.message
-                } as FetchBaseQueryError,
-            };
-        }
-    }
-
-    // Network error or other issue
     return result;
 }
 
