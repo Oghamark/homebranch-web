@@ -238,7 +238,7 @@ export function useEpubNavigator(
 
                 if (originalChangeResource) {
                     guardedNav.changeResource = async (relative: number) => {
-                        if (!beginChapterTransition()) return false;
+                        if (!beginChapterTransition()) return true;
 
                         try {
                             const ok = await originalChangeResource(relative);
@@ -257,12 +257,12 @@ export function useEpubNavigator(
                     const isCrossChapterNavigation = !!targetHref && targetHref !== currentHref;
 
                     if (pendingChapterTransitionRef.current) {
-                        cb(false);
+                        cb(true);
                         return;
                     }
 
                     if (isCrossChapterNavigation && !beginChapterTransition()) {
-                        cb(false);
+                        cb(true);
                         return;
                     }
 
@@ -279,7 +279,7 @@ export function useEpubNavigator(
 
                 guardedNav.goForward = (animated: boolean, cb: (ok: boolean) => void) => {
                     if (pendingChapterTransitionRef.current) {
-                        cb(false);
+                        cb(true);
                         return;
                     }
                     originalGoForward(animated, cb);
@@ -287,7 +287,7 @@ export function useEpubNavigator(
 
                 guardedNav.goBackward = (animated: boolean, cb: (ok: boolean) => void) => {
                     if (pendingChapterTransitionRef.current) {
-                        cb(false);
+                        cb(true);
                         return;
                     }
                     originalGoBackward(animated, cb);
