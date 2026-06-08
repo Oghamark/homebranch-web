@@ -10,8 +10,8 @@ interface LibraryPageProps {
     hasMore: boolean;
     totalBooks?: number;
     fetchMore: () => void;
-    displayMode: LibraryDisplayMode;
-    booksPerRow: number;
+    displayMode?: LibraryDisplayMode;
+    booksPerRow?: number;
 }
 
 interface BookGridSkeletonsProps {
@@ -60,7 +60,7 @@ export function BookGridSkeletons({count = 12, displayMode = "grid", booksPerRow
     );
 }
 
-export function LibraryPage({books, hasMore, totalBooks, fetchMore, displayMode, booksPerRow}: LibraryPageProps) {
+export function LibraryPage({books, hasMore, totalBooks, fetchMore, displayMode = "grid", booksPerRow = 4}: LibraryPageProps) {
     const remaining = totalBooks != null ? Math.max(totalBooks - books.length, 0) : 12;
 
     return (
