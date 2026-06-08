@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Box, useMediaQuery } from "@chakra-ui/react";
-import { keyframes } from "@emotion/react";
+import { Box, Spinner, useMediaQuery } from "@chakra-ui/react";
+import { LuChevronLeft, LuChevronRight } from "react-icons/lu";
 import { useAppSelector } from "@/app/hooks";
 import { getThemeColors } from "../types/ReaderTheme";
 import type { BookModel } from "@/entities/book/model/BookModel";
@@ -17,12 +17,6 @@ import { JumpToSavedPositionModal } from "./JumpToSavedPositionModal";
 
 const KEYBOARD_HINT_KEY = "reader-keyboard-hint-shown";
 
-const chapterLoadBar = keyframes`
-  0%   { transform: translateX(-100%); width: 40%; }
-  50%  { width: 60%; }
-  100% { transform: translateX(350%); width: 40%; }
-`;
-
 interface ReaderProps {
     book: BookModel;
     format: BookFormatType;
@@ -37,12 +31,11 @@ export function Reader({ book, format }: ReaderProps) {
         if (typeof window === "undefined") return false;
         return !localStorage.getItem(KEYBOARD_HINT_KEY);
     });
-    const [showTransitionIndicator, setShowTransitionIndicator] = useState(false);
 
     const { onLocationChange, saveImmediate } = useSavePositionSync(book.id, format, deviceName);
 
-    const { containerRef, navigatorRef, isLoading, isLoaded, loadError, isChapterTransitioning, percentage, tocItems } =
-        useEpubNavigator(book, format, themeState, onLocationChange);
+    const { containerRef, navigatorRef, isLoading, isLoaded, loadError, isChapterTransitioning, mobileSwipeOverlay, percentage, tocItems } =
+        useEpubNavigator(book, format, themeState, onLocationChange, isMobile && !themeState.scroll);
 
     const { modalCase, setModalCase, handleJump, handleKeepLocal } = usePositionConflict(
         book.id,
@@ -64,18 +57,21 @@ export function Reader({ book, format }: ReaderProps) {
         return () => clearTimeout(timer);
     }, [showKeyboardHint, isMobile]);
 
-    useEffect(() => {
-        if (!isChapterTransitioning) {
-            setShowTransitionIndicator(false);
-            return;
-        }
-
-        const timer = setTimeout(() => {
-            setShowTransitionIndicator(true);
-        }, 400);
-
-        return () => clearTimeout(timer);
-    }, [isChapterTransitioning]);
+    const showMobileSwipeOverlay =
+        isMobile &&
+        !isLoading &&
+        !loadError &&
+        !themeState.scroll &&
+        !!mobileSwipeOverlay;
+    const swipeOverlayOffset = mobileSwipeOverlay ? (1 - mobileSwipeOverlay.progress) * 36 : 36;
+    const swipeOverlayOpacity = mobileSwipeOverlay?.isLoading ? 1 : Math.min((mobileSwipeOverlay?.progress ?? 0) * 1.1, 1);
+    const swipeOverlayTransform =
+        mobileSwipeOverlay?.direction === "forward"
+            ? `translateY(-50%) translateX(${swipeOverlayOffset}px)`
+            : `translateY(-50%) translateX(${-swipeOverlayOffset}px)`;
+    const swipeOverlayTransition = mobileSwipeOverlay?.isTracking
+        ? "opacity 80ms linear"
+        : "transform 180ms ease, opacity 180ms ease";
 
     return (
         <>
@@ -93,30 +89,47 @@ export function Reader({ book, format }: ReaderProps) {
                 pb="28px"
             >
                 <ReaderLoadingState isLoading={isLoading} error={loadError} colors={colors} />
-                {showTransitionIndicator && !isLoading && !loadError && (
+                {showMobileSwipeOverlay && mobileSwipeOverlay && (
                     <Box
                         position="absolute"
-                        top={0}
-                        left={0}
-                        right={0}
-                        h="2px"
-                        overflow="hidden"
+                        top="50%"
+                        left={mobileSwipeOverlay.direction === "backward" ? 2 : "auto"}
+                        right={mobileSwipeOverlay.direction === "forward" ? 2 : "auto"}
+                        transform={swipeOverlayTransform}
+                        opacity={swipeOverlayOpacity}
+                        transition={swipeOverlayTransition}
+                        display="flex"
+                        alignItems="center"
+                        justifyContent="center"
+                        w="44px"
+                        h="44px"
+                        borderRadius="full"
+                        bg={colors.btnBg}
+                        color={colors.text}
+                        boxShadow="lg"
+                        border="1px solid"
+                        borderColor={colors.uiBorder}
                         zIndex={2}
                         pointerEvents="none"
                         role="status"
                         aria-live="polite"
-                        aria-label="Loading chapter"
+                        aria-label={
+                            mobileSwipeOverlay.isLoading
+                                ? mobileSwipeOverlay.direction === "forward"
+                                    ? "Loading next chapter"
+                                    : "Loading previous chapter"
+                                : mobileSwipeOverlay.direction === "forward"
+                                  ? "Next chapter swipe"
+                                  : "Previous chapter swipe"
+                        }
                     >
-                        <Box
-                            position="absolute"
-                            top={0}
-                            left={0}
-                            h="100%"
-                            w="40%"
-                            bg={colors.muted}
-                            opacity={0.6}
-                            css={{ animation: `${chapterLoadBar} 1.2s ease-in-out infinite` }}
-                        />
+                        {mobileSwipeOverlay.isLoading ? (
+                            <Spinner size="sm" color={colors.text} />
+                        ) : mobileSwipeOverlay.direction === "forward" ? (
+                            <LuChevronRight size={20} />
+                        ) : (
+                            <LuChevronLeft size={20} />
+                        )}
                     </Box>
                 )}
                 <Box ref={containerRef} h="100%" w="100%" position="relative" />
