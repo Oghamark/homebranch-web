@@ -18,7 +18,6 @@ export default defineConfig({
         "Favicon.png",
         "Favicon@0.5x.png",
         "Favicon@2x.png",
-        "apple-touch-icon.png",
       ],
       manifest: {
         name: "Homebranch",
@@ -33,20 +32,24 @@ export default defineConfig({
         categories: ["books", "productivity", "utilities"],
         icons: [
           {
-            src: "/pwa-192x192.png",
-            sizes: "192x192",
+            src: "/Favicon.svg",
+            sizes: "any",
+            type: "image/svg+xml",
+          },
+          {
+            src: "/Favicon@0.5x.png",
+            sizes: "16x16",
             type: "image/png",
           },
           {
-            src: "/pwa-512x512.png",
-            sizes: "512x512",
+            src: "/Favicon.png",
+            sizes: "32x32",
             type: "image/png",
           },
           {
-            src: "/pwa-maskable-512x512.png",
-            sizes: "512x512",
+            src: "/Favicon@2x.png",
+            sizes: "64x64",
             type: "image/png",
-            purpose: "maskable",
           },
         ],
       },

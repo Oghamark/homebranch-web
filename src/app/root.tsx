@@ -15,7 +15,7 @@ export const links: Route.LinksFunction = () => [
     {rel: "icon", type: "image/png", sizes: "64x64", href: "/Favicon@2x.png"},
     {rel: "icon", type: "image/png", sizes: "32x32", href: "/Favicon.png"},
     {rel: "icon", type: "image/png", sizes: "16x16", href: "/Favicon@0.5x.png"},
-    {rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png"},
+    {rel: "apple-touch-icon", sizes: "64x64", href: "/Favicon@2x.png"},
     {rel: "manifest", href: "/manifest.webmanifest"},
     {rel: "preconnect", href: "https://fonts.googleapis.com"},
     {
