@@ -13,13 +13,22 @@ interface TocEntryProps<TItem extends ReaderTocItem> {
     depth: number;
     getChildren: (item: TItem) => TItem[] | undefined;
     onNavigate: (item: TItem) => void;
+    isNavigationDisabled: boolean;
     colors: ThemeColors;
 }
 
-function TocEntry<TItem extends ReaderTocItem>({ item, depth, getChildren, onNavigate, colors }: TocEntryProps<TItem>) {
+function TocEntry<TItem extends ReaderTocItem>({
+    item,
+    depth,
+    getChildren,
+    onNavigate,
+    isNavigationDisabled,
+    colors,
+}: TocEntryProps<TItem>) {
     const children = getChildren(item) ?? [];
 
     const handleClick = () => {
+        if (isNavigationDisabled) return;
         onNavigate(item);
     };
 
@@ -35,7 +44,10 @@ function TocEntry<TItem extends ReaderTocItem>({ item, depth, getChildren, onNav
                 fontSize="sm"
                 color={colors.text}
                 borderRadius="md"
-                _hover={{ bg: colors.hoverBg }}
+                aria-disabled={isNavigationDisabled}
+                opacity={isNavigationDisabled ? 0.6 : 1}
+                cursor={isNavigationDisabled ? "not-allowed" : "pointer"}
+                _hover={isNavigationDisabled ? undefined : { bg: colors.hoverBg }}
                 onClick={handleClick}
             >
                 {item.label}
@@ -47,6 +59,7 @@ function TocEntry<TItem extends ReaderTocItem>({ item, depth, getChildren, onNav
                     depth={depth + 1}
                     getChildren={getChildren}
                     onNavigate={onNavigate}
+                    isNavigationDisabled={isNavigationDisabled}
                     colors={colors}
                 />
             ))}
@@ -60,6 +73,7 @@ interface ReaderTocProps<TItem extends ReaderTocItem> {
     tocItems: TItem[];
     getChildren: (item: TItem) => TItem[] | undefined;
     onNavigate: (item: TItem) => void;
+    isNavigationDisabled?: boolean;
     colors: ThemeColors;
     title?: string;
 }
@@ -70,6 +84,7 @@ export function ReaderToc<TItem extends ReaderTocItem>({
     tocItems,
     getChildren,
     onNavigate,
+    isNavigationDisabled = false,
     colors,
     title = "Table of Contents",
 }: ReaderTocProps<TItem>) {
@@ -136,6 +151,7 @@ export function ReaderToc<TItem extends ReaderTocItem>({
                                 item={link}
                                 depth={0}
                                 getChildren={getChildren}
+                                isNavigationDisabled={isNavigationDisabled}
                                 onNavigate={(item) => {
                                     onNavigate(item);
                                     onClose();
