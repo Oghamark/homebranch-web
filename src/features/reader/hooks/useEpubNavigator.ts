@@ -21,8 +21,18 @@ export interface UseEpubNavigatorResult {
     isLoaded: boolean;
     loadError: string | null;
     isChapterTransitioning: boolean;
+    mobileSwipeOverlay: MobileSwipeOverlayState | null;
     percentage: number | undefined;
     tocItems: Link[];
+}
+
+export type MobileSwipeDirection = "forward" | "backward";
+
+export interface MobileSwipeOverlayState {
+    direction: MobileSwipeDirection;
+    progress: number;
+    isLoading: boolean;
+    isTracking: boolean;
 }
 
 export function useEpubNavigator(
@@ -30,6 +40,7 @@ export function useEpubNavigator(
     format: BookFormatType,
     themeState: ReaderThemeState,
     onLocationChange: (loc: string, percentage?: number) => void,
+    enableMobileSwipeOverlay: boolean,
 ): UseEpubNavigatorResult {
     function deserializeLocator(position?: string | null): Locator | null {
         if (!position) return null;
@@ -51,11 +62,21 @@ export function useEpubNavigator(
     const activePrefetchControllerRef = useRef<AbortController | null>(null);
     const transitionTimeoutRef = useRef<number | null>(null);
     const pendingChapterTransitionRef = useRef(false);
+    const frameSwipeCleanupRef = useRef<Array<() => void>>([]);
+    const trackedSwipeWindowsRef = useRef(new WeakSet<Window>());
+    const mobileSwipeStartXRef = useRef<number | null>(null);
+    const mobileSwipeDirectionRef = useRef<MobileSwipeDirection | null>(null);
+    const pendingSwipeDirectionRef = useRef<MobileSwipeDirection | null>(null);
+    const pendingSwipeDirectionTimeoutRef = useRef<number | null>(null);
+    const overlayHideTimeoutRef = useRef<number | null>(null);
+    const enableMobileSwipeOverlayRef = useRef(enableMobileSwipeOverlay);
+    enableMobileSwipeOverlayRef.current = enableMobileSwipeOverlay;
 
     const [isLoading, setIsLoading] = useState(true);
     const [isLoaded, setIsLoaded] = useState(false);
     const [loadError, setLoadError] = useState<string | null>(null);
     const [isChapterTransitioning, setIsChapterTransitioning] = useState(false);
+    const [mobileSwipeOverlay, setMobileSwipeOverlay] = useState<MobileSwipeOverlayState | null>(null);
     const [tocItems, setTocItems] = useState<Link[]>([]);
     const [percentage, setPercentage] = useState<number | undefined>(() => {
         const userId = sessionStorage.getItem("user_id");
@@ -75,21 +96,74 @@ export function useEpubNavigator(
         }
     }
 
-    function clearChapterTransition() {
+    function clearOverlayHideTimeout() {
+        if (overlayHideTimeoutRef.current !== null) {
+            window.clearTimeout(overlayHideTimeoutRef.current);
+            overlayHideTimeoutRef.current = null;
+        }
+    }
+
+    function clearPendingSwipeDirectionTimeout() {
+        if (pendingSwipeDirectionTimeoutRef.current !== null) {
+            window.clearTimeout(pendingSwipeDirectionTimeoutRef.current);
+            pendingSwipeDirectionTimeoutRef.current = null;
+        }
+    }
+
+    function scheduleSwipeOverlayHide() {
+        clearOverlayHideTimeout();
+        overlayHideTimeoutRef.current = window.setTimeout(() => {
+            setMobileSwipeOverlay(null);
+        }, 180);
+    }
+
+    function retreatSwipeOverlay() {
+        clearOverlayHideTimeout();
+        let hasOverlay = false;
+        setMobileSwipeOverlay((prev) => {
+            if (!prev) return prev;
+            hasOverlay = true;
+            return {
+                ...prev,
+                progress: 0,
+                isLoading: false,
+                isTracking: false,
+            };
+        });
+        if (hasOverlay) scheduleSwipeOverlayHide();
+    }
+
+    function clearChapterTransition(retreatOverlay = true) {
         pendingChapterTransitionRef.current = false;
         setIsChapterTransitioning(false);
         clearTransitionTimeout();
+        if (retreatOverlay && enableMobileSwipeOverlayRef.current) retreatSwipeOverlay();
     }
 
-    function beginChapterTransition(): boolean {
+    function beginChapterTransition(direction?: MobileSwipeDirection): boolean {
         if (pendingChapterTransitionRef.current) return false;
         pendingChapterTransitionRef.current = true;
         setIsChapterTransitioning(true);
+        if (
+            enableMobileSwipeOverlayRef.current &&
+            direction &&
+            pendingSwipeDirectionRef.current === direction
+        ) {
+            clearPendingSwipeDirectionTimeout();
+            pendingSwipeDirectionRef.current = null;
+            clearOverlayHideTimeout();
+            setMobileSwipeOverlay({
+                direction,
+                progress: 1,
+                isLoading: true,
+                isTracking: false,
+            });
+        }
 
         // Fallback so the reader never gets stuck if Readium doesn't emit a load/update signal.
         clearTransitionTimeout();
         transitionTimeoutRef.current = window.setTimeout(() => {
-            clearChapterTransition();
+            clearChapterTransition(false);
         }, CHAPTER_TRANSITION_TIMEOUT_MS);
 
         return true;
@@ -181,9 +255,75 @@ export function useEpubNavigator(
                     }
                 }
 
+                function attachMobileSwipeTracking(wnd: Window) {
+                    if (!enableMobileSwipeOverlayRef.current || trackedSwipeWindowsRef.current.has(wnd)) return;
+                    trackedSwipeWindowsRef.current.add(wnd);
+
+                    const touchStart = (event: TouchEvent) => {
+                        if (event.touches.length !== 1) return;
+                        clearOverlayHideTimeout();
+                        clearPendingSwipeDirectionTimeout();
+                        pendingSwipeDirectionRef.current = null;
+                        mobileSwipeStartXRef.current = event.touches[0]?.clientX ?? null;
+                        mobileSwipeDirectionRef.current = null;
+                    };
+
+                    const touchMove = (event: TouchEvent) => {
+                        if (mobileSwipeStartXRef.current === null || event.touches.length !== 1) return;
+
+                        const currentX = event.touches[0]?.clientX;
+                        if (currentX === undefined) return;
+                        const deltaX = mobileSwipeStartXRef.current - currentX;
+                        const distance = Math.abs(deltaX);
+                        if (distance < 2) return;
+
+                        const direction: MobileSwipeDirection = deltaX >= 0 ? "forward" : "backward";
+                        mobileSwipeDirectionRef.current = direction;
+                        const progress = Math.min(distance / Math.max(wnd.innerWidth * 0.35, 1), 1);
+                        setMobileSwipeOverlay({
+                            direction,
+                            progress,
+                            isLoading: false,
+                            isTracking: true,
+                        });
+                    };
+
+                    const touchEnd = () => {
+                        const direction = mobileSwipeDirectionRef.current;
+                        mobileSwipeStartXRef.current = null;
+                        mobileSwipeDirectionRef.current = null;
+
+                        if (!direction) {
+                            retreatSwipeOverlay();
+                            return;
+                        }
+
+                        pendingSwipeDirectionRef.current = direction;
+                        clearPendingSwipeDirectionTimeout();
+                        pendingSwipeDirectionTimeoutRef.current = window.setTimeout(() => {
+                            pendingSwipeDirectionRef.current = null;
+                        }, 500);
+
+                        if (!pendingChapterTransitionRef.current) retreatSwipeOverlay();
+                    };
+
+                    wnd.addEventListener("touchstart", touchStart, { passive: true });
+                    wnd.addEventListener("touchmove", touchMove, { passive: true });
+                    wnd.addEventListener("touchend", touchEnd, { passive: true });
+                    wnd.addEventListener("touchcancel", touchEnd, { passive: true });
+
+                    frameSwipeCleanupRef.current.push(() => {
+                        wnd.removeEventListener("touchstart", touchStart);
+                        wnd.removeEventListener("touchmove", touchMove);
+                        wnd.removeEventListener("touchend", touchEnd);
+                        wnd.removeEventListener("touchcancel", touchEnd);
+                    });
+                }
+
                 const listeners: EpubNavigatorListeners = {
-                    frameLoaded: () => {
+                    frameLoaded: (wnd: Window) => {
                         if (cancelled) return;
+                        attachMobileSwipeTracking(wnd);
                         clearChapterTransition();
                     },
                     positionChanged: (locator: Locator) => {
@@ -238,7 +378,8 @@ export function useEpubNavigator(
 
                 if (originalChangeResource) {
                     guardedNav.changeResource = async (relative: number) => {
-                        if (!beginChapterTransition()) return true;
+                        const direction = relative > 0 ? "forward" : "backward";
+                        if (!beginChapterTransition(direction)) return true;
 
                         try {
                             const ok = await originalChangeResource(relative);
@@ -316,7 +457,13 @@ export function useEpubNavigator(
             cancelled = true;
             activePrefetchControllerRef.current?.abort();
             activePrefetchControllerRef.current = null;
+            frameSwipeCleanupRef.current.forEach((cleanup) => cleanup());
+            frameSwipeCleanupRef.current = [];
             readingOrderItemsRef.current = [];
+            clearPendingSwipeDirectionTimeout();
+            pendingSwipeDirectionRef.current = null;
+            clearOverlayHideTimeout();
+            setMobileSwipeOverlay(null);
             clearChapterTransition();
             nav?.destroy();
             navigatorRef.current = null;
@@ -330,5 +477,15 @@ export function useEpubNavigator(
         );
     }, [themeState]);
 
-    return { containerRef, navigatorRef, isLoading, isLoaded, loadError, isChapterTransitioning, percentage, tocItems };
+    return {
+        containerRef,
+        navigatorRef,
+        isLoading,
+        isLoaded,
+        loadError,
+        isChapterTransitioning,
+        mobileSwipeOverlay,
+        percentage,
+        tocItems,
+    };
 }
