@@ -18,6 +18,7 @@ interface ReaderControlsProps {
     colors: ThemeColors;
     showKeyboardHint: boolean;
     isMobile: boolean;
+    isChapterTransitioning: boolean;
     tocItems: Link[];
     navigatorRef: React.RefObject<EpubNavigator | null>;
 }
@@ -27,6 +28,7 @@ export function ReaderControls({
     colors,
     showKeyboardHint,
     isMobile,
+    isChapterTransitioning,
     tocItems,
     navigatorRef,
 }: ReaderControlsProps) {
@@ -74,6 +76,7 @@ export function ReaderControls({
             <ReaderToc
                 isOpen={isTocOpen}
                 onClose={() => setIsTocOpen(false)}
+                isNavigationDisabled={isChapterTransitioning}
                 tocItems={tocItemsForDrawer}
                 getChildren={(item) => item.children}
                 onNavigate={(item) => {
@@ -121,6 +124,8 @@ export function ReaderControls({
                         color={colors.text}
                         boxShadow="md"
                         _hover={{ bg: colors.btnHoverBg }}
+                        _disabled={{ opacity: 0.6, cursor: "not-allowed" }}
+                        disabled={isChapterTransitioning}
                         onClick={goBackward}
                     >
                         <LuChevronLeft />
@@ -138,6 +143,8 @@ export function ReaderControls({
                         color={colors.text}
                         boxShadow="md"
                         _hover={{ bg: colors.btnHoverBg }}
+                        _disabled={{ opacity: 0.6, cursor: "not-allowed" }}
+                        disabled={isChapterTransitioning}
                         onClick={goForward}
                     >
                         <LuChevronRight />

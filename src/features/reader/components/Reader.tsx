@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Box, useMediaQuery } from "@chakra-ui/react";
+import { Box, Flex, Spinner, Text, useMediaQuery } from "@chakra-ui/react";
 import { useAppSelector } from "@/app/hooks";
 import { getThemeColors } from "../types/ReaderTheme";
 import type { BookModel } from "@/entities/book/model/BookModel";
@@ -30,10 +30,11 @@ export function Reader({ book, format }: ReaderProps) {
         if (typeof window === "undefined") return false;
         return !localStorage.getItem(KEYBOARD_HINT_KEY);
     });
+    const [showTransitionIndicator, setShowTransitionIndicator] = useState(false);
 
     const { onLocationChange, saveImmediate } = useSavePositionSync(book.id, format, deviceName);
 
-    const { containerRef, navigatorRef, isLoading, isLoaded, loadError, percentage, tocItems } =
+    const { containerRef, navigatorRef, isLoading, isLoaded, loadError, isChapterTransitioning, percentage, tocItems } =
         useEpubNavigator(book, format, themeState, onLocationChange);
 
     const { modalCase, setModalCase, handleJump, handleKeepLocal } = usePositionConflict(
@@ -56,6 +57,19 @@ export function Reader({ book, format }: ReaderProps) {
         return () => clearTimeout(timer);
     }, [showKeyboardHint, isMobile]);
 
+    useEffect(() => {
+        if (!isChapterTransitioning) {
+            setShowTransitionIndicator(false);
+            return;
+        }
+
+        const timer = setTimeout(() => {
+            setShowTransitionIndicator(true);
+        }, 150);
+
+        return () => clearTimeout(timer);
+    }, [isChapterTransitioning]);
+
     return (
         <>
             <Box
@@ -72,6 +86,32 @@ export function Reader({ book, format }: ReaderProps) {
                 pb="28px"
             >
                 <ReaderLoadingState isLoading={isLoading} error={loadError} colors={colors} />
+                {showTransitionIndicator && !isLoading && !loadError && (
+                    <Flex
+                        position="absolute"
+                        inset={0}
+                        align="center"
+                        justify="center"
+                        zIndex={1}
+                        pointerEvents="none"
+                    >
+                        <Flex
+                            role="status"
+                            aria-live="polite"
+                            align="center"
+                            gap={3}
+                            px={4}
+                            py={2}
+                            borderRadius="full"
+                            bg={colors.btnBg}
+                            color={colors.text}
+                            boxShadow="lg"
+                        >
+                            <Spinner size="sm" color={colors.muted} />
+                            <Text fontSize="sm">Loading chapter…</Text>
+                        </Flex>
+                    </Flex>
+                )}
                 <Box ref={containerRef} h="100%" w="100%" position="relative" />
             </Box>
 
@@ -80,6 +120,7 @@ export function Reader({ book, format }: ReaderProps) {
                 colors={colors}
                 showKeyboardHint={showKeyboardHint}
                 isMobile={isMobile}
+                isChapterTransitioning={isChapterTransitioning}
                 tocItems={tocItems}
                 navigatorRef={navigatorRef}
             />
