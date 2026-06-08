@@ -10,14 +10,14 @@ function getUserId(): string {
 export async function getAllSavedPositions(): Promise<SavedPosition[]> {
     const userId = getUserId();
     const response = await axiosInstance.get(`/users/${userId}/saved-positions`);
-    return response.data.value as SavedPosition[];
+    return response.data as SavedPosition[];
 }
 
 export async function getSavedPosition(bookId: string): Promise<SavedPosition | null> {
     const userId = getUserId();
     try {
         const response = await axiosInstance.get(`/users/${userId}/saved-positions/${bookId}`);
-        return response.data.value as SavedPosition;
+        return response.data as SavedPosition;
     } catch (error: any) {
         if (error.response?.status === 404) return null;
         throw error;
