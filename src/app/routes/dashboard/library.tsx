@@ -5,16 +5,15 @@ import {Flex, Heading, Stack} from "@chakra-ui/react";
 import {useGetBooksInfiniteQuery} from "@/entities/book";
 import {
     LibraryDisplayOptions,
-    setBooksPerRow,
+    LibraryDisplayToggleButton,
     setDisplayMode,
-    useLibraryBooksPerRow,
     useLibraryDisplayMode,
     useLibrarySearch,
     useShowAllUsers,
     ShowAllUsersButton
 } from "@/features/library";
 import {LuLibrary} from "react-icons/lu";
-import {useMobileNavUserToggle} from "@/components/navigation/MobileNavContext";
+import {useMobileNavConfig, useMobileNavUserToggle} from "@/components/navigation/MobileNavContext";
 import {useAppDispatch} from "@/app/hooks";
 
 export function meta({}: Route.MetaArgs) {
@@ -30,7 +29,13 @@ export default function Library() {
     const query = useLibrarySearch();
     const showAllUsers = useShowAllUsers();
     const displayMode = useLibraryDisplayMode();
-    const booksPerRow = useLibraryBooksPerRow();
+    useMobileNavConfig(
+        "Library",
+        <LibraryDisplayToggleButton
+            displayMode={displayMode}
+            onDisplayModeChange={(mode) => dispatch(setDisplayMode(mode))}
+        />
+    );
     const userId = showAllUsers ? undefined : (sessionStorage.getItem("user_id") ?? undefined);
     const {data, hasNextPage, fetchNextPage, isLoading} = useGetBooksInfiniteQuery({query, userId});
 
@@ -50,23 +55,13 @@ export default function Library() {
                 <Flex align="center" gap={2}>
                     <LibraryDisplayOptions
                         displayMode={displayMode}
-                        booksPerRow={booksPerRow}
                         onDisplayModeChange={(mode) => dispatch(setDisplayMode(mode))}
-                        onBooksPerRowChange={(value) => dispatch(setBooksPerRow(value))}
                     />
                     <ShowAllUsersButton showLabel/>
                 </Flex>
             </Flex>
-            <Flex display={{base: "flex", md: "none"}} justify="flex-end">
-                <LibraryDisplayOptions
-                    displayMode={displayMode}
-                    booksPerRow={booksPerRow}
-                    onDisplayModeChange={(mode) => dispatch(setDisplayMode(mode))}
-                    onBooksPerRowChange={(value) => dispatch(setBooksPerRow(value))}
-                />
-            </Flex>
             {isLoading
-                ? <BookGridSkeletons displayMode={displayMode} booksPerRow={booksPerRow}/>
+                ? <BookGridSkeletons displayMode={displayMode}/>
                 : isEmpty
                     ? <NoBooksMessage showAllUsers={showAllUsers}/>
                     : <LibraryPage
@@ -75,7 +70,6 @@ export default function Library() {
                         hasMore={hasNextPage}
                         totalBooks={data?.pages[0]?.total}
                         displayMode={displayMode}
-                        booksPerRow={booksPerRow}
                     />
             }
         </Stack>
