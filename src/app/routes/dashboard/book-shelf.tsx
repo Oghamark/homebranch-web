@@ -11,8 +11,15 @@ import {LibraryPage} from "@/pages/library";
 import type {Route} from "./+types/book-shelf";
 import ToastFactory from "@/shared/lib/toast/toast";
 import {HiCollection} from "react-icons/hi";
-import {useLibrarySearch} from "@/features/library";
+import {
+    LibraryDisplayOptions,
+    LibraryDisplayToggleButton,
+    setDisplayMode,
+    useLibraryDisplayMode,
+    useLibrarySearch
+} from "@/features/library";
 import {useMobileNav} from "@/components/navigation/MobileNavContext";
+import {useAppDispatch} from "@/app/hooks";
 
 export function meta({}: Route.MetaArgs) {
     return [
@@ -28,6 +35,8 @@ export default function BookShelf() {
 }
 
 function BookShelfContent({bookShelfId}: { bookShelfId: string }) {
+    const dispatch = useAppDispatch();
+    const displayMode = useLibraryDisplayMode();
     const query = useLibrarySearch()
     const {data, isLoading, hasNextPage, fetchNextPage} = useGetBookShelfBooksInfiniteQuery({
         bookShelfId,
@@ -41,6 +50,10 @@ function BookShelfContent({bookShelfId}: { bookShelfId: string }) {
             setTitle(bookShelf.title);
             setRightAction(
                 <HStack gap={1}>
+                    <LibraryDisplayToggleButton
+                        displayMode={displayMode}
+                        onDisplayModeChange={(mode) => dispatch(setDisplayMode(mode))}
+                    />
                     <ManageBookShelfBooksButton bookShelf={bookShelf}/>
                     <BookShelfOptionsMenu bookShelfId={bookShelf.id} bookShelfTitle={bookShelf.title}/>
                 </HStack>
@@ -50,7 +63,7 @@ function BookShelfContent({bookShelfId}: { bookShelfId: string }) {
             setTitle(null);
             setRightAction(null);
         };
-    }, [bookShelf]);
+    }, [bookShelf, displayMode, dispatch, setRightAction, setTitle]);
 
     const books = useMemo(() => {
         return data?.pages.flatMap(page => page.data) ?? []
@@ -72,6 +85,10 @@ function BookShelfContent({bookShelfId}: { bookShelfId: string }) {
         <Stack justify={"space-evenly"} height={"100%"}>
             <HStack display={{base: "none", md: "flex"}}>
                 <Heading>{bookShelf.title}</Heading>
+                <LibraryDisplayOptions
+                    displayMode={displayMode}
+                    onDisplayModeChange={(mode) => dispatch(setDisplayMode(mode))}
+                />
                 <ManageBookShelfBooksButton bookShelf={bookShelf}/>
                 <BookShelfOptionsMenu bookShelfId={bookShelf.id} bookShelfTitle={bookShelf.title}/>
             </HStack>
@@ -81,6 +98,7 @@ function BookShelfContent({bookShelfId}: { bookShelfId: string }) {
                         books={filteredBooks}
                         fetchMore={fetchNextPage}
                         hasMore={hasNextPage}
+                        displayMode={displayMode}
                     />
                 </Box>
             }
@@ -105,4 +123,3 @@ function _noBooks() {
         </Stack>
     )
 }
-

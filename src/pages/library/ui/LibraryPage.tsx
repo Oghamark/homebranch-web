@@ -4,6 +4,7 @@ import InfiniteScroll from "react-infinite-scroll-component";
 import type {LibraryDisplayMode} from "@/features/library/store/librarySlice";
 import {Link} from "react-router";
 import {config} from "@/shared";
+import type {ReactNode} from "react";
 
 interface LibraryPageProps {
     books: BookModel[];
@@ -11,6 +12,7 @@ interface LibraryPageProps {
     totalBooks?: number;
     fetchMore: () => void;
     displayMode?: LibraryDisplayMode;
+    getBookBadge?: (book: BookModel) => ReactNode;
 }
 
 interface BookGridSkeletonsProps {
@@ -63,7 +65,7 @@ export function BookGridSkeletons({count = 12, displayMode = "grid"}: BookGridSk
     );
 }
 
-export function LibraryPage({books, hasMore, totalBooks, fetchMore, displayMode = "grid"}: LibraryPageProps) {
+export function LibraryPage({books, hasMore, totalBooks, fetchMore, displayMode = "grid", getBookBadge}: LibraryPageProps) {
     const remaining = totalBooks != null ? Math.max(totalBooks - books.length, 0) : 12;
 
     return (
@@ -113,7 +115,10 @@ export function LibraryPage({books, hasMore, totalBooks, fetchMore, displayMode 
                 >
                     <For each={books}>
                         {(book) => (
-                            <BookCard book={book}/>
+                            <BookCard
+                                book={book}
+                                badge={getBookBadge?.(book)}
+                            />
                         )}
                     </For>
                 </Grid>
