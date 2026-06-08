@@ -21,7 +21,11 @@ axiosInstance.interceptors.response.use(
         const prevRequest = error?.config;
         if (error.response.status === 401) {
             if (prevRequest.sent) {
-                _navigate ? _navigate("/login") : window.location.href = "/login";
+                if (_navigate) {
+                    _navigate("/login");
+                } else {
+                    window.location.href = "/login";
+                }
             } else {
                 prevRequest.sent = true;
                 await refreshAccessToken();
