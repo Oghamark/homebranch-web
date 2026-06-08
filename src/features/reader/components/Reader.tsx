@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Box, Flex, Spinner, Text, useMediaQuery } from "@chakra-ui/react";
+import { Box, useMediaQuery } from "@chakra-ui/react";
+import { keyframes } from "@emotion/react";
 import { useAppSelector } from "@/app/hooks";
 import { getThemeColors } from "../types/ReaderTheme";
 import type { BookModel } from "@/entities/book/model/BookModel";
@@ -15,6 +16,12 @@ import { ReaderControls } from "./ReaderControls";
 import { JumpToSavedPositionModal } from "./JumpToSavedPositionModal";
 
 const KEYBOARD_HINT_KEY = "reader-keyboard-hint-shown";
+
+const chapterLoadBar = keyframes`
+  0%   { transform: translateX(-100%); width: 40%; }
+  50%  { width: 60%; }
+  100% { transform: translateX(350%); width: 40%; }
+`;
 
 interface ReaderProps {
     book: BookModel;
@@ -65,7 +72,7 @@ export function Reader({ book, format }: ReaderProps) {
 
         const timer = setTimeout(() => {
             setShowTransitionIndicator(true);
-        }, 150);
+        }, 400);
 
         return () => clearTimeout(timer);
     }, [isChapterTransitioning]);
@@ -87,30 +94,30 @@ export function Reader({ book, format }: ReaderProps) {
             >
                 <ReaderLoadingState isLoading={isLoading} error={loadError} colors={colors} />
                 {showTransitionIndicator && !isLoading && !loadError && (
-                    <Flex
+                    <Box
                         position="absolute"
-                        inset={0}
-                        align="center"
-                        justify="center"
-                        zIndex={1}
+                        top={0}
+                        left={0}
+                        right={0}
+                        h="2px"
+                        overflow="hidden"
+                        zIndex={2}
                         pointerEvents="none"
+                        role="status"
+                        aria-live="polite"
+                        aria-label="Loading chapter"
                     >
-                        <Flex
-                            role="status"
-                            aria-live="polite"
-                            align="center"
-                            gap={3}
-                            px={4}
-                            py={2}
-                            borderRadius="full"
-                            bg={colors.btnBg}
-                            color={colors.text}
-                            boxShadow="lg"
-                        >
-                            <Spinner size="sm" color={colors.muted} />
-                            <Text fontSize="sm">Loading chapter…</Text>
-                        </Flex>
-                    </Flex>
+                        <Box
+                            position="absolute"
+                            top={0}
+                            left={0}
+                            h="100%"
+                            w="40%"
+                            bg={colors.muted}
+                            opacity={0.6}
+                            css={{ animation: `${chapterLoadBar} 1.2s ease-in-out infinite` }}
+                        />
+                    </Box>
                 )}
                 <Box ref={containerRef} h="100%" w="100%" position="relative" />
             </Box>

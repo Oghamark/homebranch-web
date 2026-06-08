@@ -124,7 +124,7 @@ export function ReaderControls({
                         color={colors.text}
                         boxShadow="md"
                         _hover={{ bg: colors.btnHoverBg }}
-                        _disabled={{ opacity: 0.6, cursor: "not-allowed" }}
+                        _disabled={{ opacity: 0.35, cursor: "default" }}
                         disabled={isChapterTransitioning}
                         onClick={goBackward}
                     >
@@ -143,7 +143,7 @@ export function ReaderControls({
                         color={colors.text}
                         boxShadow="md"
                         _hover={{ bg: colors.btnHoverBg }}
-                        _disabled={{ opacity: 0.6, cursor: "not-allowed" }}
+                        _disabled={{ opacity: 0.35, cursor: "default" }}
                         disabled={isChapterTransitioning}
                         onClick={goForward}
                     >
