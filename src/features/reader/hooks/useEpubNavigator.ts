@@ -44,6 +44,40 @@ export function useEpubNavigator(
     onLocationChange: (loc: string, percentage?: number) => void,
     enableMobileSwipeOverlay: boolean,
 ): UseEpubNavigatorResult {
+    function deserializeLinks(raw: unknown): Link[] {
+        if (!Array.isArray(raw)) return [];
+        return raw
+            .map((item) => Link.deserialize(item))
+            .filter((item): item is Link => item !== undefined);
+    }
+
+    function getTocItems(manifest: Manifest, manifestJson: unknown): Link[] {
+        const tocFromManifest = manifest.toc?.items ?? [];
+        if (tocFromManifest.length > 0) return tocFromManifest;
+
+        const manifestRecord =
+            manifestJson && typeof manifestJson === "object"
+                ? (manifestJson as Record<string, unknown>)
+                : null;
+
+        const tocFromJson = deserializeLinks(manifestRecord?.toc);
+        if (tocFromJson.length > 0) return tocFromJson;
+
+        const tocFromTableOfContents = deserializeLinks(manifestRecord?.tableOfContents);
+        if (tocFromTableOfContents.length > 0) return tocFromTableOfContents;
+
+        const navigationRecord =
+            manifestRecord?.navigation && typeof manifestRecord.navigation === "object"
+                ? (manifestRecord.navigation as Record<string, unknown>)
+                : null;
+        const tocFromNavigation = deserializeLinks(navigationRecord?.toc);
+        if (tocFromNavigation.length > 0) return tocFromNavigation;
+        const tocFromNavigationTableOfContents = deserializeLinks(navigationRecord?.tableOfContents);
+        if (tocFromNavigationTableOfContents.length > 0) return tocFromNavigationTableOfContents;
+
+        return manifest.linkWithRel("contents")?.children?.items ?? [];
+    }
+
     function deserializeLocator(position?: string | null): Locator | null {
         if (!position) return null;
         try {
@@ -486,7 +520,7 @@ export function useEpubNavigator(
                 await nav.load();
 
                 if (cancelled) return;
-                setTocItems(manifest.toc?.items ?? []);
+                setTocItems(getTocItems(manifest, manifestJson));
                 void prefetchNextSpineItem(initialLocator.href);
                 setIsLoading(false);
                 setIsLoaded(true);
