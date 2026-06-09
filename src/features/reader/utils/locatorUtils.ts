@@ -11,10 +11,15 @@ export function getInitialLocator(bookId: string, onlyIfActive = true): Locator 
 }
 
 export function formatLocatorLabel(locator: Locator): string {
-    const chapter =
-        locator.title ??
-        locator.href?.split("/").pop()?.replace(/\.\w+$/, "") ??
-        "Chapter";
+    const title = locator.title?.trim();
+    const href = locator.href?.split("#")[0];
+    const hrefSegment = href?.split("/").pop();
+    const hrefFallback = hrefSegment
+        ?.replace(/\.\w+$/, "")
+        ?.replace(/[_-]+/g, " ")
+        ?.replace(/\s+/g, " ")
+        ?.trim();
+    const chapter = title || hrefFallback || "Chapter";
     const progress = locator.locations?.totalProgression;
     return progress !== undefined
         ? `${chapter} (${Math.round(progress * 100)}%)`

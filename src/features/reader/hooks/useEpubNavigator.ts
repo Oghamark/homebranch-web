@@ -116,6 +116,7 @@ export function useEpubNavigator(
     const [isChapterTransitioning, setIsChapterTransitioning] = useState(false);
     const [mobileSwipeOverlay, setMobileSwipeOverlay] = useState<MobileSwipeOverlayState | null>(null);
     const [tocItems, setTocItems] = useState<Link[]>([]);
+    const tocItemsRef = useRef<Link[]>([]);
     const [percentage, setPercentage] = useState<number | undefined>(() => {
         const userId = sessionStorage.getItem("user_id");
         if (!userId) return undefined;
@@ -125,6 +126,30 @@ export function useEpubNavigator(
     function normalizeHref(href?: string | null): string | null {
         if (!href) return null;
         return href.split("#")[0] ?? null;
+    }
+
+    function findTitleForHref(href?: string | null): string | undefined {
+        const normalizedHref = normalizeHref(href);
+        if (!normalizedHref) return undefined;
+
+        const readingOrderTitle = readingOrderItemsRef.current.find(
+            (item) => normalizeHref(item.href) === normalizedHref,
+        )?.title?.trim();
+        if (readingOrderTitle) return readingOrderTitle;
+
+        const stack = [...tocItemsRef.current];
+        while (stack.length > 0) {
+            const item = stack.shift();
+            if (!item) continue;
+            if (normalizeHref(item.href) === normalizedHref && item.title?.trim()) {
+                return item.title.trim();
+            }
+            if (item.children?.items?.length) {
+                stack.push(...item.children.items);
+            }
+        }
+
+        return undefined;
     }
 
     function clearTransitionTimeout() {
@@ -246,6 +271,7 @@ export function useEpubNavigator(
                 const positions = readingOrderItems.map((item, index) =>
                     new Locator({
                         href: item.href,
+                        title: item.title,
                         type: item.type ?? "application/xhtml+xml",
                         locations: new LocatorLocations({
                             position: index + 1,
@@ -412,13 +438,23 @@ export function useEpubNavigator(
                         if (cancelled) return;
                         clearChapterTransition();
                         void prefetchNextSpineItem(locator.href);
-                        const progress = locator.locations?.totalProgression;
+                        const title = locator.title?.trim() || findTitleForHref(locator.href);
+                        const normalizedLocator = title
+                            ? new Locator({
+                                href: locator.href,
+                                title,
+                                text: locator.text,
+                                locations: locator.locations,
+                                type: locator.type,
+                            })
+                            : locator;
+                        const progress = normalizedLocator.locations?.totalProgression;
                         if (progress !== undefined) {
                             setPercentage(progress);
                             const userId = sessionStorage.getItem("user_id");
                             if (userId) storeProgress(userId, book.id, progress);
                         }
-                        onLocationChangeRef.current(JSON.stringify(locator.serialize()), progress);
+                        onLocationChangeRef.current(JSON.stringify(normalizedLocator.serialize()), progress);
                     },
                     tap: (e) => e.interactiveElement == null,
                     click: (e) => e.interactiveElement == null,
@@ -520,7 +556,9 @@ export function useEpubNavigator(
                 await nav.load();
 
                 if (cancelled) return;
-                setTocItems(getTocItems(manifest, manifestJson));
+                const nextTocItems = getTocItems(manifest, manifestJson);
+                tocItemsRef.current = nextTocItems;
+                setTocItems(nextTocItems);
                 void prefetchNextSpineItem(initialLocator.href);
                 setIsLoading(false);
                 setIsLoaded(true);
@@ -542,6 +580,7 @@ export function useEpubNavigator(
             frameSwipeCleanupRef.current.forEach((cleanup) => cleanup());
             frameSwipeCleanupRef.current = [];
             readingOrderItemsRef.current = [];
+            tocItemsRef.current = [];
             clearPendingSwipeDirectionTimeout();
             pendingSwipeDirectionRef.current = null;
             clearOverlayHideTimeout();
