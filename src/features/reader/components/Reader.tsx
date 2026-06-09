@@ -68,7 +68,7 @@ export function Reader({ book, format }: ReaderProps) {
                 if (state.changeCount >= 2 && !jumpBackLocatorRef.current) {
                     try {
                         const locator = Locator.deserialize(JSON.parse(state.startLocatorJson!));
-                        setJumpBackLocator(locator);
+                        if (locator) setJumpBackLocator(locator);
                     } catch {
                         // ignore malformed locator
                     }

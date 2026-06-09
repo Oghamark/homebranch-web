@@ -194,7 +194,7 @@ export function PdfReader({book, format}: PdfReaderProps) {
         state.lastNavTime = now;
     }, []);
 
-
+    useEffect(() => {
         setIsClient(true);
     }, []);
 
