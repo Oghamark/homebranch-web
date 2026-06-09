@@ -1,6 +1,7 @@
 // UI Components
 export {BookCard, BookCardSkeleton} from "./ui/BookCard";
 export {AddBookButton} from "./ui/AddBookButton";
+export {DragDropOverlay} from "./ui/DragDropOverlay";
 
 // Model
 export type {BookModel} from "./model/BookModel";

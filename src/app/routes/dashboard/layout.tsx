@@ -5,6 +5,7 @@ import {MobileNavProvider} from "@/components/navigation/MobileNavContext";
 import React from "react";
 import {Outlet, redirect} from "react-router";
 import {useLibraryEvents} from "@/shared/hooks";
+import {DragDropOverlay} from "@/entities/book";
 
 export async function clientLoader() {
     let user_id = sessionStorage.getItem("user_id");
@@ -19,6 +20,7 @@ export default function Layout() {
 
     return (
         <MobileNavProvider>
+            <DragDropOverlay/>
             <MobileNavigation/>
             <Box display={{base: "none", md: "block"}}>
                 <NavigationCard/>
