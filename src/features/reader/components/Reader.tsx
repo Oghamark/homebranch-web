@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Box, Spinner, useMediaQuery } from "@chakra-ui/react";
 import { LuChevronLeft, LuChevronRight } from "react-icons/lu";
 import { useAppSelector } from "@/app/hooks";
@@ -14,6 +14,7 @@ import { ReaderLoadingState } from "./ReaderLoadingState";
 import { ReaderProgressBar } from "./ReaderProgressBar";
 import { ReaderControls } from "./ReaderControls";
 import { JumpToSavedPositionModal } from "./JumpToSavedPositionModal";
+import { Locator } from "@readium/shared";
 
 const KEYBOARD_HINT_KEY = "reader-keyboard-hint-shown";
 
@@ -32,10 +33,66 @@ export function Reader({ book, format }: ReaderProps) {
         return !localStorage.getItem(KEYBOARD_HINT_KEY);
     });
 
+    /* Jump-back state: lifted here so both TOC jumps (in ReaderControls) and
+       rapid-swipe detection (below) can set it. */
+    const [jumpBackLocator, setJumpBackLocator] = useState<Locator | null>(null);
+    const jumpBackLocatorRef = useRef<Locator | null>(null);
+    jumpBackLocatorRef.current = jumpBackLocator;
+
+    /* Rapid-swipe detection for EPUB — tracks consecutive positionChanged events.
+       Three or more page turns within 800 ms → save origin for jump-back immediately. */
+    const prevLocatorJsonRef = useRef<string | null>(null);
+    const navigatorRefForRapidNav = useRef<typeof navigatorRef.current>(null);
+    const rapidNavStateRef = useRef<{
+        startLocatorJson: string | null;
+        lastChangeTime: number;
+        changeCount: number;
+    }>({ startLocatorJson: null, lastChangeTime: 0, changeCount: 0 });
+
     const { onLocationChange, saveImmediate } = useSavePositionSync(book.id, format, deviceName);
 
+    const handleLocationChange = useCallback((loc: string, pct?: number) => {
+        const prevLocatorJson = prevLocatorJsonRef.current;
+        onLocationChange(loc, pct);
+
+        if (!jumpBackLocatorRef.current && prevLocatorJson !== null) {
+            const state = rapidNavStateRef.current;
+            const now = Date.now();
+
+            if (now - state.lastChangeTime < 800) {
+                if (state.startLocatorJson === null) {
+                    state.startLocatorJson = prevLocatorJson;
+                }
+                state.changeCount++;
+                // Show jump-back immediately on the 3rd rapid location change (changeCount reaches 2)
+                if (state.changeCount >= 2 && !jumpBackLocatorRef.current) {
+                    try {
+                        const locator = Locator.deserialize(JSON.parse(state.startLocatorJson!));
+                        setJumpBackLocator(locator);
+                    } catch {
+                        // ignore malformed locator
+                    }
+                }
+            } else {
+                state.startLocatorJson = null;
+                state.changeCount = 0;
+            }
+
+            state.lastChangeTime = now;
+        }
+
+        // Store the current position so the NEXT call can detect a rapid-nav burst.
+        // We read currentLocator from the navigator (already updated to new position)
+        // and fall back to the raw JSON string if the navigator isn't ready yet.
+        const navLocator = navigatorRefForRapidNav.current?.currentLocator;
+        prevLocatorJsonRef.current = navLocator ? JSON.stringify(navLocator.serialize()) : loc;
+    }, [onLocationChange]);
+
     const { containerRef, navigatorRef, isLoading, isLoaded, loadError, isChapterTransitioning, mobileSwipeOverlay, percentage, tocItems } =
-        useEpubNavigator(book, format, themeState, onLocationChange, isMobile && !themeState.scroll);
+        useEpubNavigator(book, format, themeState, handleLocationChange, isMobile && !themeState.scroll);
+
+    // Keep the proxy ref in sync so handleLocationChange can read currentLocator
+    navigatorRefForRapidNav.current = navigatorRef.current;
 
     const { modalCase, setModalCase, handleJump, handleKeepLocal } = usePositionConflict(
         book.id,
@@ -143,6 +200,8 @@ export function Reader({ book, format }: ReaderProps) {
                 isChapterTransitioning={isChapterTransitioning}
                 tocItems={tocItems}
                 navigatorRef={navigatorRef}
+                jumpBackLocator={jumpBackLocator}
+                onSetJumpBackLocator={setJumpBackLocator}
             />
 
             <ReaderProgressBar percentage={percentage} colors={colors} />

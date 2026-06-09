@@ -20,6 +20,7 @@ import {ReaderProgressBar} from "./ReaderProgressBar";
 import {ReaderLoadingState} from "./ReaderLoadingState";
 import {ReaderSettingsMenu} from "./ReaderSettingsMenu";
 import {ReaderToc, type ReaderTocItem} from "./ReaderToc";
+import {JumpBackButton} from "./JumpBackButton";
 
 const KEYBOARD_HINT_KEY = "pdf-reader-keyboard-hint-shown";
 
@@ -131,6 +132,13 @@ export function PdfReader({book, format}: PdfReaderProps) {
     const navigate = useNavigate();
     const containerRef = useRef<HTMLDivElement | null>(null);
     const hasResolvedInitialPageRef = useRef(false);
+    const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
+    const rapidNavStateRef = useRef<{
+        startPage: number | null;
+        lastNavPage: number | null;
+        lastNavTime: number;
+        burstCount: number;
+    }>({ startPage: null, lastNavPage: null, lastNavTime: 0, burstCount: 0 });
     const [isClient, setIsClient] = useState(false);
     const [numPages, setNumPages] = useState<number>();
     const [pageNumber, setPageNumber] = useState(1);
@@ -143,6 +151,7 @@ export function PdfReader({book, format}: PdfReaderProps) {
     const [hasLoadedServerPosition, setHasLoadedServerPosition] = useState(false);
     const [tocItems, setTocItems] = useState<PdfTocItem[]>([]);
     const [isTocOpen, setIsTocOpen] = useState(false);
+    const [jumpBackPage, setJumpBackPage] = useState<number | null>(null);
     const [showKeyboardHint, setShowKeyboardHint] = useState(() => {
         if (typeof window === "undefined") return false;
         return !localStorage.getItem(KEYBOARD_HINT_KEY);
@@ -158,7 +167,34 @@ export function PdfReader({book, format}: PdfReaderProps) {
         [book.id, format],
     );
 
-    useEffect(() => {
+    /* Track sequential (arrow/keyboard/swipe) navigation to detect rapid page-turning.
+       When the user turns 3+ pages within a quick burst, immediately save their origin page. */
+    const trackSequentialNav = useCallback((currentPage: number) => {
+        const state = rapidNavStateRef.current;
+        const now = Date.now();
+
+        if (now - state.lastNavTime < 800 && state.lastNavPage !== null) {
+            // Rapid navigation: track burst and save origin page
+            if (state.startPage === null) {
+                state.startPage = state.lastNavPage;
+                state.burstCount = 1;
+            } else {
+                state.burstCount++;
+            }
+            // Show jump-back immediately on the 3rd rapid turn (burstCount reaches 2)
+            if (state.burstCount >= 2) {
+                setJumpBackPage((prev) => prev ?? state.startPage!);
+            }
+        } else {
+            state.startPage = null;
+            state.burstCount = 0;
+        }
+
+        state.lastNavPage = currentPage;
+        state.lastNavTime = now;
+    }, []);
+
+
         setIsClient(true);
     }, []);
 
@@ -277,13 +313,15 @@ export function PdfReader({book, format}: PdfReaderProps) {
 
     const goToPreviousPage = useCallback(() => {
         if (!canGoPrevious) return;
+        trackSequentialNav(pageNumber);
         setPageNumber((value) => value - 1);
-    }, [canGoPrevious]);
+    }, [canGoPrevious, pageNumber, trackSequentialNav]);
 
     const goToNextPage = useCallback(() => {
         if (!canGoNext) return;
+        trackSequentialNav(pageNumber);
         setPageNumber((value) => value + 1);
-    }, [canGoNext]);
+    }, [canGoNext, pageNumber, trackSequentialNav]);
 
     const goToPage = useCallback((value: string) => {
         if (!numPages) return;
@@ -292,7 +330,11 @@ export function PdfReader({book, format}: PdfReaderProps) {
             setPageInput(String(pageNumber));
             return;
         }
-        setPageNumber(Math.min(numPages, Math.max(1, nextPage)));
+        const clampedNext = Math.min(numPages, Math.max(1, nextPage));
+        if (clampedNext !== pageNumber) {
+            setJumpBackPage(pageNumber);
+            setPageNumber(clampedNext);
+        }
     }, [numPages, pageNumber]);
 
     useEffect(() => {
@@ -353,6 +395,43 @@ export function PdfReader({book, format}: PdfReaderProps) {
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [closeReader, goToNextPage, goToPreviousPage, isClient, numPages, zoomIn, zoomOut]);
+
+    /* Touch-swipe navigation for mobile — a horizontal swipe turns the page and
+       contributes to the rapid-navigation burst that triggers the jump-back widget. */
+    useEffect(() => {
+        if (!isClient) return;
+        const container = containerRef.current;
+        if (!container) return;
+
+        const handleTouchStart = (e: TouchEvent) => {
+            touchStartRef.current = {
+                x: e.touches[0].clientX,
+                y: e.touches[0].clientY,
+                time: Date.now(),
+            };
+        };
+
+        const handleTouchEnd = (e: TouchEvent) => {
+            const start = touchStartRef.current;
+            if (!start) return;
+            touchStartRef.current = null;
+            const dx = e.changedTouches[0].clientX - start.x;
+            const dy = e.changedTouches[0].clientY - start.y;
+            const dt = Date.now() - start.time;
+            // Only fire on quick, clearly-horizontal swipes to avoid interfering with scroll
+            if (Math.abs(dx) > Math.abs(dy) * 1.5 && Math.abs(dx) > 50 && dt < 400) {
+                if (dx > 0) goToPreviousPage();
+                else goToNextPage();
+            }
+        };
+
+        container.addEventListener("touchstart", handleTouchStart, { passive: true });
+        container.addEventListener("touchend", handleTouchEnd, { passive: true });
+        return () => {
+            container.removeEventListener("touchstart", handleTouchStart);
+            container.removeEventListener("touchend", handleTouchEnd);
+        };
+    }, [isClient, goToPreviousPage, goToNextPage]);
 
     if (!isClient) {
         return null;
@@ -441,7 +520,8 @@ export function PdfReader({book, format}: PdfReaderProps) {
                 tocItems={tocItems}
                 getChildren={(item) => item.children}
                 onNavigate={(item) => {
-                    if (item.pageNumber) {
+                    if (item.pageNumber && item.pageNumber !== pageNumber) {
+                        setJumpBackPage(pageNumber);
                         setPageNumber(item.pageNumber);
                     }
                 }}
@@ -616,6 +696,28 @@ export function PdfReader({book, format}: PdfReaderProps) {
                 >
                     Use arrow keys or buttons to turn pages
                 </Flex>
+            )}
+
+            {jumpBackPage !== null && (
+                <JumpBackButton
+                    pageLabel={`Page ${jumpBackPage}`}
+                    onJumpBack={() => {
+                        setPageNumber(jumpBackPage);
+                        setJumpBackPage(null);
+                    }}
+                    onDismiss={() => setJumpBackPage(null)}
+                    colors={colors}
+                    thumbnailContent={
+                        <Document file={pdfUrl} loading={null} error={null}>
+                            <Page
+                                pageNumber={jumpBackPage}
+                                width={80}
+                                renderAnnotationLayer={false}
+                                renderTextLayer={false}
+                            />
+                        </Document>
+                    }
+                />
             )}
         </>
     );
