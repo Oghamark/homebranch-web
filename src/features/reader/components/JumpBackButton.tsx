@@ -27,6 +27,7 @@ export function JumpBackButton({ onJumpBack, onDismiss, colors, pageLabel, thumb
             role="button"
             aria-label={pageLabel ? `Jump back to ${pageLabel}` : "Jump back to previous position"}
             onClick={onJumpBack}
+            animation="popIn 0.25s ease-out"
         >
             {/* Page thumbnail */}
             <Box w="80px" bg={colors.contentBg} overflow="hidden" position="relative" lineHeight={0}>

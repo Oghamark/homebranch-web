@@ -15,6 +15,12 @@ body {
     50% { opacity: 0.8; }
 }
 
+@keyframes popIn {
+    0% { opacity: 0; transform: scale(0.7) translateY(8px); }
+    70% { transform: scale(1.05) translateY(-2px); }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
 /* Readium navigator iframes are position:absolute — they fill the container */
 .readium-navigator-iframe {
     inset: 0;

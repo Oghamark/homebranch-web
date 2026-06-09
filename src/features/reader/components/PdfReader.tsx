@@ -132,14 +132,13 @@ export function PdfReader({book, format}: PdfReaderProps) {
     const navigate = useNavigate();
     const containerRef = useRef<HTMLDivElement | null>(null);
     const hasResolvedInitialPageRef = useRef(false);
-    const pageNumberRef = useRef(1);
     const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
     const rapidNavStateRef = useRef<{
         startPage: number | null;
         lastNavPage: number | null;
         lastNavTime: number;
-        pendingTimer: ReturnType<typeof setTimeout> | null;
-    }>({ startPage: null, lastNavPage: null, lastNavTime: 0, pendingTimer: null });
+        burstCount: number;
+    }>({ startPage: null, lastNavPage: null, lastNavTime: 0, burstCount: 0 });
     const [isClient, setIsClient] = useState(false);
     const [numPages, setNumPages] = useState<number>();
     const [pageNumber, setPageNumber] = useState(1);
@@ -168,36 +167,27 @@ export function PdfReader({book, format}: PdfReaderProps) {
         [book.id, format],
     );
 
-    /* Keep pageNumberRef in sync so the rapid-nav timer closure can read the latest value */
-    pageNumberRef.current = pageNumber;
-
     /* Track sequential (arrow/keyboard/swipe) navigation to detect rapid page-turning.
-       When the user turns 3+ pages within a quick burst, we save their origin page. */
+       When the user turns 3+ pages within a quick burst, immediately save their origin page. */
     const trackSequentialNav = useCallback((currentPage: number) => {
         const state = rapidNavStateRef.current;
         const now = Date.now();
 
-        if (state.pendingTimer !== null) {
-            clearTimeout(state.pendingTimer);
-            state.pendingTimer = null;
-        }
-
         if (now - state.lastNavTime < 800 && state.lastNavPage !== null) {
-            // Rapid navigation: save the page at the start of the burst
+            // Rapid navigation: track burst and save origin page
             if (state.startPage === null) {
                 state.startPage = state.lastNavPage;
+                state.burstCount = 1;
+            } else {
+                state.burstCount++;
             }
-            state.pendingTimer = setTimeout(() => {
-                const start = state.startPage;
-                const end = pageNumberRef.current;
-                state.startPage = null;
-                state.pendingTimer = null;
-                if (start !== null && Math.abs(end - start) >= 3) {
-                    setJumpBackPage((prev) => prev ?? start);
-                }
-            }, 1000);
+            // Show jump-back immediately on the 3rd rapid turn (burstCount reaches 2)
+            if (state.burstCount >= 2) {
+                setJumpBackPage((prev) => prev ?? state.startPage!);
+            }
         } else {
             state.startPage = null;
+            state.burstCount = 0;
         }
 
         state.lastNavPage = currentPage;

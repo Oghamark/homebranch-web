@@ -40,15 +40,14 @@ export function Reader({ book, format }: ReaderProps) {
     jumpBackLocatorRef.current = jumpBackLocator;
 
     /* Rapid-swipe detection for EPUB — tracks consecutive positionChanged events.
-       Three or more page turns within 800 ms → save origin for jump-back. */
+       Three or more page turns within 800 ms → save origin for jump-back immediately. */
     const prevLocatorJsonRef = useRef<string | null>(null);
     const navigatorRefForRapidNav = useRef<typeof navigatorRef.current>(null);
     const rapidNavStateRef = useRef<{
         startLocatorJson: string | null;
         lastChangeTime: number;
         changeCount: number;
-        pendingTimer: ReturnType<typeof setTimeout> | null;
-    }>({ startLocatorJson: null, lastChangeTime: 0, changeCount: 0, pendingTimer: null });
+    }>({ startLocatorJson: null, lastChangeTime: 0, changeCount: 0 });
 
     const { onLocationChange, saveImmediate } = useSavePositionSync(book.id, format, deviceName);
 
@@ -60,31 +59,20 @@ export function Reader({ book, format }: ReaderProps) {
             const state = rapidNavStateRef.current;
             const now = Date.now();
 
-            if (state.pendingTimer !== null) {
-                clearTimeout(state.pendingTimer);
-                state.pendingTimer = null;
-            }
-
             if (now - state.lastChangeTime < 800) {
                 if (state.startLocatorJson === null) {
                     state.startLocatorJson = prevLocatorJson;
                 }
                 state.changeCount++;
-                state.pendingTimer = setTimeout(() => {
-                    const startJson = state.startLocatorJson;
-                    const count = state.changeCount;
-                    state.startLocatorJson = null;
-                    state.pendingTimer = null;
-                    state.changeCount = 0;
-                    if (startJson !== null && count >= 3 && !jumpBackLocatorRef.current) {
-                        try {
-                            const locator = Locator.deserialize(JSON.parse(startJson));
-                            setJumpBackLocator(locator);
-                        } catch {
-                            // ignore malformed locator
-                        }
+                // Show jump-back immediately on the 3rd rapid location change (changeCount reaches 2)
+                if (state.changeCount >= 2 && !jumpBackLocatorRef.current) {
+                    try {
+                        const locator = Locator.deserialize(JSON.parse(state.startLocatorJson!));
+                        setJumpBackLocator(locator);
+                    } catch {
+                        // ignore malformed locator
                     }
-                }, 1000);
+                }
             } else {
                 state.startLocatorJson = null;
                 state.changeCount = 0;
