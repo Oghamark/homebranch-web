@@ -1,10 +1,11 @@
 import {AddBookButton} from "@/entities/book";
-import {Box, Button, For, Separator, Spinner, Stack, Tabs, Text} from "@chakra-ui/react";
+import {Box, Button, Flex, For, Separator, Spinner, Stack, Tabs, Text} from "@chakra-ui/react";
 import {LuBookOpen, LuFolderSync, LuHeart, LuLibrary, LuLogOut, LuSettings, LuUser, LuUsers} from "react-icons/lu";
 import {Link, useFetcher, useLocation} from "react-router";
 import {BookShelfNavigationSection} from "@/entities/bookShelf";
 import {SearchLibrary} from "@/features/library";
 import type {IconType} from "react-icons";
+import {ColorModeButton} from "@/shared/ui/color-mode";
 
 interface NavigationContentProps {
     onNavigate?: () => void;
@@ -79,14 +80,16 @@ export function NavigationContent({onNavigate}: NavigationContentProps) {
                 </Tabs.Root>
             </Box>
             <Separator my={4}/>
-            <Button
-                variant={"outline"}
-                width="100%"
-                flexShrink={0}
-                onClick={() => fetcher.submit('', {method: 'post', action: '/logout'})}
-            >
-                {busy ? <Spinner/> : <><LuLogOut/> Log out</>}
-            </Button>
+            <Flex gap={2} flexShrink={0} align="center">
+                <Button
+                    variant={"outline"}
+                    flex="1"
+                    onClick={() => fetcher.submit('', {method: 'post', action: '/logout'})}
+                >
+                    {busy ? <Spinner/> : <><LuLogOut/> Log out</>}
+                </Button>
+                <ColorModeButton variant="outline"/>
+            </Flex>
         </>
     );
 }
