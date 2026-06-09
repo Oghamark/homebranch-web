@@ -133,6 +133,7 @@ export function UserManagementPage() {
                                         <Table.ColumnHeader>Name</Table.ColumnHeader>
                                         <Table.ColumnHeader>Email</Table.ColumnHeader>
                                         <Table.ColumnHeader>Role</Table.ColumnHeader>
+                                        <Table.ColumnHeader>Source</Table.ColumnHeader>
                                         <Table.ColumnHeader textAlign="end"></Table.ColumnHeader>
                                     </Table.Row>
                                 </Table.Header>
@@ -148,6 +149,14 @@ export function UserManagementPage() {
                                                         colorPalette={user.role === "ADMIN" ? "blue" : "gray"}
                                                     >
                                                         {user.role ?? "USER"}
+                                                    </Badge>
+                                                </Table.Cell>
+                                                <Table.Cell>
+                                                    <Badge
+                                                        variant="subtle"
+                                                        colorPalette="gray"
+                                                    >
+                                                        {user.provider}
                                                     </Badge>
                                                 </Table.Cell>
                                                 <Table.Cell textAlign="end">

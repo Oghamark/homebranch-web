@@ -34,6 +34,7 @@ It provides a user-friendly interface to organize, search, and read your ebooks 
 ## Features
 
 - EPUB and PDF in-browser reading — Readium powers the EPUB reader, while PDF reading is built into the web app with shared position sync
+- Installable PWA with an offline-ready app shell for a more native-like experience
 - Library with infinite scroll and search
   - Keyword search: `isbn:<value>`, `genre:<value>`, `series:<value>`, `author:<value>` prefixes narrow results by metadata field
 - Book detail page with enriched metadata and format-aware actions: genres, series, ISBN, page count, publisher, language, ratings, format selection, and linked-format management

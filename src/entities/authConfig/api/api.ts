@@ -11,6 +11,15 @@ export type AuthConfig = {
     oidcClientSecret: string | null;
     oidcCallbackUrl: string | null;
     oidcProviderName: string | null;
+    ldapEnabled: boolean;
+    ldapServerUrl: string | null;
+    ldapBindDn: string | null;
+    ldapBindPassword: string | null;
+    ldapBaseDn: string | null;
+    ldapUserGroup: string | null;
+    ldapAdminGroup: string | null;
+    ldapEmailField: string | null;
+    ldapNameField: string | null;
 };
 
 export const authConfigApi = homebranchApi.injectEndpoints({

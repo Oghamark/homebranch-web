@@ -44,7 +44,22 @@ export default function Settings() {
         oidcClientSecret: "",
         oidcCallbackUrl: "",
     });
+
+    const [ldapForm, setLdapForm] = useState({
+        ldapEnabled: false,
+        ldapServerUrl: "",
+        ldapBindDn: "",
+        ldapBindPassword: "",
+        ldapBaseDn: "",
+        ldapAdminGroup: "",
+        ldapUserGroup: "",
+        ldapEmailField: "",
+        ldapNameField: "",
+    });
+
     const [isSavingOidc, setIsSavingOidc] = useState(false);
+
+    const [isSavingLdap, setIsSavingLdap] = useState(false);
 
     useEffect(() => {
         if (authConfig) {
@@ -55,6 +70,18 @@ export default function Settings() {
                 oidcClientId: authConfig.oidcClientId ?? "",
                 oidcClientSecret: authConfig.oidcClientSecret ?? "",
                 oidcCallbackUrl: authConfig.oidcCallbackUrl ?? "",
+            });
+
+            setLdapForm({
+                ldapEnabled: authConfig.ldapEnabled,
+                ldapServerUrl: authConfig.ldapServerUrl ?? "",
+                ldapAdminGroup: authConfig.ldapAdminGroup ?? "",
+                ldapUserGroup: authConfig.ldapUserGroup ?? "",
+                ldapBaseDn: authConfig.ldapBaseDn ?? "",
+                ldapBindDn: authConfig.ldapBindDn ?? "",
+                ldapBindPassword: authConfig.ldapBindPassword ?? "",
+                ldapEmailField: authConfig.ldapEmailField ?? "",
+                ldapNameField: authConfig.ldapNameField ?? "",
             });
         }
     }, [authConfig]);
@@ -75,6 +102,28 @@ export default function Settings() {
             handleRtkError(error);
         } finally {
             setIsSavingOidc(false);
+        }
+    };
+
+    const handleSaveLdap = async () => {
+        setIsSavingLdap(true);
+        try {
+            await updateAuthConfig({
+                ldapEnabled: ldapForm.ldapEnabled,
+                ldapServerUrl: ldapForm.ldapServerUrl || null,
+                ldapAdminGroup: ldapForm.ldapAdminGroup || null,
+                ldapUserGroup: ldapForm.ldapUserGroup || null,
+                ldapBaseDn: ldapForm.ldapBaseDn || null,
+                ldapBindDn: ldapForm.ldapBindDn || null,
+                ldapBindPassword: ldapForm.ldapBindPassword || null,
+                ldapEmailField: ldapForm.ldapEmailField || null,
+                ldapNameField: ldapForm.ldapNameField || null,
+            }).unwrap();
+            ToastFactory({message: "LDAP settings saved successfully", type: "success"});
+        } catch (error) {
+            handleRtkError(error);
+        } finally {
+            setIsSavingLdap(false);
         }
     };
 
@@ -244,6 +293,105 @@ export default function Settings() {
                             loading={isSavingOidc}
                         >
                             Save OIDC Settings
+                        </Button>
+                    </Card.Footer>
+                </Card.Root>
+            )}
+
+            {isAdmin && (
+                <Card.Root>
+                    <Card.Header>
+                        <Flex align="center" gap={3}>
+                            <LuKeyRound/>
+                            <Card.Title>Lightweight Directory Access Protocol (LDAP)</Card.Title>
+                        </Flex>
+                    </Card.Header>
+                    <Card.Body>
+                        <Stack gap={4}>
+                            <Flex align="center" gap={3} justify="space-between">
+                                <Stack gap={0}>
+                                    <Text fontWeight="medium">Enable LDAP</Text>
+                                    <Text fontSize="sm" color="fg.muted">
+                                        {ldapForm.ldapEnabled ? "Users can sign in via your identity provider" : "LDAP login is disabled"}
+                                    </Text>
+                                </Stack>
+                                <Switch.Root
+                                    checked={ldapForm.ldapEnabled}
+                                    onCheckedChange={({checked}) =>
+                                        setLdapForm(prev => ({...prev, ldapEnabled: checked}))
+                                    }
+                                >
+                                    <Switch.HiddenInput/>
+                                    <Switch.Control>
+                                        <Switch.Thumb/>
+                                    </Switch.Control>
+                                </Switch.Root>
+                            </Flex>
+                            <Separator/>
+                            <TextField
+                                label="Server URL"
+                                tooltip="Server URL and port for the LDAP server. Must be reachable by your Authentication API server"
+                                placeholder="e.g. ldap://auth-server:389"
+                                value={ldapForm.ldapServerUrl}
+                                onChange={e => setLdapForm(prev => ({...prev, ldapServerUrl: e.target.value}))}
+                            />
+                            <TextField
+                                label="Base DN"
+                                tooltip="The DN from which users should be searched"
+                                placeholder="dc=example,dc=com"
+                                value={ldapForm.ldapBaseDn}
+                                onChange={e => setLdapForm(prev => ({...prev, ldapBaseDn: e.target.value}))}
+                            />
+                            <TextField
+                                label="Bind DN"
+                                tooltip="The service or admin user that should be used to bind for user searches"
+                                placeholder="cn=service_user,dc=example,dc=com"
+                                value={ldapForm.ldapBindDn}
+                                onChange={e => setLdapForm(prev => ({...prev, ldapBindDn: e.target.value}))}
+                            />
+                            <PasswordTextField
+                                label="Bind Password"
+                                tooltip="The password (if required) for the bind user"
+                                placeholder=""
+                                value={ldapForm.ldapBindPassword}
+                                onChange={e => setLdapForm(prev => ({...prev, ldapBindPassword: e.target.value}))}
+                            />
+                            <TextField
+                                label="Admins Group"
+                                tooltip="Members of this group at the time of their first login will be homebranch admins"
+                                placeholder="ou=homebranch-admins,dc=example,dc=com"
+                                value={ldapForm.ldapAdminGroup}
+                                onChange={e => setLdapForm(prev => ({...prev, ldapAdminGroup: e.target.value}))}
+                            />
+                            <TextField
+                                label="Users Group"
+                                tooltip="Users must be a member of this group to log in"
+                                placeholder="ou=homebranch-users,dc=example,dc=com"
+                                value={ldapForm.ldapUserGroup}
+                                onChange={e => setLdapForm(prev => ({...prev, ldapUserGroup: e.target.value}))}
+                            />
+                            <TextField
+                                label="Email Field"
+                                tooltip="AD field holding the user's email address"
+                                placeholder="mail"
+                                value={ldapForm.ldapEmailField}
+                                onChange={e => setLdapForm(prev => ({...prev, ldapEmailField: e.target.value}))}
+                            />
+                            <TextField
+                                label="Name Field"
+                                tooltip="AD field holding the user's name"
+                                placeholder="sn"
+                                value={ldapForm.ldapNameField}
+                                onChange={e => setLdapForm(prev => ({...prev, ldapNameField: e.target.value}))}
+                            />
+                        </Stack>
+                    </Card.Body>
+                    <Card.Footer justifyContent="flex-end">
+                        <Button
+                            onClick={handleSaveLdap}
+                            loading={isSavingLdap}
+                        >
+                            Save LDAP Settings
                         </Button>
                     </Card.Footer>
                 </Card.Root>

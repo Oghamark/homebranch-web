@@ -22,11 +22,11 @@ export const jobsApi = homebranchApi.injectEndpoints({
             providesTags: (result) =>
                 result ? [{type: 'Job' as const, id: result.id}] : [],
         }),
-        triggerLibraryScan: build.mutation<{ success: boolean; jobId: string }, void>({
+        triggerLibraryScan: build.mutation<{ jobId: string | undefined }, void>({
             query: () => ({url: '/library/scan', method: 'POST'}),
             invalidatesTags: ['Job'],
         }),
-        triggerBookSync: build.mutation<{ success: boolean; jobId: string }, string>({
+        triggerBookSync: build.mutation<{ jobId: string | undefined }, string>({
             query: (bookId) => ({url: `/library/books/${bookId}/sync`, method: 'POST'}),
             invalidatesTags: ['Job'],
         }),

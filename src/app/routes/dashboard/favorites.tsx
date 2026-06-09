@@ -4,8 +4,16 @@ import type {Route} from "./+types/favorites";
 import {BookGridSkeletons, LibraryPage} from "@/pages/library";
 import {useGetFavoriteBooksInfiniteQuery} from "@/entities/book";
 import {useMemo} from "react";
-import {useLibrarySearch} from "@/features/library";
+import {
+    LibraryDisplayOptions,
+    LibraryDisplayToggleButton,
+    setDisplayMode,
+    useLibraryDisplayMode,
+    useLibrarySearch
+} from "@/features/library";
 import {LuHeart} from "react-icons/lu";
+import {useAppDispatch} from "@/app/hooks";
+import {useMobileNavConfig} from "@/components/navigation/MobileNavContext";
 
 export function meta({}: Route.MetaArgs) {
     return [
@@ -15,8 +23,21 @@ export function meta({}: Route.MetaArgs) {
 }
 
 export default function Favorites() {
+    const dispatch = useAppDispatch();
+    const displayMode = useLibraryDisplayMode();
     const query = useLibrarySearch()
     const {data, hasNextPage, fetchNextPage, isLoading} = useGetFavoriteBooksInfiniteQuery({query: query});
+    const mobileNavRightAction = useMemo(() => (
+        <LibraryDisplayToggleButton
+            displayMode={displayMode}
+            onDisplayModeChange={(mode) => dispatch(setDisplayMode(mode))}
+        />
+    ), [displayMode, dispatch]);
+
+    useMobileNavConfig(
+        "Favorites",
+        mobileNavRightAction
+    );
 
     const books = useMemo(() => {
         return data?.pages.flatMap(page => page.data) ?? []
@@ -28,13 +49,25 @@ export default function Favorites() {
 
     return (
         <Stack gap={4}>
-            <Flex align="center" gap={3} display={{base: "none", md: "flex"}}>
-                <LuHeart size={24}/>
-                <Heading size="2xl">Favorites</Heading>
+            <Flex align="center" gap={3} display={{base: "none", md: "flex"}} justify="space-between">
+                <Flex align="center" gap={3}>
+                    <LuHeart size={24}/>
+                    <Heading size="2xl">Favorites</Heading>
+                </Flex>
+                <LibraryDisplayOptions
+                    displayMode={displayMode}
+                    onDisplayModeChange={(mode) => dispatch(setDisplayMode(mode))}
+                />
             </Flex>
             {isLoading
-                ? <BookGridSkeletons/>
-                : <LibraryPage books={books} fetchMore={fetchNextPage} hasMore={hasNextPage} totalBooks={data?.pages[0]?.total}/>
+                ? <BookGridSkeletons displayMode={displayMode}/>
+                : <LibraryPage
+                    books={books}
+                    fetchMore={fetchNextPage}
+                    hasMore={hasNextPage}
+                    totalBooks={data?.pages[0]?.total}
+                    displayMode={displayMode}
+                />
             }
         </Stack>
     );

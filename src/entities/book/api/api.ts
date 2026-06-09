@@ -39,8 +39,11 @@ export const booksApi = homebranchApi.injectEndpoints({
                     _allPageParams,
                     _queryArg,
                 ) => {
+                    if (!lastPage || typeof lastPage.total !== 'number') {
+                        return undefined;
+                    }
                     const nextPage = lastPageParam + 1
-                    const remainingPages = Math.ceil(lastPage?.total / config.itemsPerPage) - nextPage
+                    const remainingPages = Math.ceil(lastPage.total / config.itemsPerPage) - nextPage
 
                     if (remainingPages <= 0) {
                         return undefined;
@@ -88,8 +91,11 @@ export const booksApi = homebranchApi.injectEndpoints({
                     _allPageParams,
                     _queryArg,
                 ) => {
+                    if (!lastPage || typeof lastPage.total !== 'number') {
+                        return undefined;
+                    }
                     const nextPage = lastPageParam + 1
-                    const remainingPages = Math.ceil(lastPage?.total / config.itemsPerPage) - nextPage
+                    const remainingPages = Math.ceil(lastPage.total / config.itemsPerPage) - nextPage
 
                     if (remainingPages <= 0) {
                         return undefined;
