@@ -132,6 +132,14 @@ export function PdfReader({book, format}: PdfReaderProps) {
     const navigate = useNavigate();
     const containerRef = useRef<HTMLDivElement | null>(null);
     const hasResolvedInitialPageRef = useRef(false);
+    const pageNumberRef = useRef(1);
+    const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
+    const rapidNavStateRef = useRef<{
+        startPage: number | null;
+        lastNavPage: number | null;
+        lastNavTime: number;
+        pendingTimer: ReturnType<typeof setTimeout> | null;
+    }>({ startPage: null, lastNavPage: null, lastNavTime: 0, pendingTimer: null });
     const [isClient, setIsClient] = useState(false);
     const [numPages, setNumPages] = useState<number>();
     const [pageNumber, setPageNumber] = useState(1);
@@ -160,7 +168,43 @@ export function PdfReader({book, format}: PdfReaderProps) {
         [book.id, format],
     );
 
-    useEffect(() => {
+    /* Keep pageNumberRef in sync so the rapid-nav timer closure can read the latest value */
+    pageNumberRef.current = pageNumber;
+
+    /* Track sequential (arrow/keyboard/swipe) navigation to detect rapid page-turning.
+       When the user turns 3+ pages within a quick burst, we save their origin page. */
+    const trackSequentialNav = useCallback((currentPage: number) => {
+        const state = rapidNavStateRef.current;
+        const now = Date.now();
+
+        if (state.pendingTimer !== null) {
+            clearTimeout(state.pendingTimer);
+            state.pendingTimer = null;
+        }
+
+        if (now - state.lastNavTime < 800 && state.lastNavPage !== null) {
+            // Rapid navigation: save the page at the start of the burst
+            if (state.startPage === null) {
+                state.startPage = state.lastNavPage;
+            }
+            state.pendingTimer = setTimeout(() => {
+                const start = state.startPage;
+                const end = pageNumberRef.current;
+                state.startPage = null;
+                state.pendingTimer = null;
+                if (start !== null && Math.abs(end - start) >= 3) {
+                    setJumpBackPage((prev) => prev ?? start);
+                }
+            }, 1000);
+        } else {
+            state.startPage = null;
+        }
+
+        state.lastNavPage = currentPage;
+        state.lastNavTime = now;
+    }, []);
+
+
         setIsClient(true);
     }, []);
 
@@ -279,13 +323,15 @@ export function PdfReader({book, format}: PdfReaderProps) {
 
     const goToPreviousPage = useCallback(() => {
         if (!canGoPrevious) return;
+        trackSequentialNav(pageNumber);
         setPageNumber((value) => value - 1);
-    }, [canGoPrevious]);
+    }, [canGoPrevious, pageNumber, trackSequentialNav]);
 
     const goToNextPage = useCallback(() => {
         if (!canGoNext) return;
+        trackSequentialNav(pageNumber);
         setPageNumber((value) => value + 1);
-    }, [canGoNext]);
+    }, [canGoNext, pageNumber, trackSequentialNav]);
 
     const goToPage = useCallback((value: string) => {
         if (!numPages) return;
@@ -359,6 +405,43 @@ export function PdfReader({book, format}: PdfReaderProps) {
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [closeReader, goToNextPage, goToPreviousPage, isClient, numPages, zoomIn, zoomOut]);
+
+    /* Touch-swipe navigation for mobile — a horizontal swipe turns the page and
+       contributes to the rapid-navigation burst that triggers the jump-back widget. */
+    useEffect(() => {
+        if (!isClient) return;
+        const container = containerRef.current;
+        if (!container) return;
+
+        const handleTouchStart = (e: TouchEvent) => {
+            touchStartRef.current = {
+                x: e.touches[0].clientX,
+                y: e.touches[0].clientY,
+                time: Date.now(),
+            };
+        };
+
+        const handleTouchEnd = (e: TouchEvent) => {
+            const start = touchStartRef.current;
+            if (!start) return;
+            touchStartRef.current = null;
+            const dx = e.changedTouches[0].clientX - start.x;
+            const dy = e.changedTouches[0].clientY - start.y;
+            const dt = Date.now() - start.time;
+            // Only fire on quick, clearly-horizontal swipes to avoid interfering with scroll
+            if (Math.abs(dx) > Math.abs(dy) * 1.5 && Math.abs(dx) > 50 && dt < 400) {
+                if (dx > 0) goToPreviousPage();
+                else goToNextPage();
+            }
+        };
+
+        container.addEventListener("touchstart", handleTouchStart, { passive: true });
+        container.addEventListener("touchend", handleTouchEnd, { passive: true });
+        return () => {
+            container.removeEventListener("touchstart", handleTouchStart);
+            container.removeEventListener("touchend", handleTouchEnd);
+        };
+    }, [isClient, goToPreviousPage, goToNextPage]);
 
     if (!isClient) {
         return null;
@@ -627,13 +710,23 @@ export function PdfReader({book, format}: PdfReaderProps) {
 
             {jumpBackPage !== null && (
                 <JumpBackButton
-                    label={`Return to page ${jumpBackPage}`}
+                    pageLabel={`Page ${jumpBackPage}`}
                     onJumpBack={() => {
                         setPageNumber(jumpBackPage);
                         setJumpBackPage(null);
                     }}
                     onDismiss={() => setJumpBackPage(null)}
                     colors={colors}
+                    thumbnailContent={
+                        <Document file={pdfUrl} loading={null} error={null}>
+                            <Page
+                                pageNumber={jumpBackPage}
+                                width={80}
+                                renderAnnotationLayer={false}
+                                renderTextLayer={false}
+                            />
+                        </Document>
+                    }
                 />
             )}
         </>
