@@ -20,6 +20,7 @@ import {ReaderProgressBar} from "./ReaderProgressBar";
 import {ReaderLoadingState} from "./ReaderLoadingState";
 import {ReaderSettingsMenu} from "./ReaderSettingsMenu";
 import {ReaderToc, type ReaderTocItem} from "./ReaderToc";
+import {JumpBackButton} from "./JumpBackButton";
 
 const KEYBOARD_HINT_KEY = "pdf-reader-keyboard-hint-shown";
 
@@ -143,6 +144,7 @@ export function PdfReader({book, format}: PdfReaderProps) {
     const [hasLoadedServerPosition, setHasLoadedServerPosition] = useState(false);
     const [tocItems, setTocItems] = useState<PdfTocItem[]>([]);
     const [isTocOpen, setIsTocOpen] = useState(false);
+    const [jumpBackPage, setJumpBackPage] = useState<number | null>(null);
     const [showKeyboardHint, setShowKeyboardHint] = useState(() => {
         if (typeof window === "undefined") return false;
         return !localStorage.getItem(KEYBOARD_HINT_KEY);
@@ -292,7 +294,11 @@ export function PdfReader({book, format}: PdfReaderProps) {
             setPageInput(String(pageNumber));
             return;
         }
-        setPageNumber(Math.min(numPages, Math.max(1, nextPage)));
+        const clampedNext = Math.min(numPages, Math.max(1, nextPage));
+        if (clampedNext !== pageNumber) {
+            setJumpBackPage(pageNumber);
+            setPageNumber(clampedNext);
+        }
     }, [numPages, pageNumber]);
 
     useEffect(() => {
@@ -441,7 +447,8 @@ export function PdfReader({book, format}: PdfReaderProps) {
                 tocItems={tocItems}
                 getChildren={(item) => item.children}
                 onNavigate={(item) => {
-                    if (item.pageNumber) {
+                    if (item.pageNumber && item.pageNumber !== pageNumber) {
+                        setJumpBackPage(pageNumber);
                         setPageNumber(item.pageNumber);
                     }
                 }}
@@ -616,6 +623,18 @@ export function PdfReader({book, format}: PdfReaderProps) {
                 >
                     Use arrow keys or buttons to turn pages
                 </Flex>
+            )}
+
+            {jumpBackPage !== null && (
+                <JumpBackButton
+                    label={`Return to page ${jumpBackPage}`}
+                    onJumpBack={() => {
+                        setPageNumber(jumpBackPage);
+                        setJumpBackPage(null);
+                    }}
+                    onDismiss={() => setJumpBackPage(null)}
+                    colors={colors}
+                />
             )}
         </>
     );

@@ -3,10 +3,11 @@ import { LuX, LuList, LuChevronLeft, LuChevronRight } from "react-icons/lu";
 import { useNavigate } from "react-router";
 import { useState } from "react";
 import type { EpubNavigator } from "@readium/navigator";
-import type { Link } from "@readium/shared";
+import type { Link, Locator } from "@readium/shared";
 import type { ReaderThemeState, ThemeColors } from "../types/ReaderTheme";
 import { ReaderSettingsMenu } from "./ReaderSettingsMenu";
 import { ReaderToc, type ReaderTocItem } from "./ReaderToc";
+import { JumpBackButton } from "./JumpBackButton";
 
 interface TocDrawerItem extends ReaderTocItem {
     link: Link;
@@ -34,6 +35,7 @@ export function ReaderControls({
 }: ReaderControlsProps) {
     const navigate = useNavigate();
     const [isTocOpen, setIsTocOpen] = useState(false);
+    const [jumpBackLocator, setJumpBackLocator] = useState<Locator | null>(null);
 
     const hintBg =
         themeState.mode === "dark"
@@ -81,6 +83,8 @@ export function ReaderControls({
                 getChildren={(item) => item.children}
                 onNavigate={(item) => {
                     if (item.link.href) {
+                        const currentLocator = navigatorRef.current?.currentLocator;
+                        if (currentLocator) setJumpBackLocator(currentLocator);
                         navigatorRef.current?.goLink(item.link, false, () => {});
                     }
                 }}
@@ -170,6 +174,18 @@ export function ReaderControls({
                 >
                     Use arrow keys or buttons to turn pages
                 </Flex>
+            )}
+
+            {jumpBackLocator && (
+                <JumpBackButton
+                    label="Return to previous position"
+                    onJumpBack={() => {
+                        navigatorRef.current?.go(jumpBackLocator, false, () => {});
+                        setJumpBackLocator(null);
+                    }}
+                    onDismiss={() => setJumpBackLocator(null)}
+                    colors={colors}
+                />
             )}
         </>
     );
