@@ -5,6 +5,7 @@ import {Link, useFetcher, useLocation} from "react-router";
 import {BookShelfNavigationSection} from "@/entities/bookShelf";
 import {SearchLibrary} from "@/features/library";
 import type {IconType} from "react-icons";
+import {ColorModeIcon, useColorMode} from "@/shared/ui/color-mode";
 
 interface NavigationContentProps {
     onNavigate?: () => void;
@@ -22,6 +23,7 @@ export function NavigationContent({onNavigate}: NavigationContentProps) {
     const fetcher = useFetcher();
     let busy = fetcher.state !== 'idle';
     const isAdmin = sessionStorage.getItem('user_role') === 'ADMIN';
+    const {colorMode, toggleColorMode} = useColorMode();
 
     return (
         <>
@@ -79,14 +81,23 @@ export function NavigationContent({onNavigate}: NavigationContentProps) {
                 </Tabs.Root>
             </Box>
             <Separator my={4}/>
-            <Button
-                variant={"outline"}
-                width="100%"
-                flexShrink={0}
-                onClick={() => fetcher.submit('', {method: 'post', action: '/logout'})}
-            >
-                {busy ? <Spinner/> : <><LuLogOut/> Log out</>}
-            </Button>
+            <Stack gap={2} flexShrink={0}>
+                <Button
+                    variant={"ghost"}
+                    width="100%"
+                    justifyContent="flex-start"
+                    onClick={toggleColorMode}
+                >
+                    <ColorModeIcon/> {colorMode === "dark" ? "Dark Mode" : "Light Mode"}
+                </Button>
+                <Button
+                    variant={"outline"}
+                    width="100%"
+                    onClick={() => fetcher.submit('', {method: 'post', action: '/logout'})}
+                >
+                    {busy ? <Spinner/> : <><LuLogOut/> Log out</>}
+                </Button>
+            </Stack>
         </>
     );
 }
