@@ -13,7 +13,7 @@ import { useKeyboardNavigation } from "../hooks/useKeyboardNavigation";
 import { ReaderLoadingState } from "./ReaderLoadingState";
 import { ReaderProgressBar } from "./ReaderProgressBar";
 import { ReaderControls } from "./ReaderControls";
-import { JumpToSavedPositionModal } from "./JumpToSavedPositionModal";
+import { JumpToSavedPositionModal } from "@/features/reader";
 import { Locator } from "@readium/shared";
 
 const KEYBOARD_HINT_KEY = "reader-keyboard-hint-shown";
@@ -51,9 +51,9 @@ export function Reader({ book, format }: ReaderProps) {
 
     const { onLocationChange, saveImmediate } = useSavePositionSync(book.id, format, deviceName);
 
-    const handleLocationChange = useCallback((loc: string, pct?: number) => {
+    const handleLocationChange = useCallback((locator: Locator, percentage?: number) => {
         const prevLocatorJson = prevLocatorJsonRef.current;
-        onLocationChange(loc, pct);
+        onLocationChange(locator, percentage);
 
         if (!jumpBackLocatorRef.current && prevLocatorJson !== null) {
             const state = rapidNavStateRef.current;
@@ -85,7 +85,7 @@ export function Reader({ book, format }: ReaderProps) {
         // We read currentLocator from the navigator (already updated to new position)
         // and fall back to the raw JSON string if the navigator isn't ready yet.
         const navLocator = navigatorRefForRapidNav.current?.currentLocator;
-        prevLocatorJsonRef.current = navLocator ? JSON.stringify(navLocator.serialize()) : loc;
+        prevLocatorJsonRef.current = navLocator ? JSON.stringify(navLocator.serialize()) : JSON.stringify(locator.serialize());
     }, [onLocationChange]);
 
     const { containerRef, navigatorRef, isLoading, isLoaded, loadError, isChapterTransitioning, mobileSwipeOverlay, percentage, tocItems } =

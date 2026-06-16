@@ -13,14 +13,16 @@ import {getThemeColors} from "../types/ReaderTheme";
 import {useDeviceName} from "../hooks/useDeviceName";
 import {useSavePositionSync} from "../hooks/useSavePositionSync";
 import {getSavedPosition} from "../api/savedPositionApi";
-import {getStoredProgress, storeProgress} from "../utils/readingProgress";
-import {getApproximatePdfPage, getExactFormatPosition, getResumeFormatPosition, getStoredPdfPage} from "../utils/savedPositionState";
+import {getStoredProgress, storeProgress} from "@/features/reader";
 import {useNavigate} from "react-router";
 import {ReaderProgressBar} from "./ReaderProgressBar";
 import {ReaderLoadingState} from "./ReaderLoadingState";
 import {ReaderSettingsMenu} from "./ReaderSettingsMenu";
 import {ReaderToc, type ReaderTocItem} from "./ReaderToc";
 import {JumpBackButton} from "./JumpBackButton";
+import {Locator, LocatorLocations} from "@readium/shared";
+import {getStoredLocator} from "@/features/reader";
+import {deserializeLocatorFromCloud} from "@/features/reader";
 
 const KEYBOARD_HINT_KEY = "pdf-reader-keyboard-hint-shown";
 
@@ -46,31 +48,6 @@ pdfjs.GlobalWorkerOptions.workerSrc = pdfjsWorker;
 interface PdfReaderProps {
     book: BookModel;
     format: BookFormatType;
-}
-
-type PdfSavedPosition = {
-    kind: "pdf";
-    page: number;
-};
-
-function parsePdfSavedPosition(position?: string | null): number | undefined {
-    if (!position) return undefined;
-
-    const numericPosition = Number(position);
-    if (Number.isInteger(numericPosition) && numericPosition > 0) {
-        return numericPosition;
-    }
-
-    try {
-        const parsed = JSON.parse(position) as Partial<PdfSavedPosition>;
-        if (parsed.kind === "pdf" && Number.isInteger(parsed.page) && parsed.page! > 0) {
-            return parsed.page;
-        }
-    } catch {
-        return undefined;
-    }
-
-    return undefined;
 }
 
 function getPdfProgress(page: number, totalPages: number): number {
@@ -234,12 +211,26 @@ export function PdfReader({book, format}: PdfReaderProps) {
     useEffect(() => {
         if (!numPages || !hasLoadedServerPosition || hasResolvedInitialPageRef.current) return;
 
-        const activeLocalPage = getStoredPdfPage(book.id, true);
-        const activeServerPage = parsePdfSavedPosition(getResumeFormatPosition(serverSavedPosition?.position, "PDF"));
-        const approximatePage = getApproximatePdfPage(serverSavedPosition, numPages);
-        const fallbackLocalPage = getStoredPdfPage(book.id, false);
-        const fallbackServerPage = parsePdfSavedPosition(getExactFormatPosition(serverSavedPosition?.position, "PDF"));
-        const initialPage = activeLocalPage ?? activeServerPage ?? approximatePage ?? fallbackLocalPage ?? fallbackServerPage ?? 1;
+        const localLocator = getStoredLocator(book.id);
+        const localPage = localLocator?.locations?.position;
+
+        let serverLocator: Locator | null = null;
+        try {
+            if (serverSavedPosition?.position) {
+                serverLocator = deserializeLocatorFromCloud(serverSavedPosition.position) ?? null;
+            }
+        } catch {
+            // ignore malformed server position
+        }
+        const serverPage = serverLocator?.locations?.position;
+
+        const approximatePage = (() => {
+            const prog = serverLocator?.locations?.totalProgression;
+            if (prog === undefined || prog === null) return undefined;
+            return Math.min(numPages, Math.max(1, Math.round(prog * (numPages - 1)) + 1));
+        })();
+
+        const initialPage = localPage ?? serverPage ?? approximatePage ?? 1;
 
         hasResolvedInitialPageRef.current = true;
         setPageNumber(initialPage);
@@ -280,7 +271,11 @@ export function PdfReader({book, format}: PdfReaderProps) {
             storeProgress(userId, book.id, nextPercentage);
         }
 
-        onLocationChange(JSON.stringify({kind: "pdf", page: clampedPage}), nextPercentage);
+        onLocationChange(new Locator({
+            href: book.fileName,
+            type: "application/pdf",
+            locations: new LocatorLocations({position: clampedPage, totalProgression: nextPercentage}),
+        }), nextPercentage);
     }, [book.id, numPages, onLocationChange, pageNumber]);
 
     useEffect(() => {

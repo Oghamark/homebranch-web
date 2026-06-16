@@ -1,16 +1,16 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { EpubNavigator, EpubPreferences } from "@readium/navigator";
 import type { EpubNavigatorListeners } from "@readium/navigator";
 import { HttpFetcher, Link, Locator, LocatorLocations, Manifest, Publication } from "@readium/shared";
 import { axiosInstance } from "@/shared/api/axios";
-import { getStoredProgress, storeProgress } from "../utils/readingProgress";
-import { getInitialLocator } from "../utils/locatorUtils";
-import { buildEpubPreferences } from "../utils/epubPreferences";
+import { getStoredProgress, storeProgress } from "@/features/reader";
+import { buildEpubPreferences } from "@/features/reader";
 import type { ReaderThemeState } from "../types/ReaderTheme";
 import type { BookModel } from "@/entities/book/model/BookModel";
 import type {BookFormatType} from "@/entities/book/model/bookFormats";
 import { getSavedPosition } from "../api/savedPositionApi";
-import { getApproximateLocator, getExactFormatPosition, getResumeFormatPosition } from "../utils/savedPositionState";
+import { getStoredLocator } from "@/features/reader";
+import { deserializeLocatorFromCloud } from "@/features/reader";
 
 const CHAPTER_TRANSITION_TIMEOUT_MS = 8000;
 const MOBILE_BOUNDARY_SWIPE_TRIGGER_RATIO = 0.12;
@@ -41,7 +41,7 @@ export function useEpubNavigator(
     book: BookModel,
     format: BookFormatType,
     themeState: ReaderThemeState,
-    onLocationChange: (loc: string, percentage?: number) => void,
+    onLocationChange: (locator: Locator) => void,
     enableMobileSwipeOverlay: boolean,
 ): UseEpubNavigatorResult {
     function deserializeLinks(raw: unknown): Link[] {
@@ -76,15 +76,6 @@ export function useEpubNavigator(
         if (tocFromNavigationTableOfContents.length > 0) return tocFromNavigationTableOfContents;
 
         return manifest.linkWithRel("contents")?.children?.items ?? [];
-    }
-
-    function deserializeLocator(position?: string | null): Locator | null {
-        if (!position) return null;
-        try {
-            return Locator.deserialize(JSON.parse(position)) ?? null;
-        } catch {
-            return null;
-        }
     }
 
     const containerRef = useRef<HTMLDivElement>(null);
@@ -283,17 +274,11 @@ export function useEpubNavigator(
                 );
 
                 const savedPosition = await getSavedPosition(book.id).catch(() => null);
-                const activeLocalLocator = getInitialLocator(book.id, true);
-                const fallbackLocalLocator = getInitialLocator(book.id, false);
-                const activeCloudLocator = deserializeLocator(getResumeFormatPosition(savedPosition?.position, "EPUB"));
-                const fallbackCloudLocator = deserializeLocator(getExactFormatPosition(savedPosition?.position, "EPUB"));
-                const approximateLocator = getApproximateLocator(positions, savedPosition);
-                const initialLocator =
-                    activeLocalLocator ??
-                    activeCloudLocator ??
-                    approximateLocator ??
-                    fallbackLocalLocator ??
-                    fallbackCloudLocator ??
+                const localLocator = getStoredLocator(book.id);
+                const cloudLocator = savedPosition?.position ? deserializeLocatorFromCloud(savedPosition.position) : undefined
+                const initialLocator: Locator =
+                    localLocator ??
+                    cloudLocator ??
                     positions[0];
 
                 async function prefetchNextSpineItem(currentHref?: string | null) {
@@ -454,7 +439,7 @@ export function useEpubNavigator(
                             const userId = sessionStorage.getItem("user_id");
                             if (userId) storeProgress(userId, book.id, progress);
                         }
-                        onLocationChangeRef.current(JSON.stringify(normalizedLocator.serialize()), progress);
+                        onLocationChangeRef.current(normalizedLocator);
                     },
                     tap: (e) => e.interactiveElement == null,
                     click: (e) => e.interactiveElement == null,

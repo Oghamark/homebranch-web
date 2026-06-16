@@ -2,38 +2,35 @@ import { useCallback, useEffect, useState } from "react";
 import type { RefObject } from "react";
 import { Locator } from "@readium/shared";
 import type { EpubNavigator } from "@readium/navigator";
-import { getSavedPosition, savePosition } from "../api/savedPositionApi";
-import type { SavedPosition } from "../types/SavedPosition";
-import type { ModalCase } from "../components/JumpToSavedPositionModal";
-import { getInitialLocator, isCfi, formatLocatorLabel } from "../utils/locatorUtils";
+import { getSavedPosition } from "../api/savedPositionApi";
+import type { SavedPosition } from "@/features/reader";
+import type { ModalCase } from "@/features/reader";
+import { formatLocatorLabel, getStoredLocator } from "@/features/reader";
+import { deserializeLocatorFromCloud } from "@/features/reader";
 import ToastFactory from "@/shared/lib/toast/toast";
-import {getResumeFormatPosition} from "../utils/savedPositionState";
 
 function buildConflictModal(
     serverPos: SavedPosition,
     localLocator: Locator | null,
     deviceName: string,
 ): ModalCase | null {
-    const exactServerPosition = getResumeFormatPosition(serverPos.position, "EPUB");
-    if (!exactServerPosition || isCfi(exactServerPosition)) return null;
-
     let serverLocator: Locator | undefined;
     try {
-        serverLocator = Locator.deserialize(JSON.parse(exactServerPosition));
+        serverLocator = deserializeLocatorFromCloud(serverPos?.position);
     } catch {
         return null;
     }
     if (!serverLocator) return null;
 
-    if (localLocator && JSON.stringify(localLocator.serialize()) === exactServerPosition) return null;
+    if (localLocator && JSON.stringify(localLocator.serialize()) === JSON.stringify(serverLocator.serialize())) return null;
 
     const serverLabel = formatLocatorLabel(serverLocator);
 
     if (localLocator && serverPos.deviceName === deviceName) {
         return {
             type: "conflict",
-            serverPosition: exactServerPosition,
-            localPosition: JSON.stringify(localLocator.serialize()),
+            serverPosition: serverLocator,
+            localPosition: localLocator,
             serverLabel,
             localLabel: formatLocatorLabel(localLocator),
         };
@@ -43,7 +40,7 @@ function buildConflictModal(
         type: "jump",
         deviceName: serverPos.deviceName,
         updatedAt: serverPos.updatedAt,
-        serverPosition: exactServerPosition,
+        serverPosition: serverLocator,
         serverLabel,
     };
 }
@@ -53,8 +50,8 @@ export function usePositionConflict(
     navigatorRef: RefObject<EpubNavigator | null>,
     deviceName: string,
     isLoaded: boolean,
-    onLocationChange: (loc: string, percentage?: number) => void,
-    saveImmediate: (loc: string, percentage?: number) => Promise<void>,
+    onLocationChange: (locator: Locator, percentage?: number) => void,
+    saveImmediate: (locator: Locator, percentage?: number) => Promise<void>,
 ) {
     const [modalCase, setModalCase] = useState<ModalCase | null>(null);
 
@@ -68,7 +65,7 @@ export function usePositionConflict(
                 const serverPos = await getSavedPosition(bookId);
                 if (cancelled || !serverPos) return;
 
-                const localLocator = getInitialLocator(bookId, true);
+                const localLocator = getStoredLocator(bookId);
                 const mc = buildConflictModal(serverPos, localLocator, deviceName);
                 if (mc) setModalCase(mc);
             } catch {
@@ -83,18 +80,12 @@ export function usePositionConflict(
     }, [bookId, deviceName, isLoaded]);
 
     const handleJump = useCallback(
-        (position: string) => {
+        (locator: Locator) => {
             const nav = navigatorRef.current;
             if (nav) {
-                try {
-                    const locator = Locator.deserialize(JSON.parse(position));
-                    if (locator) nav.go(locator, true, () => {});
-                } catch {
-                    // ignore malformed position
-                }
+                nav.go(locator, true, () => {});
             }
-            const locator = Locator.deserialize(JSON.parse(position));
-            onLocationChange(position, locator?.locations?.totalProgression);
+            onLocationChange(locator, locator?.locations?.totalProgression);
             setModalCase(null);
         },
         [navigatorRef, onLocationChange],
@@ -106,7 +97,7 @@ export function usePositionConflict(
         if (!nav) return;
         try {
             await saveImmediate(
-                JSON.stringify(nav.currentLocator.serialize()),
+                nav.currentLocator,
                 nav.currentLocator.locations?.totalProgression,
             );
         } catch {

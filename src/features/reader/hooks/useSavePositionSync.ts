@@ -2,7 +2,9 @@ import {useCallback, useEffect, useRef} from "react";
 import {savePosition} from "../api/savedPositionApi";
 import ToastFactory from "@/shared/lib/toast/toast";
 import type {BookFormatType} from "@/entities/book/model/bookFormats";
-import {saveStoredFormatPosition} from "../utils/savedPositionState";
+import type {Locator} from "@readium/shared";
+import {saveLocatorLocal} from "@/features/reader/utils/savedPositionState";
+import {serializeLocatorForCloud} from "@/features/reader/utils/locatorUtils";
 
 export function useSavePositionSync(bookId: string, format: BookFormatType, deviceName: string) {
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -16,14 +18,15 @@ export function useSavePositionSync(bookId: string, format: BookFormatType, devi
     }, []);
 
     const onLocationChange = useCallback(
-        (location: string | number, percentage?: number) => {
-            const serialized = saveStoredFormatPosition(bookId, format, String(location));
-            lastSerializedRef.current = serialized;
+        (locator: Locator, percentage?: number) => {
+            saveLocatorLocal(bookId, locator);
+            const cloudSerialized = serializeLocatorForCloud(locator);
+            lastSerializedRef.current = cloudSerialized;
 
             if (timerRef.current) clearTimeout(timerRef.current);
             timerRef.current = setTimeout(async () => {
                 try {
-                    await savePosition(bookId, {position: serialized, deviceName, percentage});
+                    await savePosition(bookId, {position: cloudSerialized, deviceName, percentage});
                     if (failedRef.current) {
                         failedRef.current = false;
                         ToastFactory({message: "Position sync restored", type: "success"});
@@ -40,10 +43,11 @@ export function useSavePositionSync(bookId: string, format: BookFormatType, devi
     );
 
     const saveImmediate = useCallback(
-        async (location: string | number, percentage?: number) => {
-            const serialized = saveStoredFormatPosition(bookId, format, String(location));
-            lastSerializedRef.current = serialized;
-            await savePosition(bookId, {position: serialized, deviceName, percentage});
+        async (locator: Locator, percentage?: number) => {
+            saveLocatorLocal(bookId, locator);
+            const cloudSerialized = serializeLocatorForCloud(locator);
+            lastSerializedRef.current = cloudSerialized;
+            await savePosition(bookId, {position: cloudSerialized, deviceName, percentage});
         },
         [bookId, deviceName, format],
     );
