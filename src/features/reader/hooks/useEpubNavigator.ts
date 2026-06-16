@@ -276,10 +276,25 @@ export function useEpubNavigator(
                 const savedPosition = await getSavedPosition(book.id).catch(() => null);
                 const localLocator = getStoredLocator(book.id);
                 const cloudLocator = savedPosition?.position ? deserializeLocatorFromCloud(savedPosition.position) : undefined
-                const initialLocator: Locator =
-                    localLocator ??
-                    cloudLocator ??
-                    positions[0];
+
+                // Resolve a stored locator into a valid initialLocator for the navigator.
+                // FramePoolManager.update() looks up the frame exclusively by position number,
+                // so we must supply a position from *this* client's positions list. We find
+                // the web position whose href matches the stored locator's href, then overlay
+                // the stored progression so the navigator opens at the right spot in the chapter.
+                const resolveInitialLocator = (stored: Locator): Locator => {
+                    const match = positions.find(p => normalizeHref(p.href) === normalizeHref(stored.href));
+                    if (!match) return positions[0];
+                    return match.copyWithLocations({
+                        progression: stored.locations.progression,
+                        totalProgression: stored.locations.totalProgression ?? match.locations.totalProgression,
+                    });
+                };
+
+                const storedLocator = localLocator ?? cloudLocator;
+                const initialLocator: Locator = storedLocator
+                    ? resolveInitialLocator(storedLocator)
+                    : positions[0];
 
                 async function prefetchNextSpineItem(currentHref?: string | null) {
                     const normalizedCurrentHref = normalizeHref(currentHref);
