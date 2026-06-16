@@ -5,7 +5,7 @@ export {StorageIndicator} from "./components/StorageIndicator";
 export {ReadingProgressBadge} from "./components/ReadingProgressBadge";
 export {useStorageLocations} from "./hooks/useStorageLocations";
 export {getStoredProgress, storeProgress, removeStoredProgress} from "./utils/readingProgress";
-export {isCfi, formatLocatorLabel, serializeLocatorForCloud, deserializeLocatorFromCloud} from "./utils/locatorUtils";
+export {isCfi, formatLocatorLabel, serializeLocatorForCloud, deserializeLocatorFromCloud, isSamePosition} from "./utils/locatorUtils";
 export {getStoredLocator} from "./utils/savedPositionState";
 export {buildEpubPreferences} from "./utils/epubPreferences";
 export type {SavedPosition, SavePositionRequest} from "./types/SavedPosition";

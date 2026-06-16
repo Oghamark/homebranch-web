@@ -5,8 +5,7 @@ import type { EpubNavigator } from "@readium/navigator";
 import { getSavedPosition } from "../api/savedPositionApi";
 import type { SavedPosition } from "@/features/reader";
 import type { ModalCase } from "@/features/reader";
-import { formatLocatorLabel, getStoredLocator } from "@/features/reader";
-import { deserializeLocatorFromCloud } from "@/features/reader";
+import { formatLocatorLabel, getStoredLocator, deserializeLocatorFromCloud, isSamePosition } from "@/features/reader";
 import ToastFactory from "@/shared/lib/toast/toast";
 
 function buildConflictModal(
@@ -22,7 +21,7 @@ function buildConflictModal(
     }
     if (!serverLocator) return null;
 
-    if (localLocator && JSON.stringify(localLocator.serialize()) === JSON.stringify(serverLocator.serialize())) return null;
+    if (localLocator && isSamePosition(localLocator, serverLocator)) return null;
 
     const serverLabel = formatLocatorLabel(serverLocator);
 
