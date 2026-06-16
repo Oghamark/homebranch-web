@@ -26,6 +26,7 @@ export interface UseEpubNavigatorResult {
     mobileSwipeOverlay: MobileSwipeOverlayState | null;
     percentage: number | undefined;
     tocItems: Link[];
+    resolveStoredLocator: (stored: Locator) => Locator;
 }
 
 export type MobileSwipeDirection = "forward" | "backward";
@@ -43,6 +44,7 @@ export function useEpubNavigator(
     themeState: ReaderThemeState,
     onLocationChange: (locator: Locator) => void,
     enableMobileSwipeOverlay: boolean,
+    resourceBaseRef: React.RefObject<string | undefined>,
 ): UseEpubNavigatorResult {
     function deserializeLinks(raw: unknown): Link[] {
         if (!Array.isArray(raw)) return [];
@@ -85,6 +87,7 @@ export function useEpubNavigator(
     const onLocationChangeRef = useRef(onLocationChange);
     onLocationChangeRef.current = onLocationChange;
     const readingOrderItemsRef = useRef<Link[]>([]);
+    const positionsRef = useRef<Locator[]>([]);
     const prefetchedHrefSetRef = useRef(new Set<string>());
     const activePrefetchControllerRef = useRef<AbortController | null>(null);
     const transitionTimeoutRef = useRef<number | null>(null);
@@ -272,18 +275,25 @@ export function useEpubNavigator(
                         }),
                     }),
                 );
+                positionsRef.current = positions;
+                resourceBaseRef.current = manifest.baseURL;
 
                 const savedPosition = await getSavedPosition(book.id).catch(() => null);
                 const localLocator = getStoredLocator(book.id);
-                const cloudLocator = savedPosition?.position ? deserializeLocatorFromCloud(savedPosition.position) : undefined
+                const cloudLocator = savedPosition?.position
+                    ? deserializeLocatorFromCloud(savedPosition.position, manifest.baseURL)
+                    : undefined
 
-                // Resolve a stored locator into a valid initialLocator for the navigator.
-                // FramePoolManager.update() looks up the frame exclusively by position number,
-                // so we must supply a position from *this* client's positions list. We find
-                // the web position whose href matches the stored locator's href, then overlay
-                // the stored progression so the navigator opens at the right spot in the chapter.
-                const resolveInitialLocator = (stored: Locator): Locator => {
-                    const match = positions.find(p => normalizeHref(p.href) === normalizeHref(stored.href));
+                // Resolve a stored locator into a valid web locator for this client.
+                // Matching is done first by full normalized href, then by filename only as a
+                // fallback for cross-platform positions (e.g. Android saves bare filenames).
+                // The web's position number is used so FramePoolManager can find the frame,
+                // while stored progression is overlaid for within-chapter accuracy.
+                const resolveStoredLocator = (stored: Locator): Locator => {
+                    const filename = (href: string) => normalizeHref(href)?.split("/").pop();
+                    const match =
+                        positions.find(p => normalizeHref(p.href) === normalizeHref(stored.href)) ??
+                        positions.find(p => filename(p.href) === filename(stored.href));
                     if (!match) return positions[0];
                     return match.copyWithLocations({
                         progression: stored.locations.progression,
@@ -293,7 +303,7 @@ export function useEpubNavigator(
 
                 const storedLocator = localLocator ?? cloudLocator;
                 const initialLocator: Locator = storedLocator
-                    ? resolveInitialLocator(storedLocator)
+                    ? resolveStoredLocator(storedLocator)
                     : positions[0];
 
                 async function prefetchNextSpineItem(currentHref?: string | null) {
@@ -608,5 +618,18 @@ export function useEpubNavigator(
         mobileSwipeOverlay,
         percentage,
         tocItems,
+        resolveStoredLocator: (stored: Locator): Locator => {
+            const positions = positionsRef.current;
+            if (!positions.length) return stored;
+            const filename = (href: string) => normalizeHref(href)?.split("/").pop();
+            const match =
+                positions.find(p => normalizeHref(p.href) === normalizeHref(stored.href)) ??
+                positions.find(p => filename(p.href) === filename(stored.href));
+            if (!match) return stored;
+            return match.copyWithLocations({
+                progression: stored.locations.progression,
+                totalProgression: stored.locations.totalProgression ?? match.locations.totalProgression,
+            });
+        },
     };
 }

@@ -12,16 +12,17 @@ function buildConflictModal(
     serverPos: SavedPosition,
     localLocator: Locator | null,
     deviceName: string,
+    resourceBase?: string,
 ): ModalCase | null {
     let serverLocator: Locator | undefined;
     try {
-        serverLocator = deserializeLocatorFromCloud(serverPos?.position);
+        serverLocator = deserializeLocatorFromCloud(serverPos?.position, resourceBase);
     } catch {
         return null;
     }
     if (!serverLocator) return null;
 
-    if (localLocator && isSamePosition(localLocator, serverLocator)) return null;
+    if (localLocator && isSamePosition(localLocator, serverLocator, resourceBase)) return null;
 
     const serverLabel = formatLocatorLabel(serverLocator);
 
@@ -51,6 +52,8 @@ export function usePositionConflict(
     isLoaded: boolean,
     onLocationChange: (locator: Locator, percentage?: number) => void,
     saveImmediate: (locator: Locator, percentage?: number) => Promise<void>,
+    resolveStoredLocator: (stored: Locator) => Locator,
+    resourceBaseRef?: RefObject<string | undefined>,
 ) {
     const [modalCase, setModalCase] = useState<ModalCase | null>(null);
 
@@ -65,7 +68,7 @@ export function usePositionConflict(
                 if (cancelled || !serverPos) return;
 
                 const localLocator = getStoredLocator(bookId);
-                const mc = buildConflictModal(serverPos, localLocator, deviceName);
+                const mc = buildConflictModal(serverPos, localLocator, deviceName, resourceBaseRef?.current);
                 if (mc) setModalCase(mc);
             } catch {
                 ToastFactory({ message: "Unable to check cloud position", type: "warning" });
@@ -81,13 +84,17 @@ export function usePositionConflict(
     const handleJump = useCallback(
         (locator: Locator) => {
             const nav = navigatorRef.current;
+            // Resolve the stored locator to a valid web locator before navigating.
+            // Cross-platform positions (e.g. from Android) may have hrefs or position
+            // numbers incompatible with this client's reading order.
+            const resolved = resolveStoredLocator(locator);
             if (nav) {
-                nav.go(locator, true, () => {});
+                nav.go(resolved, true, () => {});
             }
-            onLocationChange(locator, locator?.locations?.totalProgression);
+            onLocationChange(resolved, resolved?.locations?.totalProgression);
             setModalCase(null);
         },
-        [navigatorRef, onLocationChange],
+        [navigatorRef, onLocationChange, resolveStoredLocator],
     );
 
     const handleKeepLocal = useCallback(async () => {

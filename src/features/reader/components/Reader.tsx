@@ -39,6 +39,11 @@ export function Reader({ book, format }: ReaderProps) {
     const jumpBackLocatorRef = useRef<Locator | null>(null);
     jumpBackLocatorRef.current = jumpBackLocator;
 
+    /* Shared ref for the publication's resource base URL (set by useEpubNavigator after
+       the manifest loads). Passed to useSavePositionSync so cloud-saved hrefs are stored
+       as EPUB-internal paths rather than full server URLs. */
+    const resourceBaseRef = useRef<string | undefined>(undefined);
+
     /* Rapid-swipe detection for EPUB — tracks consecutive positionChanged events.
        Three or more page turns within 800 ms → save origin for jump-back immediately. */
     const prevLocatorJsonRef = useRef<string | null>(null);
@@ -49,7 +54,7 @@ export function Reader({ book, format }: ReaderProps) {
         changeCount: number;
     }>({ startLocatorJson: null, lastChangeTime: 0, changeCount: 0 });
 
-    const { onLocationChange, saveImmediate } = useSavePositionSync(book.id, format, deviceName);
+    const { onLocationChange, saveImmediate } = useSavePositionSync(book.id, format, deviceName, resourceBaseRef);
 
     const handleLocationChange = useCallback((locator: Locator, percentage?: number) => {
         const prevLocatorJson = prevLocatorJsonRef.current;
@@ -88,8 +93,8 @@ export function Reader({ book, format }: ReaderProps) {
         prevLocatorJsonRef.current = navLocator ? JSON.stringify(navLocator.serialize()) : JSON.stringify(locator.serialize());
     }, [onLocationChange]);
 
-    const { containerRef, navigatorRef, isLoading, isLoaded, loadError, isChapterTransitioning, mobileSwipeOverlay, percentage, tocItems } =
-        useEpubNavigator(book, format, themeState, handleLocationChange, isMobile && !themeState.scroll);
+    const { containerRef, navigatorRef, isLoading, isLoaded, loadError, isChapterTransitioning, mobileSwipeOverlay, percentage, tocItems, resolveStoredLocator } =
+        useEpubNavigator(book, format, themeState, handleLocationChange, isMobile && !themeState.scroll, resourceBaseRef);
 
     // Keep the proxy ref in sync so handleLocationChange can read currentLocator
     navigatorRefForRapidNav.current = navigatorRef.current;
@@ -101,6 +106,8 @@ export function Reader({ book, format }: ReaderProps) {
         isLoaded,
         onLocationChange,
         saveImmediate,
+        resolveStoredLocator,
+        resourceBaseRef,
     );
 
     useKeyboardNavigation(navigatorRef);
