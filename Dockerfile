@@ -14,4 +14,6 @@ FROM nginx:alpine
 COPY --from=build /app/build/client /usr/share/nginx/html
 RUN rm /etc/nginx/conf.d/default.conf
 COPY default.conf.template /etc/nginx/templates/default.conf.template
+COPY docker-entrypoint.d/40-runtime-config.sh /docker-entrypoint.d/40-runtime-config.sh
+RUN chmod +x /docker-entrypoint.d/40-runtime-config.sh
 EXPOSE 80

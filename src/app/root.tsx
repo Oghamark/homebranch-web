@@ -44,6 +44,7 @@ export function Layout({children}: { children: ReactNode }) {
             <meta name="apple-mobile-web-app-title" content="Homebranch"/>
             <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff"/>
             <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1a1a1a"/>
+            <script src="/config.js"/>
             <Meta/>
             <Links/>
         </head>
