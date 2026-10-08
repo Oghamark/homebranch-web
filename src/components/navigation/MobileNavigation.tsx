@@ -5,7 +5,7 @@ import {useCallback, useEffect, useRef, useState} from "react";
 import {NavigationContent} from "./NavigationContent";
 import {useMobileNav} from "./MobileNavContext";
 import {ShowAllUsersButton} from "@/features/library";
-import {useColorMode} from "@/shared/ui/color-mode";
+import {useColorMode, ColorModeButton} from "@/shared/ui/color-mode";
 
 const pathnameToTitle: Record<string, string> = {
     "/": "Library",
@@ -97,12 +97,11 @@ export function MobileNavigation() {
                         </IconButton>
                         <Heading size="md">{displayTitle}</Heading>
                     </Flex>
-                    {(rightAction || showUserToggle) && (
-                        <Flex align="center" gap={1}>
+                    <Flex align="center" gap={1}>
                             {rightAction}
                             {showUserToggle && <ShowAllUsersButton/>}
+                            <ColorModeButton/>
                         </Flex>
-                    )}
                 </Flex>
             </Box>
             {/* Spacer to prevent content from hiding behind fixed header */}

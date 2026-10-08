@@ -84,6 +84,12 @@ export default function Login({loaderData}: Route.ComponentProps) {
                         <Button type="submit" width="full" loading={fetcher.state !== "idle"}>
                             Sign In
                         </Button>
+                        {config.cloudMode && config.portalUrl && (
+                            <Text textAlign="center" fontSize="sm" color="fg.muted">
+                                Don't have an account?{" "}
+                                <a href={`${config.portalUrl}/cloud/signup`} style={{fontWeight: "bold"}}>Sign up on our website</a>
+                            </Text>
+                        )}
                         {config.signupEnabled && (
                             <Text textAlign="center" fontSize="sm" color="fg.muted">
                                 Don't have an account?{" "}

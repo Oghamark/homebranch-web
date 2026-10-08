@@ -1,12 +1,13 @@
-import { Flex, IconButton } from "@chakra-ui/react";
+import { Box, Flex, IconButton } from "@chakra-ui/react";
 import { LuX, LuList, LuChevronLeft, LuChevronRight } from "react-icons/lu";
 import { useNavigate } from "react-router";
 import { useState } from "react";
 import type { EpubNavigator } from "@readium/navigator";
-import type { Link } from "@readium/shared";
+import type { Link, Locator } from "@readium/shared";
 import type { ReaderThemeState, ThemeColors } from "../types/ReaderTheme";
 import { ReaderSettingsMenu } from "./ReaderSettingsMenu";
 import { ReaderToc, type ReaderTocItem } from "./ReaderToc";
+import { JumpBackButton } from "./JumpBackButton";
 
 interface TocDrawerItem extends ReaderTocItem {
     link: Link;
@@ -21,6 +22,8 @@ interface ReaderControlsProps {
     isChapterTransitioning: boolean;
     tocItems: Link[];
     navigatorRef: React.RefObject<EpubNavigator | null>;
+    jumpBackLocator: Locator | null;
+    onSetJumpBackLocator: (loc: Locator | null) => void;
 }
 
 export function ReaderControls({
@@ -31,6 +34,8 @@ export function ReaderControls({
     isChapterTransitioning,
     tocItems,
     navigatorRef,
+    jumpBackLocator,
+    onSetJumpBackLocator,
 }: ReaderControlsProps) {
     const navigate = useNavigate();
     const [isTocOpen, setIsTocOpen] = useState(false);
@@ -81,6 +86,8 @@ export function ReaderControls({
                 getChildren={(item) => item.children}
                 onNavigate={(item) => {
                     if (item.link.href) {
+                        const currentLocator = navigatorRef.current?.currentLocator;
+                        if (currentLocator) onSetJumpBackLocator(currentLocator);
                         navigatorRef.current?.goLink(item.link, false, () => {});
                     }
                 }}
@@ -170,6 +177,42 @@ export function ReaderControls({
                 >
                     Use arrow keys or buttons to turn pages
                 </Flex>
+            )}
+
+            {jumpBackLocator && (
+                <JumpBackButton
+                    pageLabel="Previous position"
+                    onJumpBack={() => {
+                        navigatorRef.current?.go(jumpBackLocator, false, () => {});
+                        onSetJumpBackLocator(null);
+                    }}
+                    onDismiss={() => onSetJumpBackLocator(null)}
+                    colors={colors}
+                    thumbnailContent={
+                        /* Styled placeholder that mirrors the reader's colour theme.
+                           Actual EPUB content cannot be captured as a static thumbnail. */
+                        <Box
+                            w="80px"
+                            h="104px"
+                            bg={colors.contentBg}
+                            p="8px"
+                            display="flex"
+                            flexDirection="column"
+                            gap="4px"
+                        >
+                            {Array.from({ length: 10 }).map((_, i) => (
+                                <Box
+                                    key={i}
+                                    h="5px"
+                                    bg={colors.contentText}
+                                    opacity={0.15}
+                                    borderRadius="1px"
+                                    w={i === 9 ? "55%" : "100%"}
+                                />
+                            ))}
+                        </Box>
+                    }
+                />
             )}
         </>
     );

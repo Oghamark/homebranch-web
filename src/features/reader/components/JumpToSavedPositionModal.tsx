@@ -1,13 +1,14 @@
 import {Button, CloseButton, Dialog, Flex, Portal, Text} from "@chakra-ui/react";
+import type {Locator} from "@readium/shared";
 
 export type ModalCase =
-    | {type: "jump"; deviceName: string; updatedAt: string; serverPosition: string; serverLabel: string}
-    | {type: "conflict"; serverPosition: string; localPosition: string; serverLabel: string; localLabel: string};
+    | {type: "jump"; deviceName: string; updatedAt: string; serverPosition: Locator; serverLabel: string}
+    | {type: "conflict"; serverPosition: Locator; localPosition: Locator; serverLabel: string; localLabel: string};
 
 interface JumpToSavedPositionModalProps {
     modalCase: ModalCase;
     open: boolean;
-    onJump: (position: string) => void;
+    onJump: (locator: Locator) => void;
     onKeepLocal: () => void;
     onClose: () => void;
 }
