@@ -6,6 +6,7 @@ import React from "react";
 import {Outlet, redirect} from "react-router";
 import {useLibraryEvents} from "@/shared/hooks";
 import {DragDropOverlay} from "@/entities/book";
+import {checkCloudAccess} from "@/features/authentication/api/cloudAccess";
 
 export async function clientLoader() {
     let user_id = sessionStorage.getItem("user_id");
@@ -13,6 +14,8 @@ export async function clientLoader() {
     if (!user_id) {
         return redirect("/login");
     }
+
+    return await checkCloudAccess();
 }
 
 export default function Layout() {
