@@ -6,6 +6,7 @@ import {BookShelfNavigationSection} from "@/entities/bookShelf";
 import {SearchLibrary} from "@/features/library";
 import type {IconType} from "react-icons";
 import {ColorModeIcon, useColorMode} from "@/shared/ui/color-mode";
+import {config} from "@/shared/config";
 
 interface NavigationContentProps {
     onNavigate?: () => void;
@@ -69,9 +70,11 @@ export function NavigationContent({onNavigate}: NavigationContentProps) {
                         <Tabs.Trigger value={"/settings"} asChild>
                             <Link to={"/settings"} onClick={onNavigate}><LuSettings size={16}/> Settings</Link>
                         </Tabs.Trigger>
-                        <Tabs.Trigger value={"/library-management"} asChild>
-                            <Link to={"/library-management"} onClick={onNavigate}><LuFolderSync size={16}/> Library Management</Link>
-                        </Tabs.Trigger>
+                        {(!config.cloudMode || isAdmin) && (
+                            <Tabs.Trigger value={"/library-management"} asChild>
+                                <Link to={"/library-management"} onClick={onNavigate}><LuFolderSync size={16}/> Library Management</Link>
+                            </Tabs.Trigger>
+                        )}
                         {isAdmin && (
                             <Tabs.Trigger value={"/users"} asChild>
                                 <Link to={"/users"} onClick={onNavigate}><LuUsers size={16}/> User Management</Link>

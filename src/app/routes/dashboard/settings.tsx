@@ -19,6 +19,7 @@ import {handleRtkError} from "@/shared/api/rtk-query";
 import TextField from "@/shared/ui/TextField";
 import PasswordTextField from "@/shared/ui/PasswordTextField";
 import ToastFactory from "@/shared/lib/toast/toast";
+import {config} from "@/shared";
 
 export function meta({}: Route.MetaArgs) {
     return [
@@ -184,7 +185,7 @@ export default function Settings() {
                 </Card.Body>
             </Card.Root>
 
-            {isAdmin && (
+            {isAdmin && !config.cloudMode && (
                 <Card.Root>
                     <Card.Header>
                         <Card.Title>Authentication Settings</Card.Title>

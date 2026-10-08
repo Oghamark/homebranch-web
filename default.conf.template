@@ -1,3 +1,9 @@
+# Keep the scheme reported by an upstream TLS-terminating proxy, so generated URLs stay https
+map $http_x_forwarded_proto $forwarded_proto {
+    default $http_x_forwarded_proto;
+    ""      $scheme;
+}
+
 server {
     listen       80;
     server_name  _;
@@ -18,6 +24,7 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 
+        proxy_set_header X-Forwarded-Proto $forwarded_proto;
         proxy_http_version 1.1;
         proxy_set_header Connection '';
         proxy_buffering off;
@@ -26,12 +33,18 @@ server {
         add_header X-Accel-Buffering no;
     }
 
+    # Service-to-service endpoints must never be reachable from the internet
+    location /api/internal/ {
+        return 404;
+    }
+
     location /api/ {
         proxy_pass ${API_BACKEND}/;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Prefix /api;
+        proxy_set_header X-Forwarded-Proto $forwarded_proto;
     }
 
     location /auth/ {
@@ -40,5 +53,6 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $forwarded_proto;
     }
 }

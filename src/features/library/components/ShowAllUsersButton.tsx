@@ -3,6 +3,7 @@ import {LuUser, LuUsers} from "react-icons/lu";
 import {useAppDispatch} from "@/app/hooks";
 import {toggleShowAllUsers} from "@/features/library/store/librarySlice";
 import {useShowAllUsers} from "@/features/library/hooks/useShowAllUsers";
+import {config} from "@/shared/config";
 
 interface ShowAllUsersButtonProps {
     showLabel?: boolean;
@@ -11,6 +12,8 @@ interface ShowAllUsersButtonProps {
 export function ShowAllUsersButton({showLabel = false}: ShowAllUsersButtonProps) {
     const dispatch = useAppDispatch();
     const showAllUsers = useShowAllUsers();
+
+    if (config.cloudMode && sessionStorage.getItem('user_role') !== 'ADMIN') return null;
 
     const label = showAllUsers ? "All Libraries" : "My Library";
     const ariaLabel = showAllUsers ? "Show only my books" : "Show all users' books";

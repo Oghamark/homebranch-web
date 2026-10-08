@@ -44,7 +44,15 @@ import ToastFactory from "@/shared/lib/toast/toast";
 import {handleRtkError} from "@/shared/api/rtk-query";
 import type {BookDuplicateWithBooksModel, BookModel, ResolveDuplicateAction} from "@/entities/book";
 import {useListDuplicatesQuery, useResolveDuplicateMutation, useTriggerDuplicateScanMutation,} from "@/entities/book";
-import {useJobStream} from "@/shared";
+import {useJobStream, config} from "@/shared";
+import {redirect} from "react-router";
+
+export function clientLoader() {
+    if (config.cloudMode && sessionStorage.getItem('user_role') !== 'ADMIN') {
+        return redirect('/');
+    }
+    return null;
+}
 
 export function meta({}: Route.MetaArgs) {
     return [
