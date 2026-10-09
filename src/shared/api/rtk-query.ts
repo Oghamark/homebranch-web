@@ -10,6 +10,7 @@ import {fetchBaseQuery} from "@reduxjs/toolkit/query";
 import {config} from "@/shared";
 import ToastFactory from "@/shared/lib/toast/toast";
 import {Mutex} from "async-mutex";
+import {INACTIVE_MESSAGE, isInactiveAccountResponse, rejectInactiveAccount} from "@/features/authentication/api/cloudAccess";
 
 // Create a mutex to prevent multiple refresh attempts
 const refreshTokenMutex = new Mutex();
@@ -58,6 +59,11 @@ const baseQueryWithAuthRefresh: BaseQueryFn<
                 credentials: 'include',
             })(args, api, extraOptions);
         }
+    }
+
+    if (result.error && config.cloudMode && isInactiveAccountResponse(Number(result.error.status), result.error.data)) {
+        await rejectInactiveAccount();
+        window.location.href = '/login?error=' + encodeURIComponent(INACTIVE_MESSAGE);
     }
 
     return result;
