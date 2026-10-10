@@ -9,7 +9,7 @@ import {
 import {config} from "@/shared";
 import {Badge, Box, Button, CloseButton, Dialog, Flex, Heading, IconButton, Image, Menu, Portal, SimpleGrid, Stack, Text,} from "@chakra-ui/react";
 import {useEffect, useMemo, useState} from "react";
-import {LuBookOpen, LuDownload, LuEllipsis, LuHeart, LuLibrary, LuLoader, LuRefreshCw, LuStar, LuTrash2, LuX} from "react-icons/lu";
+import {LuBookOpen, LuDownload, LuEllipsis, LuHeart, LuLibrary, LuLoader, LuRefreshCw, LuSend, LuStar, LuTrash2, LuX} from "react-icons/lu";
 import {Link, useNavigate} from "react-router";
 import {ManageBookShelvesButton} from "@/entities/bookShelf";
 import {Tooltip} from "@/shared/ui/tooltip";
@@ -25,6 +25,7 @@ import {
     supportsBookFormatReading,
     type BookFormatType
 } from "@/entities/book/model/bookFormats";
+import {getApiErrorMessage, useGetKindleEmailQuery, useSendToKindleMutation} from "@/entities/kindle";
 import {ManageBookFormatsButton} from "@/pages/bookDetails/ui/ManageBookFormatsButton";
 
 const SUMMARY_CHAR_LIMIT = 400;
@@ -108,6 +109,8 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
     const [generateSummary, {isLoading: generatingSummary}] = useGenerateBookSummaryMutation();
     const [fetchMetadata, {isLoading: fetchingMetadata}] = useFetchBookMetadataMutation();
     const navigate = useNavigate();
+    const {data: kindlePreference} = useGetKindleEmailQuery();
+    const [sendToKindle, {isLoading: sendingToKindle}] = useSendToKindleMutation();
     const [deleteOpen, setDeleteOpen] = useState(false);
     const availableFormats = useMemo(() => getAvailableBookFormats(book), [book]);
     const preferredFormat = useMemo(() => getPreferredBookFormat(availableFormats), [availableFormats]);
@@ -143,6 +146,21 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
     }, [book.id, isCurrentlyReading]);
 
     const activeFormat = availableFormats.find((format) => format.format === selectedFormat) ?? preferredFormat;
+    const hasEpub = availableFormats.some((format) => format.format === "EPUB");
+
+    const handleSendToKindle = async () => {
+        if (!kindlePreference?.kindleEmail) {
+            ToastFactory({message: "Add your Kindle email in Settings first", type: "error"});
+            navigate("/settings");
+            return;
+        }
+        try {
+            await sendToKindle(book.id).unwrap();
+            ToastFactory({message: `Sent to ${kindlePreference.kindleEmail}`, type: "success"});
+        } catch (error) {
+            ToastFactory({message: getApiErrorMessage(error), type: "error"});
+        }
+    };
     const canReadActiveFormat = activeFormat ? supportsBookFormatReading(activeFormat.format) : false;
     const activeTitle = activeFormat?.title ?? book.title;
     const activeAuthor = activeFormat?.author ?? book.author;
@@ -338,6 +356,12 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
                                 <LuDownload/> Download
                             </a>
                         </Button>
+                        {hasEpub && (
+                            <Button variant="outline" w={{base: "full", md: "auto"}} minW="150px"
+                                    onClick={handleSendToKindle} loading={sendingToKindle}>
+                                <LuSend/> Send to Kindle
+                            </Button>
+                        )}
                         {/* Vertical divider hidden on mobile */}
                         <Box display={{base: "none", md: "block"}} w="1px" h="6" bg="border" alignSelf="center" flexShrink={0}/>
                         <Flex gap={1} align="center" justify="center">

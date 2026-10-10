@@ -71,7 +71,7 @@ const baseQueryWithAuthRefresh: BaseQueryFn<
 
 export const homebranchApi = createApi({
     baseQuery: baseQueryWithAuthRefresh,
-    tagTypes: ['Book', 'BookShelf', 'User', 'Author', 'Job', 'BookDuplicate'],
+    tagTypes: ['Book', 'BookShelf', 'User', 'Author', 'Job', 'BookDuplicate', 'KindleEmail', 'MailConfig'],
     endpoints: () => ({})
 })
 
