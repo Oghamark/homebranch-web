@@ -29,6 +29,10 @@ export function KindleSettingsCard() {
         }
     };
 
+    if (!mailSender?.configured) {
+        return null;
+    }
+
     return (
         <Card.Root>
             <Card.Header>
@@ -48,9 +52,7 @@ export function KindleSettingsCard() {
                         onChange={e => setEmail(e.target.value)}
                     />
                     <Text fontSize="sm" color="fg.muted">
-                        {mailSender?.sender
-                            ? `Add ${mailSender.sender} to your Approved Personal Document E-mail List in Amazon, otherwise Amazon will reject the books. Only EPUB books can be sent.`
-                            : "Add this server's sender address to your Approved Personal Document E-mail List in Amazon once an administrator has configured email. Only EPUB books can be sent."}
+                        Add {mailSender.sender} to your Approved Personal Document E-mail List in Amazon, otherwise Amazon will reject the books. Only EPUB books can be sent.
                     </Text>
                 </Stack>
             </Card.Body>

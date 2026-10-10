@@ -25,7 +25,7 @@ import {
     supportsBookFormatReading,
     type BookFormatType
 } from "@/entities/book/model/bookFormats";
-import {getApiErrorMessage, useGetKindleEmailQuery, useSendToKindleMutation} from "@/entities/kindle";
+import {getApiErrorMessage, useGetKindleEmailQuery, useGetMailSenderQuery, useSendToKindleMutation} from "@/entities/kindle";
 import {ManageBookFormatsButton} from "@/pages/bookDetails/ui/ManageBookFormatsButton";
 
 const SUMMARY_CHAR_LIMIT = 400;
@@ -109,7 +109,8 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
     const [generateSummary, {isLoading: generatingSummary}] = useGenerateBookSummaryMutation();
     const [fetchMetadata, {isLoading: fetchingMetadata}] = useFetchBookMetadataMutation();
     const navigate = useNavigate();
-    const {data: kindlePreference} = useGetKindleEmailQuery();
+    const {data: mailSender} = useGetMailSenderQuery();
+    const {data: kindlePreference} = useGetKindleEmailQuery(undefined, {skip: !mailSender?.configured});
     const [sendToKindle, {isLoading: sendingToKindle}] = useSendToKindleMutation();
     const [deleteOpen, setDeleteOpen] = useState(false);
     const availableFormats = useMemo(() => getAvailableBookFormats(book), [book]);
@@ -146,7 +147,7 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
     }, [book.id, isCurrentlyReading]);
 
     const activeFormat = availableFormats.find((format) => format.format === selectedFormat) ?? preferredFormat;
-    const hasEpub = availableFormats.some((format) => format.format === "EPUB");
+    const canSendToKindle = Boolean(mailSender?.configured) && availableFormats.some((format) => format.format === "EPUB");
 
     const handleSendToKindle = async () => {
         if (!kindlePreference?.kindleEmail) {
@@ -356,7 +357,7 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
                                 <LuDownload/> Download
                             </a>
                         </Button>
-                        {hasEpub && (
+                        {canSendToKindle && (
                             <Button variant="outline" w={{base: "full", md: "auto"}} minW="150px"
                                     onClick={handleSendToKindle} loading={sendingToKindle}>
                                 <LuSend/> Send to Kindle
