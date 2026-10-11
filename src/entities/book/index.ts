@@ -25,6 +25,8 @@ export {
     useDeleteBookMutation,
     useGenerateBookSummaryMutation,
     useFetchBookMetadataMutation,
+    useSearchBookCoversMutation,
+    useSelectBookCoverMutation,
     useListDuplicatesQuery,
     useTriggerDuplicateScanMutation,
     useResolveDuplicateMutation,
@@ -32,4 +34,5 @@ export {
 } from "./api/api";
 
 export type {ResolveDuplicateAction, CreateBookResult} from "./api/api";
+export type {BookCoverCandidate} from "./api/api";
 export type {CreateBookRequest} from "./api/dtos";

@@ -4,12 +4,15 @@ import {
     useGenerateBookSummaryMutation,
     useUpdateBookMutation,
     useFetchBookMetadataMutation,
+    useSearchBookCoversMutation,
+    useSelectBookCoverMutation,
+    type BookCoverCandidate,
     useToggleFavoriteMutation,
 } from "@/entities/book";
 import {config} from "@/shared";
-import {Badge, Box, Button, CloseButton, Dialog, Flex, Heading, IconButton, Image, Menu, Portal, SimpleGrid, Stack, Text,} from "@chakra-ui/react";
+import {Badge, Box, Button, CloseButton, Dialog, Flex, Heading, IconButton, Image, Input, Menu, Portal, SimpleGrid, Spinner, Stack, Text,} from "@chakra-ui/react";
 import {useEffect, useMemo, useState} from "react";
-import {LuBookOpen, LuDownload, LuEllipsis, LuHeart, LuLibrary, LuLoader, LuRefreshCw, LuSend, LuStar, LuTrash2, LuX} from "react-icons/lu";
+import {LuBookOpen, LuDownload, LuEllipsis, LuHeart, LuImagePlus, LuLibrary, LuLoader, LuRefreshCw, LuSearch, LuSend, LuStar, LuTrash2, LuX} from "react-icons/lu";
 import {Link, useNavigate} from "react-router";
 import {ManageBookShelvesButton} from "@/entities/bookShelf";
 import {Tooltip} from "@/shared/ui/tooltip";
@@ -113,6 +116,11 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
     const {data: kindlePreference} = useGetKindleEmailQuery(undefined, {skip: !mailSender?.configured});
     const [sendToKindle, {isLoading: sendingToKindle}] = useSendToKindleMutation();
     const [deleteOpen, setDeleteOpen] = useState(false);
+    const [coverSearchOpen, setCoverSearchOpen] = useState(false);
+    const [coverSearchQuery, setCoverSearchQuery] = useState("");
+    const [coverCandidates, setCoverCandidates] = useState<BookCoverCandidate[]>([]);
+    const [searchCovers, {isLoading: searchingCovers}] = useSearchBookCoversMutation();
+    const [selectCover, {isLoading: selectingCover}] = useSelectBookCoverMutation();
     const availableFormats = useMemo(() => getAvailableBookFormats(book), [book]);
     const preferredFormat = useMemo(() => getPreferredBookFormat(availableFormats), [availableFormats]);
     const [selectedFormat, setSelectedFormat] = useState<BookFormatType | undefined>(preferredFormat?.format);
@@ -162,13 +170,43 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
             ToastFactory({message: getApiErrorMessage(error), type: "error"});
         }
     };
+
+    const openCoverSearch = async () => {
+        const query = `${book.title} ${book.author}`.trim();
+        setCoverSearchQuery(query);
+        setCoverSearchOpen(true);
+        try {
+            setCoverCandidates(await searchCovers({bookId: book.id, query}).unwrap());
+        } catch (error) {
+            handleRtkError(error);
+        }
+    };
+
+    const submitCoverSearch = async (event: {preventDefault: () => void}) => {
+        event.preventDefault();
+        try {
+            setCoverCandidates(await searchCovers({bookId: book.id, query: coverSearchQuery}).unwrap());
+        } catch (error) {
+            handleRtkError(error);
+        }
+    };
+
+    const handleSelectCover = async (candidate: BookCoverCandidate) => {
+        try {
+            await selectCover({bookId: book.id, coverId: candidate.coverId}).unwrap();
+            setCoverSearchOpen(false);
+            ToastFactory({message: "Book cover updated", type: "success"});
+        } catch (error) {
+            handleRtkError(error);
+        }
+    };
     const canReadActiveFormat = activeFormat ? supportsBookFormatReading(activeFormat.format) : false;
     const isAudioFormat = activeFormat?.format === "MP3" || activeFormat?.format === "M4B";
     const activeTitle = activeFormat?.title ?? book.title;
     const activeAuthor = activeFormat?.author ?? book.author;
     const activeGenres = activeFormat?.genres ?? book.genres;
     const activePublishedYear = activeFormat?.publishedYear ?? book.publishedYear;
-    const activeCoverImageFileName = activeFormat?.coverImageFileName ?? book.coverImageFileName;
+    const activeCoverImageFileName = book.coverImageFileName ?? activeFormat?.coverImageFileName;
     const activeSummary = activeFormat?.summary ?? book.summary;
     const activeSeries = activeFormat?.series ?? book.series;
     const activeSeriesPosition = activeFormat?.seriesPosition ?? book.seriesPosition;
@@ -242,6 +280,9 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
                             </Flex>
                         </Box>
                     )}
+                    <Button mt={2} size="sm" variant="outline" w="full" onClick={() => void openCoverSearch()}>
+                        <LuImagePlus/> Find a cover
+                    </Button>
                 </Box>
 
                 {/* Book info + actions */}
@@ -433,6 +474,89 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
                     )}
                 </Stack>
             </Flex>
+
+            <Dialog.Root open={coverSearchOpen} onOpenChange={(event) => setCoverSearchOpen(event.open)}>
+                <Portal>
+                    <Dialog.Backdrop/>
+                    <Dialog.Positioner>
+                        <Dialog.Content maxW="4xl" maxH="85vh">
+                            <Dialog.Header>
+                                <Dialog.Title>Find a book cover</Dialog.Title>
+                            </Dialog.Header>
+                            <Dialog.Body overflowY="auto">
+                                <Stack gap={4}>
+                                    <Text fontSize="sm" color="fg.muted">
+                                        Search Open Library and select the image you want to use for this book.
+                                    </Text>
+                                    <form onSubmit={(event) => void submitCoverSearch(event)}>
+                                        <Flex gap={2}>
+                                            <Input
+                                                aria-label="Search covers"
+                                                value={coverSearchQuery}
+                                                onChange={(event) => setCoverSearchQuery(event.target.value)}
+                                                placeholder="Search by title or author"
+                                            />
+                                            <Button type="submit" loading={searchingCovers}>
+                                                <LuSearch/> Search
+                                            </Button>
+                                        </Flex>
+                                    </form>
+                                    {searchingCovers && coverCandidates.length === 0 ? (
+                                        <Flex justify="center" py={10}><Spinner/></Flex>
+                                    ) : coverCandidates.length > 0 ? (
+                                        <SimpleGrid columns={{base: 2, sm: 3, md: 4}} gap={3}>
+                                            {coverCandidates.map((candidate) => (
+                                                <Button
+                                                    key={candidate.coverId}
+                                                    type="button"
+                                                    variant="outline"
+                                                    h="auto"
+                                                    p={2}
+                                                    whiteSpace="normal"
+                                                    justifyContent="flex-start"
+                                                    alignItems="stretch"
+                                                    flexDirection="column"
+                                                    onClick={() => void handleSelectCover(candidate)}
+                                                    loading={selectingCover}
+                                                    disabled={selectingCover}
+                                                    _hover={{borderColor: "colorPalette.solid", bg: "bg.muted"}}
+                                                >
+                                                    <Image
+                                                        src={candidate.thumbnailUrl}
+                                                        alt={`Cover for ${candidate.title}`}
+                                                        w="full"
+                                                        aspectRatio="2/3"
+                                                        objectFit="cover"
+                                                        borderRadius="sm"
+                                                        bg="bg.muted"
+                                                        onError={(event) => {
+                                                            event.currentTarget.style.visibility = "hidden";
+                                                        }}
+                                                    />
+                                                    <Stack gap={0} w="full" align="flex-start" pt={1}>
+                                                        <Text fontSize="xs" fontWeight="medium" lineClamp={2} textAlign="left">
+                                                            {candidate.title}
+                                                        </Text>
+                                                        <Text fontSize="xs" color="fg.subtle" lineClamp={1} textAlign="left">
+                                                            {candidate.authors[0] ?? "Unknown author"}
+                                                            {candidate.year ? ` · ${candidate.year}` : ""}
+                                                        </Text>
+                                                    </Stack>
+                                                </Button>
+                                            ))}
+                                        </SimpleGrid>
+                                    ) : (
+                                        <Text py={6} textAlign="center" color="fg.subtle" fontSize="sm">
+                                            No covers found. Try a different title or author.
+                                        </Text>
+                                    )}
+                                </Stack>
+                            </Dialog.Body>
+                            <Dialog.CloseTrigger asChild><CloseButton/></Dialog.CloseTrigger>
+                        </Dialog.Content>
+                    </Dialog.Positioner>
+                </Portal>
+            </Dialog.Root>
 
             {/* Delete confirmation dialog (controlled) */}
             <Dialog.Root open={deleteOpen} onOpenChange={(e) => setDeleteOpen(e.open)}>

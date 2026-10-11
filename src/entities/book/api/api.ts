@@ -14,6 +14,13 @@ export type AudiobookPreview = {
     source: "tags" | "folder";
     tracks: Array<{index: number; path: string; title: string}>;
 };
+export type BookCoverCandidate = {
+    coverId: number;
+    title: string;
+    authors: string[];
+    year?: number;
+    thumbnailUrl: string;
+};
 
 /**
  * Parse a search query string for keyword prefixes like `isbn:`, `genre:`, `series:`, `author:`.
@@ -291,6 +298,22 @@ export const booksApi = homebranchApi.injectEndpoints({
             query: (id: string) => ({url: `/books/${id}/fetch-metadata`, method: 'POST'}),
             invalidatesTags: result => result ? [{type: 'Book' as const, id: result.id}] : []
         }),
+        searchBookCovers: build.mutation<BookCoverCandidate[], {bookId: string; query: string}>({
+            query: ({bookId, query}) => ({
+                url: `/books/${bookId}/covers?query=${encodeURIComponent(query)}`,
+            }),
+        }),
+        selectBookCover: build.mutation<BookModel, {bookId: string; coverId: number}>({
+            query: ({bookId, coverId}) => ({
+                url: `/books/${bookId}/cover`,
+                method: 'POST',
+                body: {coverId},
+            }),
+            invalidatesTags: (_result, _error, {bookId}) => [
+                {type: 'Book' as const, id: bookId},
+                {type: 'Book', id: 'LIST'},
+            ],
+        }),
         listDuplicates: build.query<PaginationResult<BookDuplicateWithBooksModel[]>, { limit?: number; offset?: number }>({
             query: ({limit = 20, offset = 0}) => ({
                 url: `/books/duplicates?limit=${limit}&offset=${offset}`,
@@ -333,6 +356,8 @@ export const {
     useDeleteBookMutation,
     useGenerateBookSummaryMutation,
     useFetchBookMetadataMutation,
+    useSearchBookCoversMutation,
+    useSelectBookCoverMutation,
     useListDuplicatesQuery,
     useTriggerDuplicateScanMutation,
     useResolveDuplicateMutation,
