@@ -33,7 +33,7 @@ It provides a user-friendly interface to organize, search, and read your ebooks 
 
 ## Features
 
-- EPUB and PDF in-browser reading plus MP3 and M4B audiobook playback, with cross-device listening-position sync
+- EPUB and PDF in-browser reading plus single- and multi-track MP3 and M4B audiobook playback, with cross-device listening-position sync
 - Installable PWA with an offline-ready app shell for a more native-like experience
 - Library with infinite scroll and search
   - Keyword search: `isbn:<value>`, `genre:<value>`, `series:<value>`, `author:<value>` prefixes narrow results by metadata field
@@ -43,7 +43,7 @@ It provides a user-friendly interface to organize, search, and read your ebooks 
 - Currently Reading and Favorites lists
 - Dark and light mode
 - User management and roles
-- EPUB, PDF, MP3, and M4B upload
+- EPUB, PDF, MP3, and M4B upload; selecting a directory groups its MP3 files into naturally ordered audiobook tracks
 - SSO login via OIDC (configurable in the Settings page)
 - Library Management page (admin): paginated job history with status filtering, book ownership management, linked-format maintenance, and book deduplication
 - Real-time library updates via SSE — new, removed, or updated books reflect automatically without a manual page refresh; job progress streams live as jobs run

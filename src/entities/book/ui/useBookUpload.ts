@@ -1,5 +1,5 @@
 import {useState} from "react";
-import {type CreateBookRequest, useCreateBookMutation} from "@/entities/book";
+import {type CreateBookRequest, useCreateAudiobookMutation, useCreateBookMutation} from "@/entities/book";
 import {isFetchBaseQueryError, isErrorWithMessage} from "@/shared/api/rtk-query";
 import {toaster} from "@/shared/ui/toaster";
 
@@ -21,6 +21,7 @@ function getErrorMessage(error: unknown): string {
 
 export function useBookUpload() {
     const [createBook] = useCreateBookMutation();
+    const [createAudiobook] = useCreateAudiobookMutation();
     const [uploadStatuses, setUploadStatuses] = useState<FileUploadStatus[]>([]);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
@@ -78,11 +79,52 @@ export function useBookUpload() {
         }
     };
 
+    const processAudiobooks = async (audiobooks: Array<{title: string; files: File[]}>) => {
+        if (audiobooks.length === 0) return;
+        setUploadStatuses(audiobooks.map(({title}) => ({name: title, status: "pending"})));
+        setIsDialogOpen(true);
+        setIsUploading(true);
+        let successCount = 0;
+        let failedCount = 0;
+
+        for (let i = 0; i < audiobooks.length; i++) {
+            const audiobook = audiobooks[i];
+            setUploadStatuses(prev => prev.map((status, index) =>
+                index === i ? {...status, status: "uploading"} : status
+            ));
+            try {
+                await createAudiobook({
+                    files: audiobook.files,
+                    title: audiobook.title,
+                    author: "Unknown Author",
+                }).unwrap();
+                setUploadStatuses(prev => prev.map((status, index) =>
+                    index === i ? {...status, status: "success"} : status
+                ));
+                successCount++;
+            } catch (error) {
+                setUploadStatuses(prev => prev.map((status, index) =>
+                    index === i ? {...status, status: "failed", error: getErrorMessage(error)} : status
+                ));
+                failedCount++;
+            }
+        }
+
+        setIsUploading(false);
+        if (failedCount === 0 && successCount > 0) {
+            toaster.create({
+                title: `${successCount} audiobook${successCount > 1 ? "s" : ""} added successfully!`,
+                type: "success",
+            });
+        }
+    };
+
     return {
         uploadStatuses,
         isDialogOpen,
         isUploading,
         processFiles,
+        processAudiobooks,
         closeDialog: () => setIsDialogOpen(false),
     };
 }

@@ -1,9 +1,15 @@
 export type BookFormatType = "EPUB" | "PDF" | "MP3" | "M4B";
 
+export type AudioTrackModel = {
+    fileName: string;
+    title: string;
+};
+
 export type BookFormatModel = {
     id: string;
     format: BookFormatType;
     fileName: string;
+    audioTracks?: AudioTrackModel[] | null;
     title?: string;
     author?: string;
     genres?: string[];

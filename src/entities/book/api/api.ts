@@ -228,6 +228,16 @@ export const booksApi = homebranchApi.injectEndpoints({
             },
             invalidatesTags: [{type: 'Book', id: 'LIST'}]
         }),
+        createAudiobook: build.mutation<BookModel, {files: File[]; title: string; author: string}>({
+            query: ({files, title, author}) => {
+                const formData = new FormData();
+                formData.append('title', title);
+                formData.append('author', author);
+                files.forEach(file => formData.append('files', file));
+                return {url: '/books/audiobook', method: 'POST', body: formData};
+            },
+            invalidatesTags: [{type: 'Book', id: 'LIST'}],
+        }),
         updateBook: build.mutation<BookModel, BookModel>({
             query: (book: BookModel) => ({url: `/books/${book.id}`, method: 'PUT', body: book}),
             invalidatesTags: result => result ? [{type: 'Book' as const, id: result.id}] : []
@@ -300,6 +310,7 @@ export const {
     useGetBooksByIdsQuery,
     useSearchBooksQuery,
     useCreateBookMutation,
+    useCreateAudiobookMutation,
     useUpdateBookMutation,
     useLinkBooksMutation,
     useUnlinkBookFormatMutation,

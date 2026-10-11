@@ -25,7 +25,7 @@ function ClearFilesOnComplete({ isUploading }: { isUploading: boolean }) {
 }
 
 export function AddBookButton(buttonProps: ButtonProps) {
-    const {uploadStatuses, isDialogOpen, isUploading, processFiles, closeDialog} = useBookUpload();
+    const {uploadStatuses, isDialogOpen, isUploading, processFiles, processAudiobooks, closeDialog} = useBookUpload();
     const directoryInputRef = useRef<HTMLInputElement>(null);
 
     const _handleMultiSelect = async ({files}: FileAcceptDetails) => {
@@ -46,7 +46,34 @@ export function AddBookButton(buttonProps: ButtonProps) {
             return;
         }
 
-        await processFiles(supportedFiles);
+        const trackGroups = new Map<string, File[]>();
+        const individualFiles: File[] = [];
+        for (const file of supportedFiles) {
+            if (!/\.mp3$/i.test(file.name)) {
+                individualFiles.push(file);
+                continue;
+            }
+            const pathParts = (file as File & {webkitRelativePath?: string}).webkitRelativePath?.split("/") ?? [];
+            const folder = pathParts[0] || "Audiobook";
+            trackGroups.set(folder, [...(trackGroups.get(folder) ?? []), file]);
+        }
+
+        if (individualFiles.length) await processFiles(individualFiles);
+        const audiobooks = Array.from(trackGroups.entries())
+            .filter(([, tracks]) => tracks.length > 1)
+            .map(([title, files]) => ({
+                title,
+                files: files.sort((left, right) =>
+                    ((left as File & {webkitRelativePath?: string}).webkitRelativePath || left.name).localeCompare(
+                        (right as File & {webkitRelativePath?: string}).webkitRelativePath || right.name,
+                        undefined,
+                        {numeric: true, sensitivity: "base"},
+                    )
+                ),
+            }));
+        const looseTracks = Array.from(trackGroups.values()).filter(tracks => tracks.length === 1).flat();
+        if (looseTracks.length) await processFiles(looseTracks);
+        await processAudiobooks(audiobooks);
         e.target.value = "";
     };
 
