@@ -8,6 +8,12 @@ import type {BookDuplicateWithBooksModel} from "@/entities/book/model/BookDuplic
 
 export type CreateBookResult = BookModel | {skipped: true; existingBook: BookModel};
 export type ResolveDuplicateAction = 'merge' | 'keep_both' | 'replace';
+export type AudiobookPreview = {
+    title: string;
+    author: string;
+    source: "tags" | "folder";
+    tracks: Array<{index: number; path: string; title: string}>;
+};
 
 /**
  * Parse a search query string for keyword prefixes like `isbn:`, `genre:`, `series:`, `author:`.
@@ -228,15 +234,23 @@ export const booksApi = homebranchApi.injectEndpoints({
             },
             invalidatesTags: [{type: 'Book', id: 'LIST'}]
         }),
-        createAudiobook: build.mutation<BookModel, {files: File[]; title: string; author: string}>({
+        createAudiobook: build.mutation<BookModel, {files: File[]; title: string; author?: string}>({
             query: ({files, title, author}) => {
                 const formData = new FormData();
                 formData.append('title', title);
-                formData.append('author', author);
+                if (author) formData.append('author', author);
                 files.forEach(file => formData.append('files', file));
                 return {url: '/books/audiobook', method: 'POST', body: formData};
             },
             invalidatesTags: [{type: 'Book', id: 'LIST'}],
+        }),
+        previewAudiobook: build.mutation<AudiobookPreview[], {files: File[]; relativePaths: string[]}>({
+            query: ({files, relativePaths}) => {
+                const formData = new FormData();
+                files.forEach(file => formData.append('files', file));
+                formData.append('relativePaths', JSON.stringify(relativePaths));
+                return {url: '/books/audiobook/preview', method: 'POST', body: formData};
+            },
         }),
         updateBook: build.mutation<BookModel, BookModel>({
             query: (book: BookModel) => ({url: `/books/${book.id}`, method: 'PUT', body: book}),
@@ -311,6 +325,7 @@ export const {
     useSearchBooksQuery,
     useCreateBookMutation,
     useCreateAudiobookMutation,
+    usePreviewAudiobookMutation,
     useUpdateBookMutation,
     useLinkBooksMutation,
     useUnlinkBookFormatMutation,
