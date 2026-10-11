@@ -1,4 +1,4 @@
-export type BookFormatType = "EPUB" | "PDF";
+export type BookFormatType = "EPUB" | "PDF" | "MP3" | "M4B";
 
 export type BookFormatModel = {
     id: string;
@@ -39,6 +39,20 @@ const BOOK_FORMAT_DEFINITIONS: BookFormatDefinition[] = [
         extension: ".pdf",
         label: "PDF",
         preferenceOrder: 1,
+        supportsReading: true,
+    },
+    {
+        format: "MP3",
+        extension: ".mp3",
+        label: "MP3 audiobook",
+        preferenceOrder: 3,
+        supportsReading: true,
+    },
+    {
+        format: "M4B",
+        extension: ".m4b",
+        label: "M4B audiobook",
+        preferenceOrder: 2,
         supportsReading: true,
     },
 ];

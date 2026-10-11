@@ -36,11 +36,11 @@ export function AddBookButton(buttonProps: ButtonProps) {
         const fileList = e.target.files;
         if (!fileList) return;
 
-        const supportedFiles = Array.from(fileList).filter(f => /\.(epub|pdf)$/i.test(f.name));
+        const supportedFiles = Array.from(fileList).filter(f => /\.(epub|pdf|mp3|m4b)$/i.test(f.name));
 
         if (supportedFiles.length === 0) {
             toaster.create({
-                title: "No EPUB or PDF files found in the selected directory.",
+                title: "No supported book files found in the selected directory.",
                 type: "warning",
             });
             return;
@@ -69,12 +69,12 @@ export function AddBookButton(buttonProps: ButtonProps) {
             />
 
             <FileUpload.Root
-                accept={".epub,.pdf"}
+                accept={".epub,.pdf,.mp3,.m4b"}
                 maxFiles={Number.MAX_SAFE_INTEGER}
                 onFileAccept={_handleMultiSelect}
             >
                 <ClearFilesOnComplete isUploading={isUploading}/>
-                <FileUpload.HiddenInput accept=".epub,.pdf" multiple/>
+                <FileUpload.HiddenInput accept=".epub,.pdf,.mp3,.m4b" multiple/>
                 <Menu.Root>
                     <Menu.Trigger asChild>
                         <SubmitButton

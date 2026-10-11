@@ -163,6 +163,7 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
         }
     };
     const canReadActiveFormat = activeFormat ? supportsBookFormatReading(activeFormat.format) : false;
+    const isAudioFormat = activeFormat?.format === "MP3" || activeFormat?.format === "M4B";
     const activeTitle = activeFormat?.title ?? book.title;
     const activeAuthor = activeFormat?.author ?? book.author;
     const activeGenres = activeFormat?.genres ?? book.genres;
@@ -341,7 +342,7 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
                         {canReadActiveFormat ? (
                             <Button variant="solid" w={{base: "full", md: "auto"}} minW="120px" asChild>
                                 <Link to={`/books/${book.id}/read${activeFormat ? `?format=${activeFormat.format}` : ''}`}>
-                                    <LuBookOpen/> Read
+                                    <LuBookOpen/> {isAudioFormat ? "Listen" : "Read"}
                                 </Link>
                             </Button>
                         ) : (

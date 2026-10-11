@@ -33,7 +33,7 @@ It provides a user-friendly interface to organize, search, and read your ebooks 
 
 ## Features
 
-- EPUB and PDF in-browser reading — Readium powers the EPUB reader, while PDF reading is built into the web app with shared position sync
+- EPUB and PDF in-browser reading plus MP3 and M4B audiobook playback, with cross-device listening-position sync
 - Installable PWA with an offline-ready app shell for a more native-like experience
 - Library with infinite scroll and search
   - Keyword search: `isbn:<value>`, `genre:<value>`, `series:<value>`, `author:<value>` prefixes narrow results by metadata field
@@ -43,7 +43,7 @@ It provides a user-friendly interface to organize, search, and read your ebooks 
 - Currently Reading and Favorites lists
 - Dark and light mode
 - User management and roles
-- EPUB and PDF upload (up to 50 MB)
+- EPUB, PDF, MP3, and M4B upload
 - SSO login via OIDC (configurable in the Settings page)
 - Library Management page (admin): paginated job history with status filtering, book ownership management, linked-format maintenance, and book deduplication
 - Real-time library updates via SSE — new, removed, or updated books reflect automatically without a manual page refresh; job progress streams live as jobs run
