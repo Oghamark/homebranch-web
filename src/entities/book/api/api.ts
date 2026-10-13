@@ -8,6 +8,19 @@ import type {BookDuplicateWithBooksModel} from "@/entities/book/model/BookDuplic
 
 export type CreateBookResult = BookModel | {skipped: true; existingBook: BookModel};
 export type ResolveDuplicateAction = 'merge' | 'keep_both' | 'replace';
+export type AudiobookPreview = {
+    title: string;
+    author: string;
+    source: "tags" | "folder";
+    tracks: Array<{index: number; path: string; title: string}>;
+};
+export type BookCoverCandidate = {
+    coverId: number;
+    title: string;
+    authors: string[];
+    year?: number;
+    thumbnailUrl: string;
+};
 
 /**
  * Parse a search query string for keyword prefixes like `isbn:`, `genre:`, `series:`, `author:`.
@@ -228,6 +241,24 @@ export const booksApi = homebranchApi.injectEndpoints({
             },
             invalidatesTags: [{type: 'Book', id: 'LIST'}]
         }),
+        createAudiobook: build.mutation<BookModel, {files: File[]; title: string; author?: string}>({
+            query: ({files, title, author}) => {
+                const formData = new FormData();
+                formData.append('title', title);
+                if (author) formData.append('author', author);
+                files.forEach(file => formData.append('files', file));
+                return {url: '/books/audiobook', method: 'POST', body: formData};
+            },
+            invalidatesTags: [{type: 'Book', id: 'LIST'}],
+        }),
+        previewAudiobook: build.mutation<AudiobookPreview[], {files: File[]; relativePaths: string[]}>({
+            query: ({files, relativePaths}) => {
+                const formData = new FormData();
+                files.forEach(file => formData.append('files', file));
+                formData.append('relativePaths', JSON.stringify(relativePaths));
+                return {url: '/books/audiobook/preview', method: 'POST', body: formData};
+            },
+        }),
         updateBook: build.mutation<BookModel, BookModel>({
             query: (book: BookModel) => ({url: `/books/${book.id}`, method: 'PUT', body: book}),
             invalidatesTags: result => result ? [{type: 'Book' as const, id: result.id}] : []
@@ -267,6 +298,22 @@ export const booksApi = homebranchApi.injectEndpoints({
             query: (id: string) => ({url: `/books/${id}/fetch-metadata`, method: 'POST'}),
             invalidatesTags: result => result ? [{type: 'Book' as const, id: result.id}] : []
         }),
+        searchBookCovers: build.mutation<BookCoverCandidate[], {bookId: string; query: string}>({
+            query: ({bookId, query}) => ({
+                url: `/books/${bookId}/covers?query=${encodeURIComponent(query)}`,
+            }),
+        }),
+        selectBookCover: build.mutation<BookModel, {bookId: string; coverId: number}>({
+            query: ({bookId, coverId}) => ({
+                url: `/books/${bookId}/cover`,
+                method: 'POST',
+                body: {coverId},
+            }),
+            invalidatesTags: (_result, _error, {bookId}) => [
+                {type: 'Book' as const, id: bookId},
+                {type: 'Book', id: 'LIST'},
+            ],
+        }),
         listDuplicates: build.query<PaginationResult<BookDuplicateWithBooksModel[]>, { limit?: number; offset?: number }>({
             query: ({limit = 20, offset = 0}) => ({
                 url: `/books/duplicates?limit=${limit}&offset=${offset}`,
@@ -300,6 +347,8 @@ export const {
     useGetBooksByIdsQuery,
     useSearchBooksQuery,
     useCreateBookMutation,
+    useCreateAudiobookMutation,
+    usePreviewAudiobookMutation,
     useUpdateBookMutation,
     useLinkBooksMutation,
     useUnlinkBookFormatMutation,
@@ -307,6 +356,8 @@ export const {
     useDeleteBookMutation,
     useGenerateBookSummaryMutation,
     useFetchBookMetadataMutation,
+    useSearchBookCoversMutation,
+    useSelectBookCoverMutation,
     useListDuplicatesQuery,
     useTriggerDuplicateScanMutation,
     useResolveDuplicateMutation,

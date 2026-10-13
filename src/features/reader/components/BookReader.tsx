@@ -3,6 +3,7 @@ import type {BookModel, BookFormatType} from "@/entities/book";
 import {supportsBookFormatReading} from "@/entities/book/model/bookFormats";
 import {Reader} from "./Reader";
 import {PdfReader} from "./PdfReader";
+import {AudioReader} from "./AudioReader";
 
 interface BookReaderProps {
     book: BookModel;
@@ -12,6 +13,8 @@ interface BookReaderProps {
 const BOOK_READER_COMPONENTS: Partial<Record<BookFormatType, ComponentType<BookReaderProps>>> = {
     EPUB: Reader,
     PDF: PdfReader,
+    MP3: AudioReader,
+    M4B: AudioReader,
 };
 
 export function BookReader({book, format}: BookReaderProps) {

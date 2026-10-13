@@ -6,6 +6,8 @@
 Homebranch is a self-hosted web application for managing and reading your E-Book collection. 
 It provides a user-friendly interface to organize, search, and read your ebooks across devices.
 
+> The project workspace, integrated development stack, and contribution process are maintained in the [Homebranch project repository](https://github.com/Oghamark/homebranch).
+
 > [!NOTE]
 > The project is split into 3 repositories allowing you to choose the components you want to use:
 > - [Homebranch Web](https://github.com/Oghamark/homebranch-web): The frontend web application built with React and TypeScript
@@ -33,7 +35,7 @@ It provides a user-friendly interface to organize, search, and read your ebooks 
 
 ## Features
 
-- EPUB and PDF in-browser reading — Readium powers the EPUB reader, while PDF reading is built into the web app with shared position sync
+- EPUB and PDF in-browser reading plus single- and multi-track MP3 and M4B audiobook playback, with cross-device listening-position sync
 - Installable PWA with an offline-ready app shell for a more native-like experience
 - Library with infinite scroll and search
   - Keyword search: `isbn:<value>`, `genre:<value>`, `series:<value>`, `author:<value>` prefixes narrow results by metadata field
@@ -43,7 +45,7 @@ It provides a user-friendly interface to organize, search, and read your ebooks 
 - Currently Reading and Favorites lists
 - Dark and light mode
 - User management and roles
-- EPUB and PDF upload (up to 50 MB)
+- EPUB, PDF, MP3, and M4B upload; selecting a directory groups its MP3 files into naturally ordered audiobook tracks
 - SSO login via OIDC (configurable in the Settings page)
 - Library Management page (admin): paginated job history with status filtering, book ownership management, linked-format maintenance, and book deduplication
 - Real-time library updates via SSE — new, removed, or updated books reflect automatically without a manual page refresh; job progress streams live as jobs run
@@ -58,7 +60,7 @@ See our [documentation](https://homebranch.app/docs/getting-started/) for instal
 
 ## Contributing
 
-Contributions are welcome! Please see our [contribution guidelines](CONTRIBUTING.md)  for details on how to get involved.
+Contributions are welcome! See the [Homebranch contribution guidelines](https://github.com/Oghamark/homebranch/blob/dev/CONTRIBUTING.md) for the project contribution process and integrated development setup.
 
 ---
 
