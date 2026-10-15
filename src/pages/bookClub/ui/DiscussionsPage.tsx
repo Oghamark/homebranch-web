@@ -11,10 +11,10 @@ import {
 } from "@/entities/bookClub";
 import TextField from "@/shared/ui/TextField";
 
-interface DiscussionsPageProps { clubId: string; }
+interface DiscussionsPageProps { clubId: string; archived?: boolean; }
 const errorMessage = "This discussion space is unavailable.";
 
-export function DiscussionsPage({clubId}: DiscussionsPageProps) {
+export function DiscussionsPage({clubId, archived: archivedProp}: DiscussionsPageProps) {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const selectedThreadId = searchParams.get("thread");
@@ -22,26 +22,28 @@ export function DiscussionsPage({clubId}: DiscussionsPageProps) {
     const {data: club, error: clubError, isLoading: clubLoading} = useGetBookClubQuery(clubId);
     const {data: threads = [], error: threadsError, isLoading: threadsLoading} = useGetDiscussionThreadsQuery({clubId});
     const selectedThread = threads.find((thread) => thread.id === selectedThreadId);
-    const isModerator = club?.currentMembershipRole === "owner" || club?.currentMembershipRole === "moderator";
+    const archived = archivedProp ?? club?.status === "archived";
+    const isModerator = !archived && (club?.currentMembershipRole === "owner" || club?.currentMembershipRole === "moderator");
 
     if (clubLoading || threadsLoading) return <Flex height="100%" align="center" justify="center"><Loader/></Flex>;
     if (clubError || threadsError || !club) return <UnavailableDiscussions onBack={() => navigate("/book-clubs")}/>;
     if (selectedThreadId && !selectedThread) return <UnavailableDiscussions onBack={() => setSearchParams({})}/>;
 
-    if (selectedThread) return <ThreadView clubId={clubId} thread={selectedThread} currentUserId={currentUserId} isModerator={isModerator} onBack={() => setSearchParams({})}/>;
+    if (selectedThread) return <ThreadView clubId={clubId} thread={selectedThread} currentUserId={currentUserId} isModerator={isModerator} readOnly={archived} onBack={() => setSearchParams({})}/>;
 
     return <Stack gap={5} maxW="960px" mx="auto">
         <Flex align="center" justify="space-between" gap={3} wrap="wrap"><Box><Heading size="xl">{club.name} discussions</Heading><Text color="fg.muted">{club.selectedWork.title} · {club.selectedWork.author}</Text></Box><Button variant="outline" asChild><Link to="/book-clubs"><LuArrowLeft/> All clubs</Link></Button></Flex>
-        <CreateThreadForm clubId={clubId} canCreatePrompt={isModerator}/>
+        {archived && <Card.Root variant="subtle"><Card.Body><Text>This club is archived. Discussions are available to read but cannot be changed.</Text></Card.Body></Card.Root>}
+        {!archived && <CreateThreadForm clubId={clubId} canCreatePrompt={isModerator}/>}
         {isModerator && <RestorePanel clubId={clubId}/>} {club.currentMembershipRole === "owner" && <AuditPanel clubId={clubId}/>}
-        {threads.length === 0 ? <Card.Root><Card.Body><Stack align="center" py={8}><LuMessageCircle size={28}/><Heading size="md">Start the conversation</Heading><Text color="fg.muted">No discussion threads have been posted yet.</Text></Stack></Card.Body></Card.Root> : <Stack gap={3}>{threads.map((thread) => <ThreadCard key={thread.id} thread={thread} currentUserId={currentUserId} isModerator={isModerator} onOpen={() => setSearchParams({thread: thread.id})}/>)}</Stack>}
+        {threads.length === 0 ? <Card.Root><Card.Body><Stack align="center" py={8}><LuMessageCircle size={28}/><Heading size="md">Start the conversation</Heading><Text color="fg.muted">No discussion threads have been posted yet.</Text></Stack></Card.Body></Card.Root> : <Stack gap={3}>{threads.map((thread) => <ThreadCard key={thread.id} thread={thread} currentUserId={currentUserId} isModerator={isModerator} readOnly={archived} onOpen={() => setSearchParams({thread: thread.id})}/>)}</Stack>}
     </Stack>;
 }
 
 function UnavailableDiscussions({onBack}: {onBack: () => void}) { return <Stack height="100%" align="center" justify="center" gap={3}><Heading size="lg">{errorMessage}</Heading><Text color="fg.muted">You may need to join the club before viewing its discussions.</Text><Button onClick={onBack}>Back to book clubs</Button></Stack>; }
 function SpoilerUnavailable() { return <Box p={3} borderRadius="md" bg="bg.muted"><Text color="fg.muted">Spoiler content is hidden. Individual reveal is unavailable because the server only returns all spoilers at once; no spoiler text has been requested.</Text></Box>; }
 
-function ThreadCard({thread, currentUserId, isModerator, onOpen}: {thread: DiscussionThread; currentUserId: string | null; isModerator: boolean; onOpen: () => void}) {
+function ThreadCard({thread, currentUserId, isModerator, readOnly, onOpen}: {thread: DiscussionThread; currentUserId: string | null; isModerator: boolean; readOnly: boolean; onOpen: () => void}) {
     const [moderate, moderation] = useModerateDiscussionThreadMutation();
     const [remove, deletion] = useDeleteDiscussionThreadMutation();
     const [update, updateState] = useUpdateDiscussionThreadMutation();
@@ -54,25 +56,25 @@ function ThreadCard({thread, currentUserId, isModerator, onOpen}: {thread: Discu
     return <Card.Root variant="outline"><Card.Body><Stack gap={3}>
         <Flex justify="space-between" align="start" gap={3}><Stack gap={1} minW={0}><HStack wrap="wrap">{thread.pinned && <Badge colorPalette="purple"><LuPin/> Pinned</Badge>}{thread.promptKind && <Badge colorPalette="blue"><LuSparkles/> Moderator prompt</Badge>}{thread.locked && <Badge colorPalette="orange"><LuLock/> Locked</Badge>}{thread.spoiler && <Badge colorPalette="red">Spoiler</Badge>}</HStack><Heading size="md">{thread.title}</Heading></Stack><Button size="sm" onClick={onOpen}>Open</Button></Flex>
         {editing ? <Stack>{thread.spoiler && <Text color="fg.muted" fontSize="sm">The spoiler body was not loaded. Enter the full replacement text without revealing it to the page.</Text>}<TextField label="Thread title" value={title} maxLength={160} onChange={(event) => setTitle(event.target.value)}/><label htmlFor={`thread-body-${thread.id}`}>Discussion</label><Textarea id={`thread-body-${thread.id}`} value={body} maxLength={10000} onChange={(event) => setBody(event.target.value)}/><HStack><Button size="sm" onClick={save} loading={updateState.isLoading} disabled={!title.trim() || !body.trim()}>Save</Button><Button size="sm" variant="ghost" onClick={() => setEditing(false)}>Cancel</Button></HStack></Stack> : thread.spoiler ? <SpoilerUnavailable/> : <Text whiteSpace="pre-wrap">{thread.body}</Text>}
-        {isAuthor && !thread.locked && <HStack><Button size="xs" variant="outline" onClick={() => setEditing(!editing)}>Edit</Button><Button size="xs" variant="outline" colorPalette="red" loading={deletion.isLoading} onClick={deleteOwn}>Delete my thread</Button></HStack>}
+        {isAuthor && !readOnly && !thread.locked && <HStack><Button size="xs" variant="outline" onClick={() => setEditing(!editing)}>Edit</Button><Button size="xs" variant="outline" colorPalette="red" loading={deletion.isLoading} onClick={deleteOwn}>Delete my thread</Button></HStack>}
         {isModerator && <ModerationButtons loading={moderation.isLoading} locked={thread.locked} pinned={thread.pinned} onAction={perform}/>} {failure && <Text role="alert" color="fg.error">The requested discussion action failed. Refresh and try again.</Text>}
     </Stack></Card.Body></Card.Root>;
 }
 
-function ThreadView({clubId, thread, currentUserId, isModerator, onBack}: {clubId: string; thread: DiscussionThread; currentUserId: string | null; isModerator: boolean; onBack: () => void}) {
+function ThreadView({clubId, thread, currentUserId, isModerator, readOnly, onBack}: {clubId: string; thread: DiscussionThread; currentUserId: string | null; isModerator: boolean; readOnly: boolean; onBack: () => void}) {
     const {data: replies = [], error, isLoading} = useGetDiscussionRepliesQuery({clubId, threadId: thread.id});
     if (isLoading) return <Flex justify="center" py={10}><Loader/></Flex>; if (error) return <UnavailableDiscussions onBack={onBack}/>;
-    return <Stack gap={5} maxW="960px" mx="auto"><Button alignSelf="start" variant="ghost" onClick={onBack}><LuArrowLeft/> Back to threads</Button><ThreadCard thread={thread} currentUserId={currentUserId} isModerator={isModerator} onOpen={() => undefined}/><Heading size="md">Replies</Heading>{replies.length === 0 ? <Text color="fg.muted">No replies yet.</Text> : <Stack gap={3}>{replies.map((reply) => <ReplyCard key={reply.id} reply={reply} currentUserId={currentUserId} isModerator={isModerator} threadLocked={thread.locked}/>)}</Stack>}{!thread.locked ? <CreateReplyForm clubId={clubId} threadId={thread.id}/> : <Text color="fg.muted">This thread is locked and no longer accepts replies.</Text>}</Stack>;
+    return <Stack gap={5} maxW="960px" mx="auto"><Button alignSelf="start" variant="ghost" onClick={onBack}><LuArrowLeft/> Back to threads</Button><ThreadCard thread={thread} currentUserId={currentUserId} isModerator={isModerator} readOnly={readOnly} onOpen={() => undefined}/><Heading size="md">Replies</Heading>{replies.length === 0 ? <Text color="fg.muted">No replies yet.</Text> : <Stack gap={3}>{replies.map((reply) => <ReplyCard key={reply.id} reply={reply} currentUserId={currentUserId} isModerator={isModerator} threadLocked={thread.locked} readOnly={readOnly}/>)}</Stack>}{!readOnly && !thread.locked ? <CreateReplyForm clubId={clubId} threadId={thread.id}/> : <Text color="fg.muted">{readOnly ? "This archived discussion is read-only." : "This thread is locked and no longer accepts replies."}</Text>}</Stack>;
 }
 
-function ReplyCard({reply, currentUserId, isModerator, threadLocked}: {reply: DiscussionReply; currentUserId: string | null; isModerator: boolean; threadLocked: boolean}) {
+function ReplyCard({reply, currentUserId, isModerator, threadLocked, readOnly}: {reply: DiscussionReply; currentUserId: string | null; isModerator: boolean; threadLocked: boolean; readOnly: boolean}) {
     const [moderate, moderation] = useModerateDiscussionReplyMutation(); const [remove, deletion] = useDeleteDiscussionReplyMutation(); const [update, updateState] = useUpdateDiscussionReplyMutation();
     const [editing, setEditing] = useState(false); const [body, setBody] = useState(reply.body ?? ""); const isAuthor = reply.authorUserId === currentUserId;
     const perform = async (action: "hide" | "restore" | "delete") => { try { await moderate({clubId: reply.clubId, threadId: reply.threadId, replyId: reply.id, action}).unwrap(); } catch { /* surfaced below */ } };
     const save = async () => { try { await update({clubId: reply.clubId, threadId: reply.threadId, replyId: reply.id, body: body.trim(), spoiler: reply.spoiler}).unwrap(); setEditing(false); } catch { /* surfaced below */ } };
     const deleteOwn = async () => { try { await remove({clubId: reply.clubId, threadId: reply.threadId, replyId: reply.id}).unwrap(); } catch { /* surfaced below */ } };
     const failure = moderation.error || deletion.error || updateState.error;
-    return <Card.Root variant="outline"><Card.Body><Stack gap={3}><HStack><Badge variant="outline">Reply</Badge>{reply.spoiler && <Badge colorPalette="red">Spoiler</Badge>}</HStack>{editing ? <Stack><label htmlFor={`reply-body-${reply.id}`}>Reply</label><Textarea id={`reply-body-${reply.id}`} value={body} maxLength={10000} onChange={(event) => setBody(event.target.value)}/><HStack><Button size="sm" onClick={save} loading={updateState.isLoading} disabled={!body.trim()}>Save</Button><Button size="sm" variant="ghost" onClick={() => setEditing(false)}>Cancel</Button></HStack></Stack> : reply.spoiler ? <SpoilerUnavailable/> : <Text whiteSpace="pre-wrap">{reply.body}</Text>}{isAuthor && <HStack>{!threadLocked && <Button size="xs" variant="outline" onClick={() => setEditing(!editing)}>Edit</Button>}<Button size="xs" variant="outline" colorPalette="red" loading={deletion.isLoading} onClick={deleteOwn}>Delete my reply</Button></HStack>}{isModerator && <HStack><Button size="xs" variant="outline" loading={moderation.isLoading} onClick={() => perform("hide")}>Hide</Button><Button size="xs" variant="outline" loading={moderation.isLoading} onClick={() => perform("delete")}>Delete</Button></HStack>}{failure && <Text role="alert" color="fg.error">The requested reply action failed. Refresh and try again.</Text>}</Stack></Card.Body></Card.Root>;
+    return <Card.Root variant="outline"><Card.Body><Stack gap={3}><HStack><Badge variant="outline">Reply</Badge>{reply.spoiler && <Badge colorPalette="red">Spoiler</Badge>}</HStack>{editing ? <Stack><label htmlFor={`reply-body-${reply.id}`}>Reply</label><Textarea id={`reply-body-${reply.id}`} value={body} maxLength={10000} onChange={(event) => setBody(event.target.value)}/><HStack><Button size="sm" onClick={save} loading={updateState.isLoading} disabled={!body.trim()}>Save</Button><Button size="sm" variant="ghost" onClick={() => setEditing(false)}>Cancel</Button></HStack></Stack> : reply.spoiler ? <SpoilerUnavailable/> : <Text whiteSpace="pre-wrap">{reply.body}</Text>}{isAuthor && !readOnly && <HStack>{!threadLocked && <Button size="xs" variant="outline" onClick={() => setEditing(!editing)}>Edit</Button>}<Button size="xs" variant="outline" colorPalette="red" loading={deletion.isLoading} onClick={deleteOwn}>Delete my reply</Button></HStack>}{isModerator && <HStack><Button size="xs" variant="outline" loading={moderation.isLoading} onClick={() => perform("hide")}>Hide</Button><Button size="xs" variant="outline" loading={moderation.isLoading} onClick={() => perform("delete")}>Delete</Button></HStack>}{failure && <Text role="alert" color="fg.error">The requested reply action failed. Refresh and try again.</Text>}</Stack></Card.Body></Card.Root>;
 }
 
 function ModerationButtons({loading, locked, pinned, onAction}: {loading: boolean; locked: boolean; pinned: boolean; onAction: (action: ModerationAction) => void}) { return <><Separator/><HStack wrap="wrap"><Badge colorPalette="purple"><LuShield/> Moderator controls</Badge><Button size="xs" variant="outline" loading={loading} onClick={() => onAction(locked ? "unlock" : "lock")}>{locked ? "Unlock" : "Lock"}</Button><Button size="xs" variant="outline" loading={loading} onClick={() => onAction(pinned ? "unpin" : "pin")}>{pinned ? "Unpin" : "Pin"}</Button><Button size="xs" variant="outline" loading={loading} onClick={() => onAction("hide")}>Hide</Button><Button size="xs" variant="outline" loading={loading} onClick={() => onAction("delete")}>Delete</Button></HStack></>; }
