@@ -66,15 +66,15 @@ export const bookClubsApi = homebranchApi.injectEndpoints({
         }),
         deleteDiscussionThread: build.mutation<void, {clubId: string; threadId: string}>({
             query: ({clubId, threadId}) => ({url: `/book-clubs/${encodeURIComponent(clubId)}/discussions/${encodeURIComponent(threadId)}`, method: "DELETE"}),
-            invalidatesTags: (_result, _error, {clubId, threadId}) => [{type: "BookClub", id: `${clubId}:discussions`}, {type: "BookClub", id: `${clubId}:thread:${threadId}`}],
+            invalidatesTags: (_result, _error, {clubId, threadId}) => [{type: "BookClub", id: `${clubId}:discussions`}, {type: "BookClub", id: `${clubId}:thread:${threadId}`}, {type: "BookClub", id: `${clubId}:recovery`}],
         }),
         updateDiscussionReply: build.mutation<DiscussionReply, {clubId: string; threadId: string; replyId: string; body: string; spoiler: boolean}>({
-            query: ({clubId, replyId, ...body}) => ({url: `/book-clubs/${encodeURIComponent(clubId)}/discussion-replies/${encodeURIComponent(replyId)}`, method: "PATCH", body}),
+            query: ({clubId, replyId, body, spoiler}) => ({url: `/book-clubs/${encodeURIComponent(clubId)}/discussion-replies/${encodeURIComponent(replyId)}`, method: "PATCH", body: {body, spoiler}}),
             invalidatesTags: (_result, _error, {clubId, threadId}) => [{type: "BookClub", id: `${clubId}:thread:${threadId}`}, {type: "BookClub", id: `${clubId}:replies`}],
         }),
         deleteDiscussionReply: build.mutation<void, {clubId: string; threadId: string; replyId: string}>({
             query: ({clubId, replyId}) => ({url: `/book-clubs/${encodeURIComponent(clubId)}/discussion-replies/${encodeURIComponent(replyId)}`, method: "DELETE"}),
-            invalidatesTags: (_result, _error, {clubId, threadId}) => [{type: "BookClub", id: `${clubId}:thread:${threadId}`}, {type: "BookClub", id: `${clubId}:replies`}],
+            invalidatesTags: (_result, _error, {clubId, threadId}) => [{type: "BookClub", id: `${clubId}:thread:${threadId}`}, {type: "BookClub", id: `${clubId}:replies`}, {type: "BookClub", id: `${clubId}:recovery`}],
         }),
         moderateDiscussionThread: build.mutation<void, {clubId: string; threadId: string; action: ModerationAction}>({
             query: ({clubId, threadId, action}) => ({url: `/book-clubs/${encodeURIComponent(clubId)}/discussions/${encodeURIComponent(threadId)}/moderation/${action}`, method: "POST"}),
