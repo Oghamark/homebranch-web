@@ -1,4 +1,4 @@
-import {Button, type ButtonProps, Loader} from "@chakra-ui/react";
+import {Button, type ButtonProps} from "@chakra-ui/react";
 
 interface SubmitButtonProps extends ButtonProps {
     pending?: boolean;
@@ -8,8 +8,9 @@ interface SubmitButtonProps extends ButtonProps {
 
 export default function SubmitButton({pending, success, error, children, ...props}: SubmitButtonProps) {
     return (
-        <Button disabled={pending || props.disabled} {...props}>
-            {pending ? <Loader/> : children}
+        <Button {...props} minH={props.minH ?? "44px"} loading={pending || props.loading}
+            loadingText={props.loadingText ?? children} aria-busy={pending || props.loading || undefined} disabled={pending || props.disabled}>
+            {children}
         </Button>
     );
 }

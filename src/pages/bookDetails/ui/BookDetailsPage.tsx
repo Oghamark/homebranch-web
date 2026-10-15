@@ -2,7 +2,6 @@ import {
     type BookModel,
     useDeleteBookMutation,
     useGenerateBookSummaryMutation,
-    useUpdateBookMutation,
     useFetchBookMetadataMutation,
     useSearchBookCoversMutation,
     useSelectBookCoverMutation,
@@ -10,12 +9,12 @@ import {
     useToggleFavoriteMutation,
 } from "@/entities/book";
 import {config} from "@/shared";
-import {Badge, Box, Button, CloseButton, Dialog, Flex, Heading, IconButton, Image, Input, Menu, Portal, SimpleGrid, Spinner, Stack, Text,} from "@chakra-ui/react";
+import {Badge, Box, Button, CloseButton, Dialog, Flex, Image, Input, Portal, SimpleGrid, Spinner, Stack, Text,} from "@chakra-ui/react";
 import {useEffect, useMemo, useState} from "react";
-import {LuBookOpen, LuDownload, LuEllipsis, LuHeart, LuImagePlus, LuLibrary, LuLoader, LuRefreshCw, LuSearch, LuSend, LuStar, LuTrash2, LuX} from "react-icons/lu";
+import {LuBookOpen, LuDownload, LuHeart, LuImagePlus, LuLibrary, LuRefreshCw, LuSearch, LuSend, LuStar} from "react-icons/lu";
 import {Link, useNavigate} from "react-router";
 import {ManageBookShelvesButton} from "@/entities/bookShelf";
-import {Tooltip} from "@/shared/ui/tooltip";
+import {BookJacket, ConfirmAction, EmptyState, ErrorState, PageHeader, PageSection} from "@/shared/ui/EditorialUI";
 import {deleteSavedPosition, getSavedPosition} from "@/features/reader/api/savedPositionApi";
 import ToastFactory from "@/shared/lib/toast/toast";
 import {handleRtkError} from "@/shared/api/rtk-query";
@@ -59,7 +58,7 @@ function StarRating({value, count}: { value: number; count?: number }) {
 function MetaItem({label, value}: { label: string; value: string }) {
     return (
         <Box>
-            <Text fontSize="xs" color="fg.subtle" textTransform="uppercase" letterSpacing="wide" mb="1px">{label}</Text>
+            <Text fontSize="xs" color="fg.muted" textTransform="uppercase" letterSpacing="wide" mb="1px">{label}</Text>
             <Text fontSize="sm">{value}</Text>
         </Box>
     );
@@ -84,7 +83,7 @@ function Summary({html}: { html: string }) {
                 dangerouslySetInnerHTML={{__html: html}}
             />
             {isLong && (
-                <Button variant="plain" size="xs" color="fg.subtle" px={0} mt={1}
+                <Button variant="plain" minH="44px" size="xs" color="fg.muted" px={0} mt={1}
                         onClick={() => setExpanded(e => !e)}>
                     {expanded ? "Show less" : "Read more"}
                 </Button>
@@ -106,16 +105,17 @@ function isBookOpenedLocally(bookId: string): boolean {
 }
 
 export default function BookDetailsPage({book}: BookDetailsPageProps) {
-    const [updateBook] = useUpdateBookMutation();
-    const [toggleFavorite] = useToggleFavoriteMutation();
-    const [deleteBook, {isLoading: pendingDelete}] = useDeleteBookMutation();
+    const [toggleFavorite, {isLoading: favoriting}] = useToggleFavoriteMutation();
+    const [deleteBook] = useDeleteBookMutation();
     const [generateSummary, {isLoading: generatingSummary}] = useGenerateBookSummaryMutation();
     const [fetchMetadata, {isLoading: fetchingMetadata}] = useFetchBookMetadataMutation();
     const navigate = useNavigate();
     const {data: mailSender} = useGetMailSenderQuery();
-    const {data: kindlePreference} = useGetKindleEmailQuery(undefined, {skip: !mailSender?.configured});
+    const {data: kindlePreference, isLoading: loadingKindle, isError: kindleFailed, refetch: retryKindle} = useGetKindleEmailQuery(undefined, {skip: !mailSender?.configured});
     const [sendToKindle, {isLoading: sendingToKindle}] = useSendToKindleMutation();
-    const [deleteOpen, setDeleteOpen] = useState(false);
+    const [actionError, setActionError] = useState("");
+    const [coverError, setCoverError] = useState("");
+    const [coverFailed, setCoverFailed] = useState(false);
     const [coverSearchOpen, setCoverSearchOpen] = useState(false);
     const [coverSearchQuery, setCoverSearchQuery] = useState("");
     const [coverCandidates, setCoverCandidates] = useState<BookCoverCandidate[]>([]);
@@ -160,43 +160,54 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
     const handleSendToKindle = async () => {
         if (!kindlePreference?.kindleEmail) {
             ToastFactory({message: "Add your Kindle email in Settings first", type: "error"});
-            navigate("/settings");
+            navigate("/settings?section=kindle");
             return;
         }
         try {
             await sendToKindle(book.id).unwrap();
             ToastFactory({message: `Sent to ${kindlePreference.kindleEmail}`, type: "success"});
         } catch (error) {
+            setActionError(getApiErrorMessage(error));
             ToastFactory({message: getApiErrorMessage(error), type: "error"});
         }
     };
 
     const openCoverSearch = async () => {
+        if (coverSearchQuery) {
+            setCoverSearchOpen(true);
+            return;
+        }
         const query = `${book.title} ${book.author}`.trim();
         setCoverSearchQuery(query);
         setCoverSearchOpen(true);
+        setCoverError("");
         try {
             setCoverCandidates(await searchCovers({bookId: book.id, query}).unwrap());
         } catch (error) {
+            setCoverError("Covers could not be loaded. Try searching again.");
             handleRtkError(error);
         }
     };
 
     const submitCoverSearch = async (event: {preventDefault: () => void}) => {
         event.preventDefault();
+        setCoverError("");
         try {
             setCoverCandidates(await searchCovers({bookId: book.id, query: coverSearchQuery}).unwrap());
         } catch (error) {
+            setCoverError("Covers could not be loaded. Your search has been kept.");
             handleRtkError(error);
         }
     };
 
     const handleSelectCover = async (candidate: BookCoverCandidate) => {
+        setCoverError("");
         try {
             await selectCover({bookId: book.id, coverId: candidate.coverId}).unwrap();
             setCoverSearchOpen(false);
             ToastFactory({message: "Book cover updated", type: "success"});
         } catch (error) {
+            setCoverError("This cover could not be saved. Please try again.");
             handleRtkError(error);
         }
     };
@@ -207,6 +218,7 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
     const activeGenres = activeFormat?.genres ?? book.genres;
     const activePublishedYear = activeFormat?.publishedYear ?? book.publishedYear;
     const activeCoverImageFileName = book.coverImageFileName ?? activeFormat?.coverImageFileName;
+    useEffect(() => setCoverFailed(false), [activeCoverImageFileName]);
     const activeSummary = activeFormat?.summary ?? book.summary;
     const activeSeries = activeFormat?.series ?? book.series;
     const activeSeriesPosition = activeFormat?.seriesPosition ?? book.seriesPosition;
@@ -221,7 +233,7 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
             await deleteSavedPosition(bookId);
         } catch {
             ToastFactory({message: "Failed to remove cloud reading position", type: "error"});
-            return;
+            throw new Error("Cloud reading position could not be removed");
         }
         const userId = sessionStorage.getItem("user_id");
         if (userId) removeStoredProgress(userId, bookId);
@@ -235,11 +247,11 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
     };
 
     return (
-        <Box p={{base: 4, md: 8}}>
+        <Stack gap={8} maxW="1100px" mx="auto" p={{base: 4, md: 8}}>
             <Flex direction={{base: "column", md: "row"}} align={{base: "center", md: "start"}} gap={{base: 6, md: 10}}>
                 {/* Cover image with frosted-glass reading progress overlay */}
                 <Box flexShrink={0} position="relative" w={{base: "200px", md: "240px"}}>
-                    {activeCoverImageFileName ? (
+                    {activeCoverImageFileName && !coverFailed ? (
                         <Image
                             src={`${config.apiUrl}/uploads/cover-images/${activeCoverImageFileName}`}
                             alt={activeTitle}
@@ -249,9 +261,10 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
                             borderRadius="lg"
                             boxShadow="lg"
                             display="block"
+                            onError={() => setCoverFailed(true)}
                         />
                     ) : (
-                        <Box w="full" aspectRatio="2/3" borderRadius="lg" bg="bg.muted" boxShadow="lg"/>
+                        <BookJacket title={activeTitle} author={activeAuthor}/>
                     )}
                     {progress !== undefined && progress > 0 && (
                         <Box
@@ -280,16 +293,13 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
                             </Flex>
                         </Box>
                     )}
-                    <Button mt={2} size="sm" variant="outline" w="full" onClick={() => void openCoverSearch()}>
-                        <LuImagePlus/> Find a cover
-                    </Button>
                 </Box>
 
                 {/* Book info + actions */}
                 <Stack flex={1} gap={4} align={{base: "center", md: "start"}} textAlign={{base: "center", md: "start"}} w="full">
                     {/* Title & author · year · series */}
                     <Box>
-                        <Heading size={{base: "xl", md: "2xl"}} mb={1}>{activeTitle}</Heading>
+                        <PageHeader title={activeTitle}/>
                         {activeSeries && (
                             <Text fontSize="sm" color="fg.muted" mb={1}>
                                 {activeSeries}{activeSeriesPosition != null ? ` #${activeSeriesPosition}` : ''}
@@ -308,8 +318,8 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
                             )}
                             {activePublishedYear && (
                                 <>
-                                    <Text as="span" color="fg.subtle" userSelect="none">·</Text>
-                                    <Text as="span" color="fg.subtle">{activePublishedYear}</Text>
+                                    <Text as="span" color="fg.muted" userSelect="none">·</Text>
+                                    <Text as="span" color="fg.muted">{activePublishedYear}</Text>
                                 </>
                             )}
                         </Flex>
@@ -320,28 +330,6 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
                         )}
                     </Box>
 
-                    {activeSummary && activeSummary.trim() ? (
-                        <Summary html={activeSummary}/>
-                    ) : (
-                        <Button
-                            variant="subtle"
-                            size="sm"
-                            onClick={() =>
-                                generateSummary(book.id)
-                                    .unwrap()
-                                    .then(result => {
-                                        if (!result.summary?.trim()) {
-                                            ToastFactory({message: "No summary could be found on Open Library for this book.", type: "info"});
-                                        }
-                                    })
-                                    .catch(handleRtkError)
-                            }
-                            loading={generatingSummary}
-                        >
-                            <LuLibrary/> Look up summary on Open Library
-                        </Button>
-                    )}
-
                     {/* Genres */}
                     {activeGenres && activeGenres.filter(g => g.trim()).length > 0 && (
                         <Flex gap={2} flexWrap="wrap">
@@ -351,26 +339,18 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
                         </Flex>
                     )}
 
-                    {/* Metadata grid */}
-                    {(activeIsbn || activePageCount || activePublisher || activeLanguage) && (
-                        <SimpleGrid columns={{base: 2, md: 3}} gap={4} pt={1}>
-                            {activeIsbn && <MetaItem label="ISBN" value={activeIsbn}/>}
-                            {activePageCount && <MetaItem label="Pages" value={String(activePageCount)}/>}
-                            {activePublisher && <MetaItem label="Publisher" value={activePublisher}/>}
-                            {activeLanguage && <MetaItem label="Language" value={activeLanguage.toUpperCase()}/>}
-                        </SimpleGrid>
-                    )}
-
                     {/* Unified action row: labeled CTAs + divider + icon actions */}
                     {availableFormats.length > 0 && (
                         <Stack gap={2} align={{base: "center", md: "start"}}>
-                            <Text fontSize="xs" color="fg.subtle" textTransform="uppercase" letterSpacing="wide">Available Formats</Text>
+                            <Text fontSize="xs" color="fg.muted" textTransform="uppercase" letterSpacing="wide">Available formats</Text>
                             <Flex gap={2} flexWrap="wrap" justify={{base: "center", md: "start"}}>
                                 {availableFormats.map((format) => (
                                     <Button
                                         key={format.id}
                                         size="sm"
+                                        minH="44px"
                                         variant={activeFormat?.format === format.format ? "solid" : "outline"}
+                                        aria-pressed={activeFormat?.format === format.format}
                                         onClick={() => setSelectedFormat(format.format)}
                                     >
                                         {getBookFormatLabel(format.format)}
@@ -381,9 +361,9 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
                     )}
                     <Flex align="center" gap={3} flexWrap="wrap" w={{base: "full", md: "auto"}} justify={{base: "center", md: "start"}}>
                         {canReadActiveFormat ? (
-                            <Button variant="solid" w={{base: "full", md: "auto"}} minW="120px" asChild>
+                            <Button variant="solid" minH="44px" colorPalette="orange" w={{base: "full", md: "auto"}} minW="120px" asChild>
                                 <Link to={`/books/${book.id}/read${activeFormat ? `?format=${activeFormat.format}` : ''}`}>
-                                    <LuBookOpen/> {isAudioFormat ? "Listen" : "Read"}
+                                    <LuBookOpen/> {isAudioFormat ? "Listen" : isCurrentlyReading ? "Continue reading" : "Read"}
                                 </Link>
                             </Button>
                         ) : (
@@ -391,7 +371,9 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
                                 <LuBookOpen/> Read unavailable
                             </Button>
                         )}
-                        <Button variant="outline" w={{base: "full", md: "auto"}} minW="130px" asChild>
+                    </Flex>
+                    <Flex align="center" gap={3} flexWrap="wrap" justify={{base: "center", md: "start"}}>
+                        <Button variant="outline" minH="44px" w={{base: "full", md: "auto"}} minW="130px" asChild>
                             <a
                                 href={`${config.apiUrl}/books/${book.id}/download${activeFormat ? `?format=${activeFormat.format}` : ''}`}
                                 download={`${sanitizedTitle}${getBookFormatExtension(activeFormat?.format ?? "EPUB")}`}
@@ -400,82 +382,74 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
                             </a>
                         </Button>
                         {canSendToKindle && (
-                            <Button variant="outline" w={{base: "full", md: "auto"}} minW="150px"
-                                    onClick={handleSendToKindle} loading={sendingToKindle}>
-                                <LuSend/> Send to Kindle
+                            <Button variant="outline" minH="44px" w={{base: "full", md: "auto"}} minW="150px"
+                                    onClick={handleSendToKindle} loading={sendingToKindle || loadingKindle}
+                                    loadingText={loadingKindle ? "Checking Kindle settings" : "Send to Kindle"}
+                                    disabled={kindleFailed}>
+                                <LuSend/> {kindlePreference?.kindleEmail ? "Send to Kindle" : "Set up Kindle"}
                             </Button>
                         )}
-                        {/* Vertical divider hidden on mobile */}
-                        <Box display={{base: "none", md: "block"}} w="1px" h="6" bg="border" alignSelf="center" flexShrink={0}/>
-                        <Flex gap={1} align="center" justify="center">
-                            <Tooltip content={book.isFavorite ? "Unfavorite" : "Favorite"}>
-                                <IconButton
-                                    variant="ghost"
-                                    onClick={() => toggleFavorite(book.id)}
-                                >
-                                    <LuHeart
-                                        fill={book.isFavorite ? "red" : "none"}
-                                        color={book.isFavorite ? "red" : undefined}
-                                    />
-                                </IconButton>
-                            </Tooltip>
-                            <ManageBookShelvesButton bookId={book.id} variant="ghost"/>
-                            <ManageBookFormatsButton book={book} canManage={canDelete}/>
-                            {/* Overflow menu for destructive / contextual actions */}
-                            <Menu.Root>
-                                <Menu.Trigger asChild>
-                                    <IconButton variant="ghost" aria-label="More options">
-                                        <LuEllipsis/>
-                                    </IconButton>
-                                </Menu.Trigger>
-                                <Portal>
-                                    <Menu.Positioner>
-                                        <Menu.Content>
-                                            {isCurrentlyReading && (
-                                                <Menu.Item
-                                                    value="stop-reading"
-                                                    onClick={() => removeCurrentlyReading(book.id)}
-                                                >
-                                                    <LuX/> Stop reading
-                                                </Menu.Item>
-                                            )}
-                                            <Menu.Item
-                                                value="refresh-metadata"
-                                                onClick={() =>
-                                                    fetchMetadata(book.id)
-                                                        .unwrap()
-                                                        .then(() => ToastFactory({message: "Metadata refreshed", type: "success"}))
-                                                        .catch(handleRtkError)
-                                                }
-                                                disabled={fetchingMetadata}
-                                            >
-                                                <LuRefreshCw/> Refresh metadata
-                                            </Menu.Item>
-                                            {canDelete && (
-                                                <Menu.Item
-                                                    value="delete"
-                                                    color="fg.error"
-                                                    onClick={() => setDeleteOpen(true)}
-                                                >
-                                                    <LuTrash2/> Delete book
-                                                </Menu.Item>
-                                            )}
-                                        </Menu.Content>
-                                    </Menu.Positioner>
-                                </Portal>
-                            </Menu.Root>
-                        </Flex>
+                        <Button variant="outline" minH="44px" aria-pressed={book.isFavorite} loading={favoriting}
+                            onClick={async () => {
+                                setActionError("");
+                                try { await toggleFavorite(book.id).unwrap(); }
+                                catch { setActionError("Your favorite could not be updated. Please try again."); }
+                            }}>
+                            <LuHeart fill={book.isFavorite ? "currentColor" : "none"}/>{book.isFavorite ? "Favorited" : "Favorite"}
+                        </Button>
+                        <ManageBookShelvesButton bookId={book.id} variant="outline" showLabel/>
                     </Flex>
+                    {canSendToKindle && kindleFailed && <ErrorState onRetry={retryKindle}>Your Kindle settings could not be loaded. Reading and downloading are still available.</ErrorState>}
+                    {actionError && <ErrorState>{actionError}</ErrorState>}
                     {/* Metadata last fetched */}
                     {book.metadataFetchedAt && (
-                        <Text fontSize="xs" color="fg.subtle">
+                        <Text fontSize="xs" color="fg.muted">
                             Metadata last enriched {new Date(book.metadataFetchedAt).toLocaleDateString()}
                         </Text>
                     )}
                 </Stack>
             </Flex>
+            <PageSection title="About this book">
+                {activeSummary?.trim() ? <Summary html={activeSummary}/> : <Text color="fg.muted">No summary is available yet.</Text>}
+                {(activeIsbn || activePageCount || activePublisher || activeLanguage) && <SimpleGrid columns={{base: 2, md: 3}} gap={4}>
+                    {activeIsbn && <MetaItem label="ISBN" value={activeIsbn}/>}
+                    {activePageCount && <MetaItem label="Pages" value={String(activePageCount)}/>}
+                    {activePublisher && <MetaItem label="Publisher" value={activePublisher}/>}
+                    {activeLanguage && <MetaItem label="Language" value={activeLanguage.toUpperCase()}/>}
+                </SimpleGrid>}
+            </PageSection>
+            <Box as="details" borderTopWidth="1px" pt={4}>
+                <Box as="summary" cursor="pointer" fontFamily="heading" fontSize="xl" py={3}>Book tools and maintenance</Box>
+                <Stack gap={4} pt={4}>
+                    <Text color="fg.muted">Update this book's presentation, manage linked formats, or clear your saved reading position.</Text>
+                    <Flex gap={3} wrap="wrap">
+                        <Button variant="outline" minH="44px" onClick={() => void openCoverSearch()}><LuImagePlus/> Find a cover</Button>
+                        <Button variant="outline" minH="44px" loading={generatingSummary} onClick={async () => {
+                            setActionError("");
+                            try {
+                                const result = await generateSummary(book.id).unwrap();
+                                if (!result.summary?.trim()) ToastFactory({message: "No summary could be found on Open Library for this book.", type: "info"});
+                            } catch { setActionError("The summary could not be looked up. Please try again."); }
+                        }}><LuLibrary/> Look up summary</Button>
+                        <ConfirmAction title={`Refresh metadata for ${book.title}?`}
+                            description="Look up book information again. Existing metadata may be replaced by the retrieved details."
+                            actionLabel="Refresh metadata" disabled={fetchingMetadata}
+                            onConfirm={async () => { await fetchMetadata(book.id).unwrap(); ToastFactory({message: "Metadata refreshed", type: "success"}); }}>
+                            <LuRefreshCw/> Refresh metadata
+                        </ConfirmAction>
+                        <ManageBookFormatsButton book={book} canManage={canDelete}/>
+                        {isCurrentlyReading && <ConfirmAction title={`Reset reading position for ${book.title}?`}
+                            description="Remove your saved reading position on this device and in the cloud. The book stays in your library, but it will no longer appear in Continue reading."
+                            actionLabel="Reset reading position" destructive onConfirm={() => removeCurrentlyReading(book.id)}/>}
+                        {canDelete && <ConfirmAction title={`Delete ${book.title}?`}
+                            description="Delete this book and its files from the library, not just from a shelf. This cannot be undone."
+                            actionLabel="Delete book" destructive onConfirm={async () => {await deleteBook(book.id).unwrap(); navigate("/");}}/>}
+                    </Flex>
+                </Stack>
+            </Box>
 
-            <Dialog.Root open={coverSearchOpen} onOpenChange={(event) => setCoverSearchOpen(event.open)}>
+            <Dialog.Root open={coverSearchOpen} closeOnEscape={!selectingCover} closeOnInteractOutside={!selectingCover}
+                onOpenChange={(event) => {if (!selectingCover) setCoverSearchOpen(event.open);}}>
                 <Portal>
                     <Dialog.Backdrop/>
                     <Dialog.Positioner>
@@ -496,11 +470,12 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
                                                 onChange={(event) => setCoverSearchQuery(event.target.value)}
                                                 placeholder="Search by title or author"
                                             />
-                                            <Button type="submit" loading={searchingCovers}>
+                                            <Button type="submit" minH="44px" disabled={selectingCover || !coverSearchQuery.trim()} loading={searchingCovers}>
                                                 <LuSearch/> Search
                                             </Button>
                                         </Flex>
                                     </form>
+                                    {coverError && <ErrorState>{coverError}</ErrorState>}
                                     {searchingCovers && coverCandidates.length === 0 ? (
                                         <Flex justify="center" py={10}><Spinner/></Flex>
                                     ) : coverCandidates.length > 0 ? (
@@ -537,7 +512,7 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
                                                         <Text fontSize="xs" fontWeight="medium" lineClamp={2} textAlign="left">
                                                             {candidate.title}
                                                         </Text>
-                                                        <Text fontSize="xs" color="fg.subtle" lineClamp={1} textAlign="left">
+                                                        <Text fontSize="xs" color="fg.muted" lineClamp={1} textAlign="left">
                                                             {candidate.authors[0] ?? "Unknown author"}
                                                             {candidate.year ? ` · ${candidate.year}` : ""}
                                                         </Text>
@@ -545,49 +520,17 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
                                                 </Button>
                                             ))}
                                         </SimpleGrid>
-                                    ) : (
-                                        <Text py={6} textAlign="center" color="fg.subtle" fontSize="sm">
-                                            No covers found. Try a different title or author.
-                                        </Text>
+                                    ) : !coverError && (
+                                        <EmptyState title="No covers found">Try a different title or author.</EmptyState>
                                     )}
                                 </Stack>
                             </Dialog.Body>
-                            <Dialog.CloseTrigger asChild><CloseButton/></Dialog.CloseTrigger>
+                            <Dialog.CloseTrigger asChild><CloseButton aria-label="Close cover search" minH="44px" minW="44px" disabled={selectingCover}/></Dialog.CloseTrigger>
                         </Dialog.Content>
                     </Dialog.Positioner>
                 </Portal>
             </Dialog.Root>
 
-            {/* Delete confirmation dialog (controlled) */}
-            <Dialog.Root open={deleteOpen} onOpenChange={(e) => setDeleteOpen(e.open)}>
-                <Portal>
-                    <Dialog.Backdrop/>
-                    <Dialog.Positioner>
-                        <Dialog.Content p={1} textAlign="center">
-                            <Dialog.Header>
-                                <Dialog.Title>Delete book: {book.title}</Dialog.Title>
-                            </Dialog.Header>
-                            <Dialog.Body>Are you sure you want to delete this item?</Dialog.Body>
-                            <Dialog.Footer>
-                                <Dialog.ActionTrigger asChild>
-                                    <Button variant="ghost">Cancel</Button>
-                                </Dialog.ActionTrigger>
-                                <Button
-                                    variant="subtle"
-                                    color="fg.error"
-                                    disabled={pendingDelete}
-                                    onClick={() => deleteBook(book.id).then(result => !result.error && navigate("/"))}
-                                >
-                                    {pendingDelete ? <LuLoader/> : "Delete"}
-                                </Button>
-                            </Dialog.Footer>
-                            <Dialog.CloseTrigger asChild>
-                                <CloseButton/>
-                            </Dialog.CloseTrigger>
-                        </Dialog.Content>
-                    </Dialog.Positioner>
-                </Portal>
-            </Dialog.Root>
-        </Box>
+        </Stack>
     );
 }

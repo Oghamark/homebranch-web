@@ -4,6 +4,7 @@ import {Link, useNavigate, useSearchParams} from "react-router";
 import {LuArrowRight, LuPlus, LuSearch} from "react-icons/lu";
 import {type BookClub, type BookClubVisibility, useCreateBookClubMutation, useGetArchivedBookClubsQuery, useGetBookClubsQuery} from "@/entities/bookClub";
 import {type BookModel} from "@/entities/book";
+import {config} from "@/shared/config";
 import {OwnedLibraryBookSelect} from "./OwnedLibraryBookSelect";
 import {BookJacket, clubPalette, ClubLoading, EmptyState, ErrorState} from "./ClubUI";
 
@@ -39,7 +40,7 @@ export function BookClubsPage() {
                 <Input aria-label="Find a club" placeholder="Find a club or book" pl={10} minH="44px" value={search} onChange={e => setSearch(e.target.value)}/>
             </Box>
         </Flex>
-        {view === "discover" && <Text color="fg.muted" fontSize="sm">Clubs open to people on this Homebranch. Private clubs are only visible to their members.</Text>}
+        {view === "discover" && <Text color="fg.muted" fontSize="sm">Clubs open to everyone. Private clubs are only visible to their members.</Text>}
         {query.isLoading ? <ClubLoading/> : query.error ? <ErrorState onRetry={query.refetch}>Book clubs couldn't be loaded. Your reading spaces will be here when you reconnect.</ErrorState>
             : !clubs.length ? <EmptyState title={search ? "No matching clubs" : view === "mine" ? "Make a little room for reading together" : view === "archived" ? "No archived clubs" : "No new clubs to discover"}
                 action={view === "mine" && !search ? <Button colorPalette="orange" minH="44px" onClick={() => setParams({view: "discover"})}>Discover clubs <LuArrowRight/></Button> : search ? <Button variant="outline" onClick={() => setSearch("")}>Clear search</Button> : undefined}>
@@ -55,12 +56,13 @@ function ClubCard({club}: {club: BookClub}) {
         _hover={{borderColor: "orange.400"}} _focusVisible={{outline: "2px solid", outlineColor: "orange.500", outlineOffset: "3px"}}>
         <Link to={`/book-clubs/${club.id}`}>
             <Stack gap={5} h="full">
-                <HStack align="start" gap={4}><BookJacket compact title={club.selectedWork.title} author={club.selectedWork.author}/>
+                <HStack align="start" gap={4}><BookJacket compact title={club.selectedWork.title} author={club.selectedWork.author}
+                    coverSrc={club.selectedWork.coverImageFileName ? `${config.apiUrl}/uploads/cover-images/${encodeURIComponent(club.selectedWork.coverImageFileName)}` : undefined}/>
                     <Stack gap={2} minW={0}><Badge alignSelf="start" variant="subtle" colorPalette="orange">{club.currentMembershipRole ? "Your club" : "Open to join"}</Badge>
                         <Heading size="xl" fontFamily="Georgia, serif" overflowWrap="anywhere">{club.name}</Heading>
                         <Text fontSize="sm" color="fg.muted">{club.selectedWork.title} · {club.selectedWork.author}</Text></Stack></HStack>
                 {club.description && <Text color="fg.muted" lineClamp={2} fontSize="sm" overflowWrap="anywhere">{club.description}</Text>}
-                <HStack justify="space-between" mt="auto"><Text fontSize="xs" color="fg.muted">{club.visibility === "private" ? "Private club" : "Open on this Homebranch"}</Text>
+                <HStack justify="end" mt="auto">
                     <HStack fontSize="sm" fontWeight="semibold"><Text>{club.currentMembershipRole ? "Visit club" : "Take a look"}</Text><LuArrowRight/></HStack></HStack>
             </Stack>
         </Link>
@@ -94,7 +96,7 @@ function CreateClubForm() {
                 <OwnedLibraryBookSelect id="club-work" label="What are you reading?" selectedBookId={selectedBook?.id} onSelect={setSelectedBook}/>
                 <Stack gap={2}><label htmlFor="create-description">A few words about your club (optional)</label><Textarea id="create-description" value={description} maxLength={3000} onChange={e => setDescription(e.target.value)}/></Stack>
                 <Stack as="fieldset" gap={3}><Text as="legend" fontWeight="medium">Who can join?</Text>
-                    <Box as="label" display="flex" alignItems="center" gap={3} minH="44px"><input type="radio" name="visibility" value="instance_visible" checked={visibility === "instance_visible"} onChange={() => setVisibility("instance_visible")}/> Open to people on this Homebranch</Box>
+                    <Box as="label" display="flex" alignItems="center" gap={3} minH="44px"><input type="radio" name="visibility" value="instance_visible" checked={visibility === "instance_visible"} onChange={() => setVisibility("instance_visible")}/> Open to everyone</Box>
                     <Box as="label" display="flex" alignItems="center" gap={3} minH="44px"><input type="radio" name="visibility" value="private" checked={visibility === "private"} onChange={() => setVisibility("private")}/> Private: only people you add</Box>
                     <Text fontSize="sm" color="fg.muted">Your library and reading history stay private either way.</Text>
                 </Stack>

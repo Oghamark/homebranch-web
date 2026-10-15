@@ -1,52 +1,20 @@
-import {useState} from "react";
-import {AddBookShelfButton, BookShelfOptionsMenu, useGetBookShelvesQuery} from "@/entities/bookShelf";
-import {Flex, For, Tabs} from "@chakra-ui/react";
-import {Link} from "react-router";
+import {AddBookShelfButton, useGetBookShelvesQuery} from "@/entities/bookShelf";
+import {Button, Stack} from "@chakra-ui/react";
+import {NavLink} from "react-router";
+import {ErrorState} from "@/shared/ui/EditorialUI";
 
-interface BookShelfNavigationSectionProps {
-    onNavigate?: () => void;
-}
-
-export function BookShelfNavigationSection({onNavigate}: BookShelfNavigationSectionProps) {
-    const {data: bookShelves = []} = useGetBookShelvesQuery();
-
-    return (
-        <>
-            {bookShelves.length > 0 && <Tabs.Root
-                orientation={"vertical"}
-                variant={"subtle"}
-                value={location.pathname}
-            >
-                <Tabs.List width={"100%"} mb={2}>
-                    <For each={bookShelves}>
-                        {(bookShelf) => (
-                            <BookShelfTab id={bookShelf.id} title={bookShelf.title} onNavigate={onNavigate}/>
-                        )}
-                    </For>
-                </Tabs.List>
-            </Tabs.Root>}
-            <AddBookShelfButton/>
-        </>
-
-    )
-}
-
-function BookShelfTab({id, title, onNavigate}: { id: string, title: string, onNavigate?: () => void }) {
-    const [hovered, setHovered] = useState(false);
-
-    return (
-        <Tabs.Trigger
-            value={`/book-shelves/${id}`}
-            asChild
-            onMouseEnter={() => setHovered(true)}
-            onMouseLeave={() => setHovered(false)}
-        >
-            <Flex justify={"space-between"} align={"center"}>
-                <Link to={`/book-shelves/${id}`} style={{flex: 1}} onClick={onNavigate}>{title}</Link>
-                {hovered && (
-                    <BookShelfOptionsMenu bookShelfId={id} bookShelfTitle={title}/>
-                )}
-            </Flex>
-        </Tabs.Trigger>
-    )
+export function BookShelfNavigationSection({onNavigate}: {onNavigate?: () => void}) {
+    const {data: shelves = [], isError, refetch} = useGetBookShelvesQuery();
+    return <Stack gap={2}>
+        {isError && <ErrorState onRetry={refetch}>Your shelves could not be loaded.</ErrorState>}
+        <Stack as="nav" aria-label="Bookshelves" gap={1}>
+            {shelves.map(shelf =>
+                <Button key={shelf.id} asChild minW={0} justifyContent="start" variant="ghost" minH="44px" whiteSpace="normal" textAlign="start"
+                    css={{'&[aria-current="page"]': {background: "var(--chakra-colors-bg-emphasized)", fontWeight: "bold"}}}>
+                    <NavLink to={`/book-shelves/${shelf.id}`} onClick={onNavigate}>{shelf.title}</NavLink>
+                </Button>
+            )}
+        </Stack>
+        <AddBookShelfButton/>
+    </Stack>;
 }

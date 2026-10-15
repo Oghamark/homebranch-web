@@ -1,5 +1,5 @@
 import {isRouteErrorResponse, Links, Meta, Outlet, Scripts, ScrollRestoration} from "react-router";
-import {type ReactNode} from "react";
+import {useEffect, useState, type ReactNode} from "react";
 import {Provider as ReduxProvider} from 'react-redux';
 
 import "@/app/styles/app.css";
@@ -8,6 +8,8 @@ import {Provider} from "@/shared/ui/provider";
 import {Toaster} from "@/shared/ui/toaster";
 import {AuthContextProvider} from "@/shared/api/context";
 import {store} from "@/app/store";
+import {Box, Button, HStack, Stack, Text} from "@chakra-ui/react";
+import {LoadingState, PageHeader} from "@/shared/ui/EditorialUI";
 
 
 export const links: Route.LinksFunction = () => [
@@ -68,16 +70,25 @@ export default function App() {
     return <Outlet/>;
 }
 
+export function HydrateFallback() {
+    return <Box as="main" px={5} py={12}><LoadingState label="Opening Homebranch..."/></Box>;
+}
+
 export function ErrorBoundary({error}: Route.ErrorBoundaryProps) {
-    let message = "Oops!";
-    let details = "An unexpected error occurred.";
+    const [hydrated, setHydrated] = useState(false);
+    useEffect(() => setHydrated(true), []);
+    // Unknown SPA URLs initially receive the same prerendered loading markup.
+    if (!hydrated) return <HydrateFallback/>;
+
+    let message = "We couldn't open this page";
+    let details = "Something went wrong. Try reloading, or return to your library.";
     let stack: string | undefined;
 
     if (isRouteErrorResponse(error)) {
-        message = error.status === 404 ? "404" : "Error";
+        message = error.status === 404 ? "This page isn't here" : "We couldn't open this page";
         details =
             error.status === 404
-                ? "The requested page could not be found."
+                ? "The link may be out of date, or the page may have moved. Your library is a good place to start."
                 : error.statusText || details;
     } else if (import.meta.env.DEV && error && error instanceof Error) {
         details = error.message;
@@ -85,14 +96,19 @@ export function ErrorBoundary({error}: Route.ErrorBoundaryProps) {
     }
 
     return (
-        <main className="pt-16 p-4 container mx-auto">
-            <h1>{message}</h1>
-            <p>{details}</p>
+        <Stack as="main" maxW="760px" mx="auto" px={{base: 5, md: 8}} py={{base: 12, md: 24}} gap={6}>
+            <Text fontSize="sm" fontWeight="semibold" color="fg.muted">Homebranch</Text>
+            <PageHeader title={message} description={details}/>
+            <HStack gap={3} flexWrap="wrap">
+                <Button asChild colorPalette="orange" minH="44px"><a href="/">Back to library</a></Button>
+                <Button variant="outline" minH="44px" onClick={() => window.location.reload()}>Reload page</Button>
+            </HStack>
             {stack && (
-                <pre className="w-full p-4 overflow-x-auto">
-          <code>{stack}</code>
-        </pre>
+                <Box as="details" bg="bg.subtle" borderWidth="1px" borderRadius="xl" p={4} minW={0}>
+                    <summary>Developer details</summary>
+                    <Box as="pre" overflowX="auto" mt={3} fontSize="sm"><code>{stack}</code></Box>
+                </Box>
             )}
-        </main>
+        </Stack>
     );
 }

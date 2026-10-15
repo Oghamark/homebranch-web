@@ -23,6 +23,7 @@ export function ShowAllUsersButton({showLabel = false}: ShowAllUsersButtonProps)
             <Button
                 variant="ghost"
                 size="sm"
+                minH="44px"
                 aria-label={ariaLabel}
                 onClick={() => dispatch(toggleShowAllUsers())}
                 gap={2}
@@ -37,6 +38,8 @@ export function ShowAllUsersButton({showLabel = false}: ShowAllUsersButtonProps)
         <Button
             variant="ghost"
             size="sm"
+            minH="44px"
+            minW="44px"
             aria-label={ariaLabel}
             onClick={() => dispatch(toggleShowAllUsers())}
         >

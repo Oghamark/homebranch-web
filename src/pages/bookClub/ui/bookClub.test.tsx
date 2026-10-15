@@ -45,6 +45,7 @@ vi.mock("@/entities/book", () => ({
     useSearchMyBooksQuery: () => ({data: [], refetch: vi.fn()}),
 }));
 vi.mock("@/shared", () => ({config: {cloudMode: false}}));
+vi.mock("@/shared/config", () => ({config: {apiUrl: "/api", cloudMode: false}}));
 vi.mock("./MemberName", () => ({
     MemberName: () => <span>A reader</span>,
     MemberNamesProvider: ({children}: {children: ReactNode}) => children,
@@ -80,6 +81,24 @@ beforeEach(() => {
 });
 
 describe("book club discovery", () => {
+    it("shows the real book cover on club cards", () => {
+        mocks.clubs = [{...club, selectedWork: {...club.selectedWork, coverImageFileName: "a good book.jpg"}}];
+        const {container} = renderUI(<BookClubsPage/>);
+        expect(container.querySelector("img")).toHaveAttribute("src", "/api/uploads/cover-images/a%20good%20book.jpg");
+        expect(screen.getByRole("link", {name: /Sunday Readers/})).toBeVisible();
+    });
+
+    it("uses the same actual cover in the club header and recovers from a missing image", () => {
+        mocks.club = {...club, selectedWork: {...club.selectedWork, coverImageFileName: "orchard.jpg"}};
+        const {container} = renderUI(<ClubShell clubId={club.id}>{() => <p>Club content</p>}</ClubShell>);
+        const image = container.querySelector("img")!;
+        expect(image).toHaveAttribute("src", "/api/uploads/cover-images/orchard.jpg");
+        fireEvent.error(image);
+        expect(container.querySelector("img")).toBeNull();
+        expect(screen.getByRole("heading", {name: club.name})).toBeVisible();
+        expect(screen.getByText("Club content")).toBeVisible();
+    });
+
     it("separates memberships from discoverable clubs and searches book metadata", () => {
         const other = {...club, id: "club-2", name: "A different club", currentMembershipRole: null};
         expect(filterClubs([club, other], "mine", "author")).toEqual([club]);

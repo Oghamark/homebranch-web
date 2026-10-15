@@ -8,7 +8,7 @@ export type MilestoneKind = "part" | "chapter" | "checkpoint";
 export type ProgressStatus = "not_started" | "in_progress" | "completed";
 export type ReadingCopySource = "shared" | "personal" | "none";
 
-export interface BookClubWork { id: string; clubId: string; title: string; author: string; isbn?: string | null; externalWorkId?: string | null; editionId?: string | null; series?: string | null; seriesPosition?: number | null; }
+export interface BookClubWork { id: string; clubId: string; title: string; author: string; isbn?: string | null; externalWorkId?: string | null; editionId?: string | null; series?: string | null; seriesPosition?: number | null; coverImageFileName?: string | null; }
 export interface BookClub { id: string; name: string; description?: string | null; visibility: BookClubVisibility; status: "active" | "archived"; ownerUserId: string; currentMembershipRole?: BookClubRole | null; selectedWork: BookClubWork; }
 export interface BookClubMember { id?: string; clubId?: string; userId: string; role: BookClubRole; createdAt?: string; }
 export interface Milestone { id: string; workId?: string; name: string; kind: MilestoneKind; position: number; memberMapping?: {memberLabel: string; memberPosition?: number | null} | null; memberProgress?: {status: ProgressStatus; percentage?: number | null} | null; }
@@ -25,6 +25,7 @@ const detailTags = (clubId: string) => [clubTag(clubId), clubTag(`club:${clubId}
 const memberTags = (clubId: string) => [...detailTags(clubId), clubTag(`roster:${clubId}`), {type: "User" as const, id: "LIST"}];
 const scheduleTags = (clubId: string) => [...detailTags(clubId), clubTag(`schedule:${clubId}`)];
 const copyTags = (clubId: string, workId: string) => [...scheduleTags(clubId), clubTag(`copy:${clubId}:${workId}`), clubTag(`matches:${clubId}:${workId}`)];
+const coverTag = {type: "Book" as const, id: "LIST"};
 
 function clearDiscussionBodies({clubId}: {clubId: string}, {dispatch, getState}: Pick<BaseQueryApi, "dispatch" | "getState">): void {
  const state = getState() as Parameters<typeof bookClubsApi.util.selectCachedArgsForQuery>[0];
@@ -44,11 +45,11 @@ function clearDiscussionBodies({clubId}: {clubId: string}, {dispatch, getState}:
 
 export const bookClubsApi = homebranchApi.injectEndpoints({
  endpoints: (build) => ({
-  getBookClubs: build.query<BookClub[], void>({query: () => ({url: "/book-clubs"}), providesTags: (clubs) => clubs ? [...clubs.map(({id}) => clubTag(id)), clubTag("LIST")] : [clubTag("LIST")]}),
-  getArchivedBookClubs: build.query<BookClub[], void>({query: () => ({url: "/book-clubs/archived"}), providesTags: (clubs) => clubs ? [...clubs.map(({id}) => clubTag(id)), clubTag("ARCHIVED")] : [clubTag("ARCHIVED")]}),
-  getBookClub: build.query<BookClub, string>({query: (clubId) => ({url: `/book-clubs/${encodeURIComponent(clubId)}`}), providesTags: (_r, _e, clubId) => detailTags(clubId)}),
-  createBookClub: build.mutation<BookClub, {name: string; description?: string; visibility: BookClubVisibility; selectedWork: Omit<BookClubWork, "id" | "clubId">}>({query: (body) => ({url: "/book-clubs", method: "POST", body}), invalidatesTags: [clubTag("LIST")]}),
-  updateBookClub: build.mutation<BookClub, {clubId: string; name?: string; description?: string | null; visibility?: BookClubVisibility; selectedWork?: Omit<BookClubWork, "id" | "clubId">}>({query: ({clubId, ...body}) => ({url: `/book-clubs/${encodeURIComponent(clubId)}`, method: "PATCH", body}), invalidatesTags: (_r, _e, {clubId}) => [...detailTags(clubId), clubTag("LIST"), clubTag("ARCHIVED"), clubTag(`schedule:${clubId}`)]}),
+  getBookClubs: build.query<BookClub[], void>({query: () => ({url: "/book-clubs"}), providesTags: (clubs) => clubs ? [...clubs.map(({id}) => clubTag(id)), clubTag("LIST"), coverTag] : [clubTag("LIST"), coverTag]}),
+  getArchivedBookClubs: build.query<BookClub[], void>({query: () => ({url: "/book-clubs/archived"}), providesTags: (clubs) => clubs ? [...clubs.map(({id}) => clubTag(id)), clubTag("ARCHIVED"), coverTag] : [clubTag("ARCHIVED"), coverTag]}),
+  getBookClub: build.query<BookClub, string>({query: (clubId) => ({url: `/book-clubs/${encodeURIComponent(clubId)}`}), providesTags: (_r, _e, clubId) => [...detailTags(clubId), coverTag]}),
+  createBookClub: build.mutation<BookClub, {name: string; description?: string; visibility: BookClubVisibility; selectedWork: Omit<BookClubWork, "id" | "clubId" | "coverImageFileName">}>({query: (body) => ({url: "/book-clubs", method: "POST", body}), invalidatesTags: [clubTag("LIST")]}),
+  updateBookClub: build.mutation<BookClub, {clubId: string; name?: string; description?: string | null; visibility?: BookClubVisibility; selectedWork?: Omit<BookClubWork, "id" | "clubId" | "coverImageFileName">}>({query: ({clubId, ...body}) => ({url: `/book-clubs/${encodeURIComponent(clubId)}`, method: "PATCH", body}), invalidatesTags: (_r, _e, {clubId}) => [...detailTags(clubId), clubTag("LIST"), clubTag("ARCHIVED"), clubTag(`schedule:${clubId}`)]}),
   joinBookClub: build.mutation<BookClubMember, string>({query: (clubId) => ({url: `/book-clubs/${encodeURIComponent(clubId)}/join`, method: "POST"}), invalidatesTags: (_r, _e, clubId) => [...detailTags(clubId), clubTag("LIST")]}),
   archiveBookClub: build.mutation<BookClub, string>({query: (clubId) => ({url: `/book-clubs/${encodeURIComponent(clubId)}/archive`, method: "POST"}), invalidatesTags: (_r, _e, clubId) => [...detailTags(clubId), clubTag("LIST"), clubTag("ARCHIVED")]}),
   deleteBookClub: build.mutation<void, string>({query: (clubId) => ({url: `/book-clubs/${encodeURIComponent(clubId)}`, method: "DELETE"}), invalidatesTags: (_r, _e, clubId) => [...detailTags(clubId), clubTag("LIST"), clubTag("ARCHIVED"), clubTag(`roster:${clubId}`), clubTag(`schedule:${clubId}`)]}),

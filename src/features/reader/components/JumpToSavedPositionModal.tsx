@@ -1,5 +1,7 @@
-import {Button, CloseButton, Dialog, Flex, Portal, Text} from "@chakra-ui/react";
+import {Button, Flex, Text} from "@chakra-ui/react";
 import type {Locator} from "@readium/shared";
+import {useAppSelector} from "@/app/hooks";
+import {getReaderControlColors, ReaderDialog} from "./ReaderUI";
 
 export type ModalCase =
     | {type: "jump"; deviceName: string; updatedAt: string; serverPosition: Locator; serverLabel: string}
@@ -13,122 +15,36 @@ interface JumpToSavedPositionModalProps {
     onClose: () => void;
 }
 
-export function JumpToSavedPositionModal({
-    modalCase,
-    open,
-    onJump,
-    onKeepLocal,
-    onClose,
-}: JumpToSavedPositionModalProps) {
-    if (modalCase.type === "jump") {
-        const date = new Date(modalCase.updatedAt).toLocaleDateString(undefined, {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-            hour: "numeric",
-            minute: "2-digit",
-        });
+export function JumpToSavedPositionModal({modalCase, open, onJump, onKeepLocal, onClose}: JumpToSavedPositionModalProps) {
+    const mode = useAppSelector((state) => state.readerTheme.mode);
+    const colors = getReaderControlColors(mode);
+    const isConflict = modalCase.type === "conflict";
+    const quietButton = {bg: "transparent", color: colors.text, borderColor: colors.uiBorder, _hover: {bg: colors.hoverBg}};
 
-        return (
-            <Dialog.Root open={open} onOpenChange={({open: isOpen}) => !isOpen && onClose()}>
-                <Portal>
-                    <Dialog.Backdrop/>
-                    <Dialog.Positioner>
-                        <Dialog.Content p={1} textAlign="center">
-                            <Dialog.Header>
-                                <Dialog.Title>Jump to Saved Position?</Dialog.Title>
-                            </Dialog.Header>
-                            <Dialog.Body>
-                                <Text>
-                                    You were reading on <strong>{modalCase.deviceName}</strong> on {date}.
-                                </Text>
-                                <Text mt={2} fontSize="sm" fontWeight="medium">
-                                    {modalCase.serverLabel}
-                                </Text>
-                                <Text mt={2} fontSize="sm" color="fg.muted">
-                                    Would you like to continue from where you left off?
-                                </Text>
-                            </Dialog.Body>
-                            <Dialog.Footer>
-                                <Button variant="ghost" onClick={onClose}>
-                                    Ignore
-                                </Button>
-                                <Button
-                                    colorPalette="blue"
-                                    onClick={() => onJump(modalCase.serverPosition)}
-                                >
-                                    Jump
-                                </Button>
-                            </Dialog.Footer>
-                            <Dialog.CloseTrigger asChild>
-                                <CloseButton/>
-                            </Dialog.CloseTrigger>
-                        </Dialog.Content>
-                    </Dialog.Positioner>
-                </Portal>
-            </Dialog.Root>
-        );
-    }
-
-    return (
-        <Dialog.Root open={open} onOpenChange={({open: isOpen}) => !isOpen && onClose()}>
-            <Portal>
-                <Dialog.Backdrop/>
-                <Dialog.Positioner>
-                    <Dialog.Content p={1} textAlign="center">
-                        <Dialog.Header>
-                            <Dialog.Title>Page Persistence Desynchronized</Dialog.Title>
-                        </Dialog.Header>
-                        <Dialog.Body>
-                            <Flex gap={4} justify="center" wrap="wrap">
-                                <Flex
-                                    direction="column"
-                                    p={3}
-                                    borderWidth="1px"
-                                    borderRadius="md"
-                                    flex="1"
-                                    minW="120px"
-                                >
-                                    <Text fontWeight="bold" fontSize="sm">Cloud</Text>
-                                    <Text fontSize="xs" color="fg.muted" mt={1}>
-                                        {modalCase.serverLabel}
-                                    </Text>
-                                </Flex>
-                                <Flex
-                                    direction="column"
-                                    p={3}
-                                    borderWidth="1px"
-                                    borderRadius="md"
-                                    flex="1"
-                                    minW="120px"
-                                >
-                                    <Text fontWeight="bold" fontSize="sm">Local</Text>
-                                    <Text fontSize="xs" color="fg.muted" mt={1}>
-                                        {modalCase.localLabel}
-                                    </Text>
-                                </Flex>
-                            </Flex>
-                            <Text mt={3} fontSize="sm" color="fg.muted">
-                                Your cloud and local reading positions are different. Which would you like to keep?
-                            </Text>
-                        </Dialog.Body>
-                        <Dialog.Footer>
-                            <Button variant="ghost" onClick={onKeepLocal}>
-                                Local
-                            </Button>
-                            <Button
-                                colorPalette="blue"
-                                onClick={() => onJump(modalCase.serverPosition)}
-                            >
-                                Cloud
-                            </Button>
-                        </Dialog.Footer>
-                        <Dialog.CloseTrigger asChild>
-                            <CloseButton/>
-                        </Dialog.CloseTrigger>
-                    </Dialog.Content>
-                </Dialog.Positioner>
-            </Portal>
-        </Dialog.Root>
-    );
+    return <ReaderDialog open={open} onClose={onClose} colors={colors}
+        title={isConflict ? "Choose your reading position" : "Continue from your saved position?"}
+        footer={<>
+            <Button {...quietButton} variant="outline" onClick={isConflict ? onKeepLocal : onClose}>
+                {isConflict ? "Keep this device's position" : "Stay here"}
+            </Button>
+            <Button bg={colors.text} color={colors.uiBg} _hover={{opacity: 0.9}}
+                onClick={() => onJump(modalCase.serverPosition)}>Use saved position</Button>
+        </>}>
+        {modalCase.type === "jump" ? <>
+            <Text>You were reading on <strong>{modalCase.deviceName}</strong> on {new Date(modalCase.updatedAt).toLocaleDateString(undefined, {
+                month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit",
+            })}.</Text>
+            <Text mt={3} fontWeight="medium">{modalCase.serverLabel}</Text>
+        </> : <>
+            <Text mb={4}>Your saved position and this device's position are different. Choose where to continue.</Text>
+            <Flex gap={4} wrap="wrap">
+                <Flex direction="column" p={4} borderWidth="1px" borderColor={colors.uiBorder} borderRadius="lg" flex={1} minW="120px">
+                    <Text fontWeight="semibold">Saved position</Text><Text mt={2} fontSize="sm">{modalCase.serverLabel}</Text>
+                </Flex>
+                <Flex direction="column" p={4} borderWidth="1px" borderColor={colors.uiBorder} borderRadius="lg" flex={1} minW="120px">
+                    <Text fontWeight="semibold">This device</Text><Text mt={2} fontSize="sm">{modalCase.localLabel}</Text>
+                </Flex>
+            </Flex>
+        </>}
+    </ReaderDialog>;
 }

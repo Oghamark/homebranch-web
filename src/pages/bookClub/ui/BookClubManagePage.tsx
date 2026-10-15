@@ -50,8 +50,8 @@ function ClubDetails({club}: {club: BookClub}) {
         <Stack gap={2}><label htmlFor="settings-description">About your club</label><Textarea id="settings-description" value={description} maxLength={3000} disabled={state.isLoading} onChange={e => {edit(); setDescription(e.target.value);}}/></Stack>
         <Stack gap={2}><label htmlFor="settings-visibility">Who can find and join this club?</label><NativeSelect.Root disabled={state.isLoading}><NativeSelect.Field id="settings-visibility" value={visibility} onChange={e => {
             edit(); setVisibility(e.target.value === "private" ? "private" : "instance_visible");
-        }}><option value="instance_visible">Open to people on this Homebranch</option><option value="private">Private: only people you add</option></NativeSelect.Field><NativeSelect.Indicator/></NativeSelect.Root>
-            <Text color="fg.muted" fontSize="sm">Open clubs appear in Discover and can be joined by anyone on this Homebranch. Private clubs are only visible to their members. Changing this never shares library books.</Text>
+        }}><option value="instance_visible">Open to everyone</option><option value="private">Private: only people you add</option></NativeSelect.Field><NativeSelect.Indicator/></NativeSelect.Root>
+            <Text color="fg.muted" fontSize="sm">Open clubs appear in Discover and can be joined by anyone. Private clubs are only visible to their members. Changing this never shares library books.</Text>
         </Stack>
         <Button type="submit" minH="44px" alignSelf="start" colorPalette="orange" loading={state.isLoading} disabled={!name.trim()}>Save club details</Button>
         {saved && <Text role="status" color="fg.muted" fontSize="sm">Club details saved.</Text>}
@@ -99,7 +99,7 @@ function PeoplePanel({club, owner}: {club: BookClub; owner: boolean}) {
             catch { /* The mutation error is displayed below. */ }
         }}>
             <Heading size="md"><HStack><LuUserPlus/> Add someone to the club</HStack></Heading>
-            <Text color="fg.muted" fontSize="sm">Search for an existing account on this Homebranch. They will be added directly; no invitation email is sent.</Text>
+            <Text color="fg.muted" fontSize="sm">Search for an existing account. They will be added directly; no invitation email is sent.</Text>
             <label htmlFor="member-search">Name or email</label><Input id="member-search" value={query} minH="44px" disabled={adding.isLoading || !!members.error || members.isLoading} placeholder="Find someone you know" onChange={e => {setQuery(e.target.value); setSelected(null); setAdded(false);}}/>
             {selected ? <Text fontWeight="medium">Selected: {selected.name} ({selected.email})</Text>
                 : canSearch && debounced === query.trim() && (users.isFetching ? <Text role="status" color="fg.muted">Searching...</Text>

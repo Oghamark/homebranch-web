@@ -1,8 +1,11 @@
 import {LoginDto} from "@/features/authentication/dtos";
-import {authenticationAxiosInstance, axiosErrorHandler} from "@/features/authentication/api/axios";
+import {authenticationAxiosInstance} from "@/features/authentication/api/axios";
 import {replace} from "react-router";
+import {authFailure, validateAuthForm} from "./formFeedback";
 
 export async function login(formData: FormData) {
+    const validation = validateAuthForm(formData);
+    if (validation.fieldErrors) return validation;
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
 
@@ -21,7 +24,7 @@ export async function login(formData: FormData) {
                 }
                 return replace('/');
             }
-
+            return {error: "We couldn't sign you in. Check your details and try again."};
         })
-        .catch(axiosErrorHandler);
+        .catch(error => authFailure(error, "We couldn't sign you in. Please try again."));
 }

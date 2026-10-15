@@ -19,6 +19,11 @@ export function ReaderProgressBar({ percentage, colors }: ReaderProgressBarProps
                 h="3px"
                 bg={colors.uiBg}
                 zIndex={1002}
+                role="progressbar"
+                aria-label="Reading progress"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(percentage * 100)}
             >
                 <Box
                     h="100%"

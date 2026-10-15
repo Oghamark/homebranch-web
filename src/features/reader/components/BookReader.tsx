@@ -4,6 +4,7 @@ import {supportsBookFormatReading} from "@/entities/book/model/bookFormats";
 import {Reader} from "./Reader";
 import {PdfReader} from "./PdfReader";
 import {AudioReader} from "./AudioReader";
+import {Box} from "@chakra-ui/react";
 
 interface BookReaderProps {
     book: BookModel;
@@ -27,5 +28,7 @@ export function BookReader({book, format}: BookReaderProps) {
         return null;
     }
 
-    return <ReaderComponent book={book} format={format}/>;
+    return <Box fontFamily="system-ui, sans-serif" minH="100dvh">
+        <ReaderComponent book={book} format={format}/>
+    </Box>;
 }

@@ -21,6 +21,9 @@ export function ReaderLoadingState({ isLoading, error, colors }: ReaderLoadingSt
                 direction="column"
                 gap={3}
                 zIndex={1}
+                role="status"
+                aria-live="polite"
+                bg={colors.bg}
             >
                 <Spinner size="lg" color={colors.muted} />
                 <Text color={colors.muted} fontSize="sm">
@@ -40,11 +43,19 @@ export function ReaderLoadingState({ isLoading, error, colors }: ReaderLoadingSt
                 bottom={0}
                 align="center"
                 justify="center"
+                direction="column"
+                gap={3}
+                p={6}
                 zIndex={1}
+                bg={colors.bg}
+                color={colors.text}
+                role="alert"
             >
-                <Text color="red.500" fontSize="sm">
+                <Text fontFamily="Georgia, serif" fontSize="2xl">This book could not be opened</Text>
+                <Text fontSize="sm" maxW="48ch" textAlign="center">
                     {error}
                 </Text>
+                <Text fontSize="sm" maxW="48ch" textAlign="center">Close the reader to return to the book and try again.</Text>
             </Flex>
         );
     }

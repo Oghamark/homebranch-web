@@ -1,4 +1,4 @@
-import { Box, Flex, IconButton } from "@chakra-ui/react";
+import { Box, Button, Flex, IconButton } from "@chakra-ui/react";
 import { LuX, LuList, LuChevronLeft, LuChevronRight } from "react-icons/lu";
 import { useNavigate } from "react-router";
 import { useState } from "react";
@@ -61,22 +61,25 @@ export function ReaderControls({
     return (
         <>
             {/* Top-left: TOC */}
-            <IconButton
+            <Button
                 aria-label="Table of contents"
+                aria-haspopup="dialog"
+                aria-expanded={isTocOpen}
                 position="fixed"
                 top={2}
                 left={2}
                 zIndex={1001}
-                borderRadius="full"
-                size="sm"
+                borderRadius="lg"
+                minH="44px"
+                gap={2}
                 bg={colors.btnBg}
                 color={colors.text}
                 boxShadow="md"
                 _hover={{ bg: colors.btnHoverBg }}
                 onClick={() => setIsTocOpen(true)}
             >
-                <LuList />
-            </IconButton>
+                <LuList /> Contents
+            </Button>
 
             <ReaderToc
                 isOpen={isTocOpen}
@@ -104,8 +107,9 @@ export function ReaderControls({
                 top={2}
                 right={2}
                 zIndex={1001}
-                borderRadius="full"
-                size="sm"
+                borderRadius="lg"
+                minW="44px"
+                minH="44px"
                 bg={colors.btnBg}
                 color={colors.text}
                 boxShadow="md"
@@ -115,7 +119,7 @@ export function ReaderControls({
                 <LuX />
             </IconButton>
 
-            {/* Side navigation arrows — hidden on mobile */}
+            {/* Side navigation arrows, hidden on mobile */}
             {!isMobile && (
                 <>
                     <IconButton
@@ -127,6 +131,8 @@ export function ReaderControls({
                         zIndex={1001}
                         borderRadius="full"
                         size="md"
+                        minW="44px"
+                        minH="44px"
                         bg={colors.btnBg}
                         color={colors.text}
                         boxShadow="md"
@@ -146,6 +152,8 @@ export function ReaderControls({
                         zIndex={1001}
                         borderRadius="full"
                         size="md"
+                        minW="44px"
+                        minH="44px"
                         bg={colors.btnBg}
                         color={colors.text}
                         boxShadow="md"

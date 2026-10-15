@@ -216,7 +216,7 @@ export function AudioReader({ book, format }: AudioReaderProps) {
   return (
     <Box
       minH="100dvh"
-      bg="bg.canvas"
+      bg="bg"
       px={{ base: 4, md: 8 }}
       py={{ base: 4, md: 8 }}
     >
@@ -224,7 +224,7 @@ export function AudioReader({ book, format }: AudioReaderProps) {
         <Flex align="center" justify="space-between">
           <Button
             variant="ghost"
-            size="sm"
+            minH="44px"
             gap={2}
             px={2}
             color="fg.muted"
@@ -303,6 +303,8 @@ export function AudioReader({ book, format }: AudioReaderProps) {
                   : "Audiobook"}
               </Text>
               <Heading
+                as="h1"
+                fontFamily="heading"
                 size={{ base: "xl", md: "2xl" }}
                 lineHeight="1.15"
                 textWrap="balance"
@@ -335,8 +337,8 @@ export function AudioReader({ book, format }: AudioReaderProps) {
                 }}
                 style={{
                   width: "100%",
-                  height: 4,
-                  accentColor: "#319795",
+                  height: 44,
+                  accentColor: "var(--chakra-colors-orange-solid, #a34c12)",
                   cursor: duration ? "pointer" : "default",
                 }}
               />
@@ -350,7 +352,7 @@ export function AudioReader({ book, format }: AudioReaderProps) {
                 <Text>{formatTime(duration)}</Text>
               </Flex>
 
-              <HStack justify="center" gap={{ base: 4, md: 6 }} pt={2}>
+              <HStack justify="center" gap={{ base: 1, md: 4 }} pt={2} css={{"& button": {minWidth: "44px", minHeight: "44px"}}}>
                 {tracks.length > 1 && (
                   <IconButton
                     aria-label="Previous track"
@@ -376,7 +378,7 @@ export function AudioReader({ book, format }: AudioReaderProps) {
                   aria-label={isPlaying ? "Pause" : "Play"}
                   size="2xl"
                   borderRadius="full"
-                  colorPalette="teal"
+                  colorPalette="orange"
                   boxShadow="md"
                   onClick={togglePlayback}
                 >
@@ -436,10 +438,11 @@ export function AudioReader({ book, format }: AudioReaderProps) {
                       minH="44px"
                       px={3}
                       py={2}
-                      color={isCurrentTrack ? "teal.fg" : "fg.muted"}
-                      bg={isCurrentTrack ? "teal.subtle" : "transparent"}
+                      aria-current={isCurrentTrack ? "true" : undefined}
+                      color={isCurrentTrack ? "orange.fg" : "fg.muted"}
+                      bg={isCurrentTrack ? "orange.subtle" : "transparent"}
                       _hover={{
-                        bg: isCurrentTrack ? "teal.subtle" : "bg.muted",
+                        bg: isCurrentTrack ? "orange.subtle" : "bg.muted",
                       }}
                       onClick={() => selectTrack(index)}
                     >

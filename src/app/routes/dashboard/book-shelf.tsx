@@ -1,31 +1,14 @@
-import {useEffect, useMemo} from "react";
-import {Box, Heading, HStack, Loader, Stack} from "@chakra-ui/react";
-import {Navigate, useParams} from "react-router";
-import {
-    BookShelfOptionsMenu,
-    ManageBookShelfBooksButton,
-    useGetBookShelfBooksInfiniteQuery,
-    useGetBookShelfByIdQuery
-} from "@/entities/bookShelf";
-import {LibraryPage} from "@/pages/library";
+import {Stack, Text} from "@chakra-ui/react";
+import {useParams} from "react-router";
+import {BookShelfOptionsMenu, ManageBookShelfBooksButton, useGetBookShelfBooksInfiniteQuery, useGetBookShelfByIdQuery} from "@/entities/bookShelf";
+import {BookGridSkeletons, CollectionEmpty, LibraryPage} from "@/pages/library";
 import type {Route} from "./+types/book-shelf";
-import ToastFactory from "@/shared/lib/toast/toast";
-import {HiCollection} from "react-icons/hi";
-import {
-    LibraryDisplayOptions,
-    LibraryDisplayToggleButton,
-    setDisplayMode,
-    useLibraryDisplayMode,
-    useLibrarySearch
-} from "@/features/library";
-import {useMobileNav} from "@/components/navigation/MobileNavContext";
-import {useAppDispatch} from "@/app/hooks";
+import {CollectionToolbar, useLibraryDisplayMode, useLibrarySearch} from "@/features/library";
+import {useMobileNavConfig} from "@/components/navigation/MobileNavContext";
+import {ErrorState, LoadingState, PageHeader} from "@/shared/ui/EditorialUI";
 
 export function meta({}: Route.MetaArgs) {
-    return [
-        {title: "Homebranch - Book Shelf"},
-        {name: "description", content: "View books on a shelf"},
-    ];
+    return [{title: "Homebranch - Bookshelf"}, {name: "description", content: "View books on a shelf"}];
 }
 
 export default function BookShelf() {
@@ -34,92 +17,28 @@ export default function BookShelf() {
     return <BookShelfContent key={bookShelfId} bookShelfId={bookShelfId}/>;
 }
 
-function BookShelfContent({bookShelfId}: { bookShelfId: string }) {
-    const dispatch = useAppDispatch();
+function BookShelfContent({bookShelfId}: {bookShelfId: string}) {
     const displayMode = useLibraryDisplayMode();
-    const query = useLibrarySearch()
-    const {data, isLoading, hasNextPage, fetchNextPage} = useGetBookShelfBooksInfiniteQuery({
-        bookShelfId,
-        query
-    });
-    const {data: bookShelf, isLoading: isLoadingBookShelf} = useGetBookShelfByIdQuery(bookShelfId);
-    const {setTitle, setRightAction} = useMobileNav();
+    const query = useLibrarySearch();
+    const {currentData: data, isFetching, isError, refetch, hasNextPage, fetchNextPage, isFetchingNextPage} = useGetBookShelfBooksInfiniteQuery({bookShelfId, query});
+    const {data: shelf, isLoading: loadingShelf, isError: shelfError, refetch: retryShelf} = useGetBookShelfByIdQuery(bookShelfId);
+    useMobileNavConfig(shelf?.title ?? "Bookshelf");
+    const books = data?.pages.flatMap(page => page.data) ?? [];
+    const isFetchNextPageError = isError && books.length > 0;
 
-    useEffect(() => {
-        if (bookShelf) {
-            setTitle(bookShelf.title);
-            setRightAction(
-                <HStack gap={1}>
-                    <LibraryDisplayToggleButton
-                        displayMode={displayMode}
-                        onDisplayModeChange={(mode) => dispatch(setDisplayMode(mode))}
-                    />
-                    <ManageBookShelfBooksButton bookShelf={bookShelf}/>
-                    <BookShelfOptionsMenu bookShelfId={bookShelf.id} bookShelfTitle={bookShelf.title}/>
-                </HStack>
-            );
-        }
-        return () => {
-            setTitle(null);
-            setRightAction(null);
-        };
-    }, [bookShelf, displayMode, dispatch, setRightAction, setTitle]);
-
-    const books = useMemo(() => {
-        return data?.pages.flatMap(page => page.data) ?? []
-    }, [data])
-
-    const bookIds = useMemo(() => books.map(b => b.id), [books]);
-    const filteredBooks = useMemo(() => books.filter(book => book.title.toLowerCase().includes(query.toLowerCase())), [books, query])
-
-    if (isLoading || isLoadingBookShelf) {
-        return <Loader/>;
-    }
-
-    if (!bookShelf) {
-        ToastFactory({message: "Book Shelf Not Found", type: "error"})
-        return <Navigate to={`/`}/>
-    }
-
-    return (
-        <Stack justify={"space-evenly"} height={"100%"}>
-            <HStack display={{base: "none", md: "flex"}}>
-                <Heading>{bookShelf.title}</Heading>
-                <LibraryDisplayOptions
-                    displayMode={displayMode}
-                    onDisplayModeChange={(mode) => dispatch(setDisplayMode(mode))}
-                />
-                <ManageBookShelfBooksButton bookShelf={bookShelf}/>
-                <BookShelfOptionsMenu bookShelfId={bookShelf.id} bookShelfTitle={bookShelf.title}/>
-            </HStack>
-            {bookIds.length === 0 ? _noBooks() :
-                <Box flex={1}>
-                    <LibraryPage
-                        books={filteredBooks}
-                        fetchMore={fetchNextPage}
-                        hasMore={hasNextPage}
-                        displayMode={displayMode}
-                    />
-                </Box>
-            }
-        </Stack>
-    );
-}
-
-function _noBooks() {
-    return (
-        <Stack
-            flex={1}
-            alignItems={"center"}
-            justifyContent={"center"}
-            gap={1}
-        >
-            <Heading>This shelf is empty!</Heading>
-            <HStack gap={1}>
-                <Heading size={"md"}>Press</Heading>
-                <HiCollection/>
-                <Heading size={"md"}>to get started.</Heading>
-            </HStack>
-        </Stack>
-    )
+    if (loadingShelf) return <LoadingState label="Loading bookshelf..."/>;
+    if (shelfError || !shelf) return <ErrorState onRetry={retryShelf}>This shelf could not be loaded. It may have been removed or may be unavailable.</ErrorState>;
+    return <Stack gap={6}>
+        <PageHeader title={shelf.title} description="A collection arranged by you." actions={<>
+            <ManageBookShelfBooksButton bookShelf={shelf}/>
+            <BookShelfOptionsMenu bookShelfId={shelf.id} bookShelfTitle={shelf.title}/>
+        </>}/>
+        <Text color="fg.muted" fontSize="sm">Use Add books to manage membership. Removing a book from this shelf keeps it in your library.</Text>
+        <CollectionToolbar label="Search this shelf"/>
+        {isError && !isFetchNextPageError && <ErrorState onRetry={refetch}>The books on this shelf could not be loaded.</ErrorState>}
+        {isFetching && !data ? <BookGridSkeletons displayMode={displayMode}/>
+            : books.length ? <LibraryPage books={books} fetchMore={fetchNextPage} hasMore={!!hasNextPage}
+                totalBooks={data?.pages[0]?.total} displayMode={displayMode} loadingMore={isFetchingNextPage} loadMoreError={isFetchNextPageError}/>
+            : !isError && <CollectionEmpty title="This shelf is ready for books">Use Add books above to choose books from your library.</CollectionEmpty>}
+    </Stack>;
 }

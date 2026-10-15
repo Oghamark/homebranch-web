@@ -3,13 +3,15 @@ import {Box, Icon, Text, VStack} from "@chakra-ui/react";
 import {LuUpload} from "react-icons/lu";
 import {useBookUpload} from "@/entities/book/ui/useBookUpload";
 import {UploadProgressDialog} from "@/entities/book/ui/UploadProgressDialog";
+import {toaster} from "@/shared/ui/toaster";
 
 const ACCEPTED_EXTENSIONS = /\.(epub|pdf)$/i;
 
 export function DragDropOverlay() {
     const [isDragging, setIsDragging] = useState(false);
     const dragCounterRef = useRef(0);
-    const {uploadStatuses, isDialogOpen, isUploading, processFiles, closeDialog} = useBookUpload();
+    const {uploadStatuses, isDialogOpen, isUploading, processFiles, closeDialog, retryFailed} = useBookUpload();
+    const collecting = useRef(false);
 
     const handleDragEnter = useCallback((e: DragEvent) => {
         if (!e.dataTransfer?.types.includes("Files")) return;
@@ -38,10 +40,16 @@ export function DragDropOverlay() {
         e.preventDefault();
         dragCounterRef.current = 0;
         setIsDragging(false);
+        if (isUploading || collecting.current) {
+            toaster.create({type: "info", title: "Wait for the current upload to finish before dropping more files."});
+            return;
+        }
+        collecting.current = true;
 
         const items = e.dataTransfer?.items;
         const files: File[] = [];
 
+        try {
         if (items) {
             for (const item of Array.from(items)) {
                 if (item.kind === "file") {
@@ -66,8 +74,15 @@ export function DragDropOverlay() {
 
         if (files.length > 0) {
             await processFiles(files);
+        } else {
+            toaster.create({type: "info", title: "Drop EPUB or PDF files. Use Add books to upload MP3 or M4B audiobooks."});
         }
-    }, [processFiles]);
+        } catch {
+            toaster.create({type: "error", title: "This directory could not be read. Try selecting it with Add books."});
+        } finally {
+            collecting.current = false;
+        }
+    }, [isUploading, processFiles]);
 
     useEffect(() => {
         document.addEventListener("dragenter", handleDragEnter);
@@ -89,9 +104,11 @@ export function DragDropOverlay() {
                 isOpen={isDialogOpen}
                 isUploading={isUploading}
                 onClose={closeDialog}
+                onRetryFailed={retryFailed}
             />
             {isDragging && (
                 <Box
+                    role="status"
                     position="fixed"
                     inset={0}
                     zIndex="overlay"
@@ -108,15 +125,17 @@ export function DragDropOverlay() {
                         borderStyle="dashed"
                         borderColor="colorPalette.500"
                         borderRadius="2xl"
-                        p={16}
-                        colorPalette="blue"
+                        p={{base: 6, md: 16}}
+                        mx={4}
+                        textAlign="center"
+                        colorPalette="orange"
                     >
                         <Icon as={LuUpload} boxSize={12} color="colorPalette.500"/>
                         <Text fontSize="2xl" fontWeight="bold" color="colorPalette.500">
                             Drop to upload
                         </Text>
                         <Text fontSize="md" color="fg.muted">
-                            EPUB and PDF files are supported
+                            EPUB and PDF files are supported. For audiobooks, choose Add books.
                         </Text>
                     </VStack>
                 </Box>
@@ -130,9 +149,12 @@ async function collectFilesFromDirectory(
     files: File[],
 ): Promise<void> {
     const reader = dirEntry.createReader();
-    const entries = await new Promise<FileSystemEntry[]>((resolve, reject) => {
-        reader.readEntries(resolve, reject);
-    });
+    const entries: FileSystemEntry[] = [];
+    let batch: FileSystemEntry[];
+    do {
+        batch = await new Promise<FileSystemEntry[]>((resolve, reject) => reader.readEntries(resolve, reject));
+        entries.push(...batch);
+    } while (batch.length);
 
     for (const entry of entries) {
         if (entry.isDirectory) {

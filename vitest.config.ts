@@ -6,6 +6,6 @@ export default defineConfig({
     test: {
         environment: "jsdom",
         setupFiles: ["./src/test/setup.ts"],
-        include: ["src/pages/bookClub/**/*.test.{ts,tsx}"],
+        include: ["src/**/*.test.{ts,tsx}"],
     },
 });

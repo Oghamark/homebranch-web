@@ -3,6 +3,7 @@ import {Badge, Box, Button, Flex, Heading, HStack, Stack, Text} from "@chakra-ui
 import {Link, NavLink, useNavigate} from "react-router";
 import {LuArrowLeft, LuBookOpen, LuMessagesSquare, LuSettings2, LuListChecks} from "react-icons/lu";
 import {type BookClub, useGetBookClubQuery, useJoinBookClubMutation, useRemoveBookClubMemberMutation} from "@/entities/bookClub";
+import {config} from "@/shared/config";
 import {BookJacket, clubPalette, ClubLoading, ConfirmAction, ErrorState} from "./ClubUI";
 
 export function ClubShell({clubId, children}: {clubId: string; children: (club: BookClub) => ReactNode}) {
@@ -37,7 +38,8 @@ export function ClubShell({clubId, children}: {clubId: string; children: (club: 
         </Flex>
         <Flex gap={{base: 4, md: 6}} align="center" p={{base: 5, md: 8}} borderRadius="2xl" borderWidth="1px"
             bg={{base: "orange.50", _dark: "orange.950/30"}} borderColor={{base: "orange.200", _dark: "orange.900"}}>
-            <Box display={{base: "none", sm: "block"}}><BookJacket title={club.selectedWork.title} author={club.selectedWork.author}/></Box>
+            <Box display={{base: "none", sm: "block"}}><BookJacket title={club.selectedWork.title} author={club.selectedWork.author}
+                coverSrc={club.selectedWork.coverImageFileName ? `${config.apiUrl}/uploads/cover-images/${encodeURIComponent(club.selectedWork.coverImageFileName)}` : undefined}/></Box>
             <Stack gap={3} minW={0}>
                 <HStack wrap="wrap"><Badge variant="subtle" colorPalette="orange">{archived ? "Archived club" : "Reading together"}</Badge>
                     {club.visibility === "private" && <Badge variant="outline">Private</Badge>}</HStack>
@@ -58,7 +60,7 @@ export function ClubShell({clubId, children}: {clubId: string; children: (club: 
         </> : <Stack align="start" gap={4} p={{base: 5, md: 7}} borderWidth="1px" borderRadius="xl">
             <Heading size="xl" fontFamily="Georgia, serif">A good book is better together.</Heading>
             <Text color="fg.muted">Join to take part in conversations and follow the reading plan. You can choose your own reading copy later.</Text>
-            <Text fontSize="sm" color="fg.muted">Open to people on this Homebranch. Joining does not give anyone access to your library.</Text>
+            <Text fontSize="sm" color="fg.muted">Open to everyone. Joining does not give anyone access to your library.</Text>
             {!archived && club.visibility === "instance_visible" && <Button colorPalette="orange" minH="44px" loading={joining.isLoading} onClick={() => join(club.id)}>Join club</Button>}
             {joining.error && <ErrorState onRetry={() => join(club.id)}>We couldn't join this club. Please try again.</ErrorState>}
         </Stack>}

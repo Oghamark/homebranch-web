@@ -1,101 +1,35 @@
-import {BookGridSkeletons, LibraryPage} from "@/pages/library";
+import {BookGridSkeletons, CollectionEmpty, LibraryPage} from "@/pages/library";
 import type {Route} from "./+types/library";
-import {useMemo} from "react";
-import {Flex, Heading, Stack} from "@chakra-ui/react";
-import {useGetBooksInfiniteQuery} from "@/entities/book";
-import {
-    LibraryDisplayOptions,
-    LibraryDisplayToggleButton,
-    setDisplayMode,
-    useLibraryDisplayMode,
-    useLibrarySearch,
-    useShowAllUsers,
-    ShowAllUsersButton
-} from "@/features/library";
-import {LuLibrary} from "react-icons/lu";
-import {useMobileNavConfig, useMobileNavUserToggle} from "@/components/navigation/MobileNavContext";
-import {useAppDispatch} from "@/app/hooks";
+import {Stack} from "@chakra-ui/react";
+import {AddBookButton, useGetBooksInfiniteQuery} from "@/entities/book";
+import {CollectionToolbar, useLibraryDisplayMode, useLibrarySearch, useShowAllUsers} from "@/features/library";
+import {useMobileNavConfig} from "@/components/navigation/MobileNavContext";
+import {ErrorState, PageHeader} from "@/shared/ui/EditorialUI";
 
 export function meta({}: Route.MetaArgs) {
-    return [
-        {title: "Homebranch - Library"},
-        {name: "description", content: "Welcome to React Router!"},
-    ];
+    return [{title: "Homebranch - Library"}, {name: "description", content: "Browse and search your books"}];
 }
 
 export default function Library() {
-    useMobileNavUserToggle();
-    const dispatch = useAppDispatch();
+    useMobileNavConfig("Library");
     const query = useLibrarySearch();
     const showAllUsers = useShowAllUsers();
     const displayMode = useLibraryDisplayMode();
-    const mobileNavRightAction = useMemo(() => (
-        <LibraryDisplayToggleButton
-            displayMode={displayMode}
-            onDisplayModeChange={(mode) => dispatch(setDisplayMode(mode))}
-        />
-    ), [displayMode, dispatch]);
-
-    useMobileNavConfig(
-        "Library",
-        mobileNavRightAction
-    );
     const userId = showAllUsers ? undefined : (sessionStorage.getItem("user_id") ?? undefined);
-    const {data, hasNextPage, fetchNextPage, isLoading} = useGetBooksInfiniteQuery({query, userId});
+    const {currentData: data, hasNextPage, fetchNextPage, isFetching, isError, refetch, isFetchingNextPage} = useGetBooksInfiniteQuery({query, userId});
+    const books = data?.pages.flatMap(page => page.data) ?? [];
+    const isFetchNextPageError = isError && books.length > 0;
 
-    const books = useMemo(() => {
-        return data?.pages.flatMap(page => page.data) ?? [];
-    }, [data]);
-
-    const isEmpty = !isLoading && books.length === 0;
-
-    return (
-        <Stack gap={4} height="100%">
-            <Flex align="center" gap={3} display={{base: "none", md: "flex"}} justify="space-between">
-                <Flex align="center" gap={3}>
-                    <LuLibrary size={24}/>
-                    <Heading size="2xl">Library</Heading>
-                </Flex>
-                <Flex align="center" gap={2}>
-                    <LibraryDisplayOptions
-                        displayMode={displayMode}
-                        onDisplayModeChange={(mode) => dispatch(setDisplayMode(mode))}
-                    />
-                    <ShowAllUsersButton showLabel/>
-                </Flex>
-            </Flex>
-            {isLoading
-                ? <BookGridSkeletons displayMode={displayMode}/>
-                : isEmpty
-                    ? <NoBooksMessage showAllUsers={showAllUsers}/>
-                    : <LibraryPage
-                        books={books}
-                        fetchMore={fetchNextPage}
-                        hasMore={hasNextPage}
-                        totalBooks={data?.pages[0]?.total}
-                        displayMode={displayMode}
-                    />
-            }
-        </Stack>
-    );
-}
-
-function NoBooksMessage({showAllUsers}: { showAllUsers: boolean }) {
-    const query = useLibrarySearch();
-    const hasQuery = !!query;
-
-    if (hasQuery) {
-        return (
-            <Stack flex={1} alignItems={"center"} justifyContent={"center"} gap={4}>
-                <Heading>No books match your search.</Heading>
-                <Heading size="md" color="fg.muted">Try a different title, author, or a keyword like isbn:9780...</Heading>
-            </Stack>
-        );
-    }
-    return (
-        <Stack flex={1} alignItems={"center"} justifyContent={"center"} gap={4}>
-            <Heading>{showAllUsers ? "No books have been added yet." : "You don't have any books in your library!"}</Heading>
-            {!showAllUsers && <Heading size="md" color="fg.muted">Add some books, or switch to All Libraries to browse everyone{"'"}s collection.</Heading>}
-        </Stack>
-    );
+    return <Stack gap={6}>
+        <PageHeader title="Library" description="Find your next read or return to an old favorite."
+            actions={<AddBookButton variant="solid" colorPalette="orange" width="auto" size="md"/>}/>
+        <CollectionToolbar label="Search library" scope/>
+        {isError && !isFetchNextPageError && <ErrorState onRetry={refetch}>Your library could not be loaded. Your books have not been changed.</ErrorState>}
+        {isFetching && !data ? <BookGridSkeletons displayMode={displayMode}/>
+            : books.length ? <LibraryPage books={books} fetchMore={fetchNextPage} hasMore={!!hasNextPage}
+                totalBooks={data?.pages[0]?.total} displayMode={displayMode} loadingMore={isFetchingNextPage} loadMoreError={isFetchNextPageError}/>
+            : !isError && <CollectionEmpty title={showAllUsers ? "No books have been added yet" : "Your library is ready for its first book"}>
+                Use Add books above to upload your books.
+            </CollectionEmpty>}
+    </Stack>;
 }

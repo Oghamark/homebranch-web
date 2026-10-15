@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Box, Spinner, useMediaQuery } from "@chakra-ui/react";
 import { LuChevronLeft, LuChevronRight } from "react-icons/lu";
 import { useAppSelector } from "@/app/hooks";
-import { getThemeColors } from "../types/ReaderTheme";
+import {getReaderControlColors} from "./ReaderUI";
 import type { BookModel } from "@/entities/book/model/BookModel";
 import type {BookFormatType} from "@/entities/book/model/bookFormats";
 import { useDeviceName } from "../hooks/useDeviceName";
@@ -26,7 +26,7 @@ interface ReaderProps {
 export function Reader({ book, format }: ReaderProps) {
     const deviceName = useDeviceName();
     const themeState = useAppSelector((state) => state.readerTheme);
-    const colors = getThemeColors(themeState.mode);
+    const colors = getReaderControlColors(themeState.mode);
     const [isMobile] = useMediaQuery(["(max-width: 768px)"]);
     const [showKeyboardHint, setShowKeyboardHint] = useState(() => {
         if (typeof window === "undefined") return false;
@@ -44,7 +44,7 @@ export function Reader({ book, format }: ReaderProps) {
        as EPUB-internal paths rather than full server URLs. */
     const resourceBaseRef = useRef<string | undefined>(undefined);
 
-    /* Rapid-swipe detection for EPUB — tracks consecutive positionChanged events.
+    /* Rapid-swipe detection for EPUB: tracks consecutive positionChanged events.
        Three or more page turns within 800 ms → save origin for jump-back immediately. */
     const prevLocatorJsonRef = useRef<string | null>(null);
     const navigatorRefForRapidNav = useRef<typeof navigatorRef.current>(null);
@@ -149,7 +149,7 @@ export function Reader({ book, format }: ReaderProps) {
                 zIndex={1000}
                 display="flex"
                 justifyContent="center"
-                pt="48px"
+                pt="60px"
                 pb="28px"
             >
                 <ReaderLoadingState isLoading={isLoading} error={loadError} colors={colors} />

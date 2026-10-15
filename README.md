@@ -53,12 +53,40 @@ It provides a user-friendly interface to organize, search, and read your ebooks 
 
 ---
 
+## Finding your next read
+
+The library, favorites, continue-reading list, authors, and shelves share the same
+page structure and collection controls. Search lives with the collection you are
+viewing, and its URL preserves your query when you refresh or use browser back.
+The existing keyword prefixes and grid/table preferences remain available.
+Library scope controls appear only where your account can use them.
+
+Book details prioritize reading and listening. Organization and downloads remain
+close at hand, while metadata, covers, linked formats, and destructive maintenance
+actions have their own clearly named controls. Uploads retain directory selection
+and audiobook-track grouping.
+
+Personal settings are separate from administrator integrations and library tools.
+Reader and player controls follow the same visual language without changing
+reading themes, typography preferences, saved positions, or playback behavior.
+
+Shared presentation components live in `src/shared/ui/EditorialUI.tsx`, with
+theme tokens in `src/shared/ui/theme.ts`. Keep reader-document styling separate
+from application surfaces. Mutation dialogs should reject or return `false` on
+failure so confirmations stay open and display recovery feedback.
+
+---
+
 ## Reading together
 
 Open **Book Clubs** to visit **My clubs**, discover clubs open to people on your
 Homebranch, or revisit archived clubs. Create a club using a book from your own
 uploaded library. Private clubs are only visible to people an organizer adds;
 adding a person does not send an invitation email.
+
+Club cards and headers display real covers from matching books available to you,
+including linked formats. Missing or unavailable artwork uses a simple jacket
+fallback. Cover lookup stays local and respects Cloud library ownership.
 
 Each club has a **Home**, **Reading plan**, and **Discussions**. Choosing your
 reading copy is optional for conversations, but required to track club progress.
@@ -73,7 +101,8 @@ or changing your reading copy requires confirmation before associated club
 progress is cleared. Archived clubs remain read-only and cannot be reopened.
 
 For frontend checks, run `npm run typecheck`, `npm test`, and `npm run build`.
-The scoped component tests cover the club flows without requiring live accounts.
+Component tests cover shared interactions and application flows, including book
+clubs, without requiring live accounts.
 
 ---
 
