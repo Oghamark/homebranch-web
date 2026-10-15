@@ -78,7 +78,7 @@ export const bookClubsApi = homebranchApi.injectEndpoints({
         }),
         moderateDiscussionThread: build.mutation<void, {clubId: string; threadId: string; action: ModerationAction}>({
             query: ({clubId, threadId, action}) => ({url: `/book-clubs/${encodeURIComponent(clubId)}/discussions/${encodeURIComponent(threadId)}/moderation/${action}`, method: "POST"}),
-            invalidatesTags: (_result, _error, {clubId, threadId}) => [{type: "BookClub", id: `${clubId}:discussions`}, {type: "BookClub", id: `${clubId}:thread:${threadId}`}, {type: "BookClub", id: `${clubId}:replies`}, {type: "BookClub", id: `${clubId}:recovery`}],
+            invalidatesTags: (_result, _error, {clubId, threadId}) => [{type: "BookClub", id: `${clubId}:discussions`}, {type: "BookClub", id: `${clubId}:thread:${threadId}`}, {type: "BookClub", id: `${clubId}:replies`}, {type: "BookClub", id: `${clubId}:recovery`}, {type: "BookClub", id: `${clubId}:audit`}],
         }),
         moderateDiscussionReply: build.mutation<void, {clubId: string; threadId?: string; replyId: string; action: Extract<ModerationAction, "hide" | "restore" | "delete">}>({
             query: ({clubId, replyId, action}) => ({url: `/book-clubs/${encodeURIComponent(clubId)}/discussion-replies/${encodeURIComponent(replyId)}/moderation/${action}`, method: "POST"}),
@@ -87,13 +87,17 @@ export const bookClubsApi = homebranchApi.injectEndpoints({
                 ...(threadId ? [{type: "BookClub" as const, id: `${clubId}:thread:${threadId}`}] : []),
                 {type: "BookClub", id: `${clubId}:replies`},
                 {type: "BookClub", id: `${clubId}:recovery`},
+                {type: "BookClub", id: `${clubId}:audit`},
             ],
         }),
         getDiscussionRecoveryTargets: build.query<DiscussionRecoveryTarget[], string>({
             query: (clubId) => ({url: `/book-clubs/${encodeURIComponent(clubId)}/discussion-recovery-targets`}),
             providesTags: (_result, _error, clubId) => [{type: "BookClub", id: `${clubId}:recovery`}],
         }),
-        getDiscussionAudit: build.query<ModerationAuditEntry[], string>({ query: (clubId) => ({url: `/book-clubs/${encodeURIComponent(clubId)}/discussion-audit`}) }),
+        getDiscussionAudit: build.query<ModerationAuditEntry[], string>({
+            query: (clubId) => ({url: `/book-clubs/${encodeURIComponent(clubId)}/discussion-audit`}),
+            providesTags: (_result, _error, clubId) => [{type: "BookClub", id: `${clubId}:audit`}],
+        }),
     }),
 });
 
