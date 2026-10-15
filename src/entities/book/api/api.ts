@@ -166,8 +166,9 @@ export const booksApi = homebranchApi.injectEndpoints({
             providesTags: (result) =>
                 result ? result.map(({id}) => ({type: 'Book' as const, id})) : []
         }),
-        searchBooks: build.query<BookModel[], string>({
-            query: (query) => {
+        searchBooks: build.query<BookModel[], string | {query: string; userId?: string}>({
+            query: (search) => {
+                const {query, userId} = typeof search === "string" ? {query: search} : search;
                 const keywords = parseSearchKeywords(query);
                 const params = new URLSearchParams();
                 if (keywords.query) params.set('query', keywords.query);
@@ -175,6 +176,7 @@ export const booksApi = homebranchApi.injectEndpoints({
                 if (keywords.genre) params.set('genre', keywords.genre);
                 if (keywords.series) params.set('series', keywords.series);
                 if (keywords.author) params.set('author', keywords.author);
+                if (userId) params.set('userId', userId);
                 params.set('limit', '20');
                 params.set('offset', '0');
                 return {url: `/books?${params.toString()}`};
