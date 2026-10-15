@@ -15,6 +15,7 @@ export {
     useGetBookByIdQuery,
     useGetBooksByIdsQuery,
     useSearchBooksQuery,
+    useSearchMyBooksQuery,
     useCreateBookMutation,
     useCreateAudiobookMutation,
     usePreviewAudiobookMutation,
