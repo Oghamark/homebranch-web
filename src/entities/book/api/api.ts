@@ -187,6 +187,14 @@ export const booksApi = homebranchApi.injectEndpoints({
                     ? [...result.map(({id}) => ({type: 'Book' as const, id})), {type: 'Book', id: 'LIST'}]
                     : [{type: 'Book', id: 'LIST'}]
         }),
+        searchMyBooks: build.query<BookModel[], string>({
+            query: (query) => ({url: `/books/mine?${new URLSearchParams({query}).toString()}`}),
+            transformResponse: (response: PaginationResult<BookModel[]>) => response.data,
+            providesTags: (result) =>
+                result
+                    ? [...result.map(({id}) => ({type: 'Book' as const, id})), {type: 'Book', id: 'LIST'}]
+                    : [{type: 'Book', id: 'LIST'}]
+        }),
         deleteBook: build.mutation<BookModel, string>({
             query: (id: string) => ({url: `/books/${id}`, method: 'DELETE'}),
             invalidatesTags: [{type: 'Book', id: 'LIST'}],
@@ -348,6 +356,7 @@ export const {
     useGetBookByIdQuery,
     useGetBooksByIdsQuery,
     useSearchBooksQuery,
+    useSearchMyBooksQuery,
     useCreateBookMutation,
     useCreateAudiobookMutation,
     usePreviewAudiobookMutation,

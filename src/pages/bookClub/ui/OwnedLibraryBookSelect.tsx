@@ -1,7 +1,7 @@
 import {useMemo, useState} from "react";
 import {createListCollection, Input, Portal, Select, Spinner, Stack, Text} from "@chakra-ui/react";
 import {useDebounce} from "@uidotdev/usehooks";
-import {type BookModel, useSearchBooksQuery} from "@/entities/book";
+import {type BookModel, useSearchMyBooksQuery} from "@/entities/book";
 
 type OwnedLibraryBookSelectProps = {
     id: string;
@@ -13,13 +13,9 @@ type OwnedLibraryBookSelectProps = {
 
 export function OwnedLibraryBookSelect({id, label, selectedBookId, onSelect, disabled = false}: OwnedLibraryBookSelectProps) {
     const [query, setQuery] = useState("");
-    const currentUserId = sessionStorage.getItem("user_id") ?? undefined;
     const debouncedQuery = useDebounce(query, 250);
-    const canSearch = Boolean(currentUserId && debouncedQuery.trim().length >= 2);
-    const {data: books = [], isFetching, error} = useSearchBooksQuery(
-        {query: debouncedQuery, userId: currentUserId},
-        {skip: !canSearch},
-    );
+    const canSearch = debouncedQuery.trim().length >= 2;
+    const {data: books = [], isFetching, error} = useSearchMyBooksQuery(debouncedQuery, {skip: !canSearch});
     const collection = useMemo(() => createListCollection({
         items: books,
         itemToValue: (book) => book.id,
@@ -32,14 +28,13 @@ export function OwnedLibraryBookSelect({id, label, selectedBookId, onSelect, dis
             id={`${id}-search`}
             placeholder="Search your library by title or author"
             value={query}
-            disabled={disabled || !currentUserId}
+            disabled={disabled}
             onChange={(event) => {
                 setQuery(event.target.value);
                 onSelect(null);
             }}
         />
-        {!currentUserId ? <Text role="alert" color="fg.error" fontSize="sm">Your account session is unavailable, so your library cannot be searched.</Text>
-            : debouncedQuery.trim().length < 2 ? <Text color="fg.muted" fontSize="sm">Enter at least 2 characters to search your library.</Text>
+        {debouncedQuery.trim().length < 2 ? <Text color="fg.muted" fontSize="sm">Enter at least 2 characters to search your library.</Text>
                 : isFetching ? <Spinner size="sm"/>
                     : error ? <Text role="alert" color="fg.error" fontSize="sm">Your library could not be searched. Try again.</Text>
                         : <Select.Root
