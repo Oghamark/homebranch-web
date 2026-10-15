@@ -1,5 +1,5 @@
 import {homebranchApi} from "@/shared/api/rtk-query";
-import type {CreateUserRequest, UpdateUserRoleRequest, UserModel} from "@/entities/user";
+import type {CreateUserRequest, UpdateUserRoleRequest, UserModel, UserSearchResult} from "@/entities/user";
 import {authAxiosInstance} from "@/shared/api";
 import type {FetchBaseQueryError} from "@reduxjs/toolkit/query";
 import type {Result} from "@/shared";
@@ -26,6 +26,27 @@ export const usersApi = homebranchApi.injectEndpoints({
                 result
                     ? [...result.map(({id}) => ({type: 'User' as const, id})), {type: 'User', id: 'LIST'}]
                     : [{type: 'User', id: 'LIST'}]
+        }),
+        searchUsers: build.query<UserSearchResult[], string>({
+            queryFn: async (query) => {
+                const trimmedQuery = query.trim();
+                if (trimmedQuery.length < 2) return {data: []};
+                try {
+                    const response = await authAxiosInstance.get<Result<UserSearchResult[]>>('/users/search', {
+                        params: {query: trimmedQuery}
+                    });
+                    if (!response.data.success || !response.data.value) {
+                        return {error: {status: 'PARSING_ERROR', data: response.data.message ?? 'Invalid response'} as FetchBaseQueryError};
+                    }
+                    return {data: response.data.value};
+                } catch (error: unknown) {
+                    const axiosError = error as {response?: {status: number; data?: {message?: string}}};
+                    if (axiosError.response) {
+                        return {error: {status: axiosError.response.status, data: axiosError.response.data?.message ?? 'Error'} as FetchBaseQueryError};
+                    }
+                    return {error: {status: 'FETCH_ERROR', error: 'Network error'} as FetchBaseQueryError};
+                }
+            }
         }),
         getUserById: build.query<UserModel, string>({
             queryFn: async (userId) => {
@@ -101,6 +122,7 @@ export const usersApi = homebranchApi.injectEndpoints({
 
 export const {
     useGetUsersQuery,
+    useSearchUsersQuery,
     useGetUserByIdQuery,
     useUpdateUserRoleMutation,
     useCreateUserMutation,
