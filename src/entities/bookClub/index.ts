@@ -12,6 +12,7 @@ export {
     useModerateDiscussionThreadMutation,
     useModerateDiscussionReplyMutation,
     useGetDiscussionAuditQuery,
+    useGetDiscussionRecoveryTargetsQuery,
 } from "./api/api";
 
 export type {
@@ -21,4 +22,5 @@ export type {
     DiscussionThread,
     ModerationAction,
     ModerationAuditEntry,
+    DiscussionRecoveryTarget,
 } from "./api/api";
