@@ -8,8 +8,8 @@ export function AuthLayout({title, description, children}: {title: string; descr
     const logoSrc = colorMode === "dark" ? "/Logo%202-Color%20For%20Dark.svg" : "/Logo%202-Color%20For%20Light.svg";
     return <Box as="main" minH="100dvh" display="flex" alignItems="center" justifyContent="center" px={{base: 4, md: 8}} py={{base: 8, md: 12}}>
         <Stack w="full" maxW="460px" gap={6}>
-            <Stack gap={3} align="start">
-                <img src={logoSrc} alt="HomeBranch" style={{height: "72px", maxWidth: "100%"}}/>
+            <Stack gap={3} align="center">
+                <img src={logoSrc} alt="HomeBranch" style={{width: "60%", maxWidth: "100%"}}/>
                 <Text color="fg.muted" fontSize="sm">Your personal library</Text>
             </Stack>
             <Stack bg="bg.panel" borderWidth="1px" borderRadius="xl" p={{base: 5, md: 8}} gap={6}>
