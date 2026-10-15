@@ -1,6 +1,6 @@
 import {AddBookButton} from "@/entities/book";
 import {Box, Button, For, Separator, Spinner, Stack, Tabs, Text} from "@chakra-ui/react";
-import {LuBookOpen, LuFolderSync, LuHeart, LuLibrary, LuLogOut, LuSettings, LuUser, LuUsers} from "react-icons/lu";
+import {LuBookOpen, LuFolderSync, LuHeart, LuLibrary, LuLogOut, LuMessagesSquare, LuSettings, LuUser, LuUsers} from "react-icons/lu";
 import {Link, useFetcher, useLocation} from "react-router";
 import {BookShelfNavigationSection} from "@/entities/bookShelf";
 import {SearchLibrary} from "@/features/library";
@@ -17,6 +17,7 @@ const links: { to: string; label: string; icon: IconType }[] = [
     {to: "/currently-reading", label: "Currently Reading", icon: LuBookOpen},
     {to: "/favorites", label: "Favorites", icon: LuHeart},
     {to: "/authors", label: "Authors", icon: LuUser},
+    {to: "/book-clubs", label: "Book Clubs", icon: LuMessagesSquare},
 ];
 
 export function NavigationContent({onNavigate}: NavigationContentProps) {

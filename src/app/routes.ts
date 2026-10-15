@@ -9,6 +9,8 @@ export default [
         route("favorites", "routes/dashboard/favorites.tsx"),
         route("authors", "routes/dashboard/authors.tsx"),
         route("authors/:authorName", "routes/dashboard/author.tsx"),
+        route("book-clubs", "routes/dashboard/book-clubs.tsx"),
+        route("book-clubs/:clubId/discussions", "routes/dashboard/book-club-discussions.tsx"),
         index("routes/dashboard/library.tsx"),
         route("settings", "routes/dashboard/settings.tsx"),
         route("library-management", "routes/dashboard/library-management.tsx"),
