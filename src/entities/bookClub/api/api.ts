@@ -1,4 +1,5 @@
 import {homebranchApi} from "@/shared/api/rtk-query";
+import type {BaseQueryApi} from "@reduxjs/toolkit/query";
 
 export type BookClubRole = "owner" | "moderator" | "member";
 export type BookClubVisibility = "private" | "instance_visible";
@@ -20,10 +21,26 @@ export interface ModerationAuditEntry { id: string; clubId: string; actorUserId:
 export interface DiscussionRecoveryTarget { id: string; type: "thread" | "reply"; hidden: boolean; deleted: boolean; }
 
 const clubTag = (id: string) => ({type: "BookClub" as const, id});
-const detailTags = (clubId: string) => [clubTag(clubId), clubTag(`club:${clubId}`)];
-const memberTags = (clubId: string) => [...detailTags(clubId), clubTag(`roster:${clubId}`)];
+const detailTags = (clubId: string) => [clubTag(clubId), clubTag(`club:${clubId}`), clubTag(`roster:${clubId}`), clubTag(`schedule:${clubId}`), clubTag(`${clubId}:discussions`), clubTag(`${clubId}:replies`), clubTag(`${clubId}:recovery`), clubTag(`${clubId}:audit`)];
+const memberTags = (clubId: string) => [...detailTags(clubId), clubTag(`roster:${clubId}`), {type: "User" as const, id: "LIST"}];
 const scheduleTags = (clubId: string) => [...detailTags(clubId), clubTag(`schedule:${clubId}`)];
 const copyTags = (clubId: string, workId: string) => [...scheduleTags(clubId), clubTag(`copy:${clubId}:${workId}`), clubTag(`matches:${clubId}:${workId}`)];
+
+function clearDiscussionBodies({clubId}: {clubId: string}, {dispatch, getState}: Pick<BaseQueryApi, "dispatch" | "getState">): void {
+ const state = getState() as Parameters<typeof bookClubsApi.util.selectCachedArgsForQuery>[0];
+ for (const args of bookClubsApi.util.selectCachedArgsForQuery(state, "getDiscussionThread")) {
+  if (args.clubId === clubId) dispatch(bookClubsApi.util.updateQueryData("getDiscussionThread", args, draft => {delete draft.body;}));
+ }
+ for (const args of bookClubsApi.util.selectCachedArgsForQuery(state, "getDiscussionReply")) {
+  if (args.clubId === clubId) dispatch(bookClubsApi.util.updateQueryData("getDiscussionReply", args, draft => {delete draft.body;}));
+ }
+ for (const args of bookClubsApi.util.selectCachedArgsForQuery(state, "getDiscussionThreads")) {
+  if (args.clubId === clubId) dispatch(bookClubsApi.util.updateQueryData("getDiscussionThreads", args, draft => {for (const row of draft) delete row.body;}));
+ }
+ for (const args of bookClubsApi.util.selectCachedArgsForQuery(state, "getDiscussionReplies")) {
+  if (args.clubId === clubId) dispatch(bookClubsApi.util.updateQueryData("getDiscussionReplies", args, draft => {for (const row of draft) delete row.body;}));
+ }
+}
 
 export const bookClubsApi = homebranchApi.injectEndpoints({
  endpoints: (build) => ({
@@ -42,6 +59,7 @@ export const bookClubsApi = homebranchApi.injectEndpoints({
   transferBookClubOwnership: build.mutation<BookClub, {clubId: string; newOwnerUserId: string}>({query: ({clubId, newOwnerUserId}) => ({url: `/book-clubs/${encodeURIComponent(clubId)}/transfer-ownership`, method: "POST", body: {newOwnerUserId}}), invalidatesTags: (_r, _e, {clubId}) => memberTags(clubId)}),
   getBookClubSchedule: build.query<BookClubSchedule, string>({query: (clubId) => ({url: `/book-clubs/${encodeURIComponent(clubId)}/schedule`}), providesTags: (_r, _e, clubId) => [clubTag(`schedule:${clubId}`), clubTag(`club:${clubId}`)]}),
   updateBookClubSchedule: build.mutation<BookClubSchedule, {clubId: string; startDate?: string | null; completionDate?: string | null; milestones?: Array<{name: string; kind: MilestoneKind; position: number}>}>({query: ({clubId, ...body}) => ({url: `/book-clubs/${encodeURIComponent(clubId)}/schedule`, method: "PUT", body}), invalidatesTags: (_r, _e, {clubId}) => scheduleTags(clubId)}),
+  patchBookClubSchedule: build.mutation<BookClubSchedule, {clubId: string; startDate?: string | null; completionDate?: string | null; milestones?: Array<{id?: string; name: string; kind: MilestoneKind; position: number}>}>({query: ({clubId, ...body}) => ({url: `/book-clubs/${encodeURIComponent(clubId)}/schedule`, method: "PATCH", body}), invalidatesTags: (_r, _e, {clubId}) => scheduleTags(clubId)}),
   setProgressSharing: build.mutation<void, {clubId: string; enabled: boolean}>({query: ({clubId, enabled}) => ({url: `/book-clubs/${encodeURIComponent(clubId)}/progress-sharing`, method: "PUT", body: {enabled}}), invalidatesTags: (_r, _e, {clubId}) => scheduleTags(clubId)}),
   setMilestoneMapping: build.mutation<void, {clubId: string; milestoneId: string; memberLabel: string; memberPosition?: number | null}>({query: ({clubId, milestoneId, ...body}) => ({url: `/book-clubs/${encodeURIComponent(clubId)}/milestones/${encodeURIComponent(milestoneId)}/mapping`, method: "PUT", body}), invalidatesTags: (_r, _e, {clubId}) => scheduleTags(clubId)}),
   clearMilestoneMapping: build.mutation<void, {clubId: string; milestoneId: string}>({query: ({clubId, milestoneId}) => ({url: `/book-clubs/${encodeURIComponent(clubId)}/milestones/${encodeURIComponent(milestoneId)}/mapping`, method: "DELETE"}), invalidatesTags: (_r, _e, {clubId}) => scheduleTags(clubId)}),
@@ -52,6 +70,8 @@ export const bookClubsApi = homebranchApi.injectEndpoints({
   setReadingCopy: build.mutation<ReadingCopyState, {clubId: string; workId: string; source: "shared" | "personal"; bookId: string}>({query: ({clubId, workId, ...body}) => ({url: `/book-clubs/${encodeURIComponent(clubId)}/works/${encodeURIComponent(workId)}/reading-copy`, method: "PUT", body}), invalidatesTags: (_r, _e, x) => copyTags(x.clubId, x.workId)}),
   clearReadingCopy: build.mutation<void, {clubId: string; workId: string}>({query: ({clubId, workId}) => ({url: `/book-clubs/${encodeURIComponent(clubId)}/works/${encodeURIComponent(workId)}/reading-copy`, method: "DELETE"}), invalidatesTags: (_r, _e, x) => copyTags(x.clubId, x.workId)}),
   getDiscussionThreads: build.query<DiscussionThread[], {clubId: string}>({query: ({clubId}) => ({url: `/book-clubs/${encodeURIComponent(clubId)}/discussions`}), providesTags: (_r, _e, {clubId}) => [clubTag(`${clubId}:discussions`)]}),
+  getDiscussionThread: build.query<DiscussionThread, {clubId: string; threadId: string; revealSpoilers?: boolean}>({query: ({clubId, threadId, revealSpoilers}) => ({url: `/book-clubs/${encodeURIComponent(clubId)}/discussions/${encodeURIComponent(threadId)}`, params: revealSpoilers === true ? {revealSpoilers: true} : undefined}), keepUnusedDataFor: 0, providesTags: (_r, _e, {clubId, threadId}) => [clubTag(`${clubId}:discussions`), clubTag(`${clubId}:thread:${threadId}`)]}),
+  getDiscussionReply: build.query<DiscussionReply, {clubId: string; replyId: string; revealSpoilers?: boolean}>({query: ({clubId, replyId, revealSpoilers}) => ({url: `/book-clubs/${encodeURIComponent(clubId)}/discussion-replies/${encodeURIComponent(replyId)}`, params: revealSpoilers === true ? {revealSpoilers: true} : undefined}), keepUnusedDataFor: 0, providesTags: (_r, _e, {clubId}) => [clubTag(`${clubId}:discussions`), clubTag(`${clubId}:replies`)]}),
   createDiscussionThread: build.mutation<DiscussionThread, {clubId: string; title: string; body: string; spoiler: boolean; promptKind?: boolean}>({query: ({clubId, ...body}) => ({url: `/book-clubs/${encodeURIComponent(clubId)}/discussions`, method: "POST", body}), invalidatesTags: (_r, _e, {clubId}) => [clubTag(`${clubId}:discussions`)]}),
   getDiscussionReplies: build.query<DiscussionReply[], {clubId: string; threadId: string}>({query: ({clubId, threadId}) => ({url: `/book-clubs/${encodeURIComponent(clubId)}/discussions/${encodeURIComponent(threadId)}/replies`}), providesTags: (_r, _e, {clubId, threadId}) => [clubTag(`${clubId}:thread:${threadId}`), clubTag(`${clubId}:replies`)]}),
   createDiscussionReply: build.mutation<DiscussionReply, {clubId: string; threadId: string; body: string; spoiler: boolean}>({query: ({clubId, threadId, ...body}) => ({url: `/book-clubs/${encodeURIComponent(clubId)}/discussions/${encodeURIComponent(threadId)}/replies`, method: "POST", body}), invalidatesTags: (_r, _e, {clubId, threadId}) => [clubTag(`${clubId}:thread:${threadId}`), clubTag(`${clubId}:replies`)]}),
@@ -65,5 +85,38 @@ export const bookClubsApi = homebranchApi.injectEndpoints({
   getDiscussionAudit: build.query<ModerationAuditEntry[], string>({query: (clubId) => ({url: `/book-clubs/${encodeURIComponent(clubId)}/discussion-audit`}), providesTags: (_r, _e, clubId) => [clubTag(`${clubId}:audit`)]}),
  })
 });
+
+bookClubsApi.enhanceEndpoints({
+ endpoints: {
+  getDiscussionThreads: {onQueryStarted: (args, {dispatch}) => {
+   dispatch(bookClubsApi.util.updateQueryData("getDiscussionThreads", args, draft => {for (const row of draft) delete row.body;}));
+  }},
+  getDiscussionReplies: {onQueryStarted: (args, {dispatch}) => {
+   dispatch(bookClubsApi.util.updateQueryData("getDiscussionReplies", args, draft => {for (const row of draft) delete row.body;}));
+  }},
+  getDiscussionThread: {onQueryStarted: (args, {dispatch}) => {
+   dispatch(bookClubsApi.util.updateQueryData("getDiscussionThread", args, draft => {delete draft.body;}));
+  }},
+  getDiscussionReply: {onQueryStarted: (args, {dispatch}) => {
+   dispatch(bookClubsApi.util.updateQueryData("getDiscussionReply", args, draft => {delete draft.body;}));
+  }},
+  updateBookClub: {onQueryStarted: clearDiscussionBodies},
+  joinBookClub: {onQueryStarted: (clubId, api) => clearDiscussionBodies({clubId}, api)},
+  archiveBookClub: {onQueryStarted: (clubId, api) => clearDiscussionBodies({clubId}, api)},
+  deleteBookClub: {onQueryStarted: (clubId, api) => clearDiscussionBodies({clubId}, api)},
+  addBookClubMember: {onQueryStarted: clearDiscussionBodies},
+  updateBookClubMember: {onQueryStarted: clearDiscussionBodies},
+  removeBookClubMember: {onQueryStarted: clearDiscussionBodies},
+  transferBookClubOwnership: {onQueryStarted: clearDiscussionBodies},
+  updateDiscussionThread: {onQueryStarted: clearDiscussionBodies},
+  deleteDiscussionThread: {onQueryStarted: clearDiscussionBodies},
+  updateDiscussionReply: {onQueryStarted: clearDiscussionBodies},
+  deleteDiscussionReply: {onQueryStarted: clearDiscussionBodies},
+  moderateDiscussionThread: {onQueryStarted: clearDiscussionBodies},
+  moderateDiscussionReply: {onQueryStarted: clearDiscussionBodies},
+ }
+});
+
+export const {usePatchBookClubScheduleMutation, useLazyGetDiscussionThreadQuery, useLazyGetDiscussionReplyQuery} = bookClubsApi;
 
 export const {useGetBookClubsQuery, useGetArchivedBookClubsQuery, useGetBookClubQuery, useCreateBookClubMutation, useUpdateBookClubMutation, useJoinBookClubMutation, useArchiveBookClubMutation, useDeleteBookClubMutation, useGetBookClubMembersQuery, useAddBookClubMemberMutation, useUpdateBookClubMemberMutation, useRemoveBookClubMemberMutation, useTransferBookClubOwnershipMutation, useGetBookClubScheduleQuery, useUpdateBookClubScheduleMutation, useSetProgressSharingMutation, useSetMilestoneMappingMutation, useClearMilestoneMappingMutation, useSetMilestoneProgressMutation, useGetReadingCopyQuery, useGetReadingCopyMatchesQuery, useConfirmReadingCopyMatchMutation, useSetReadingCopyMutation, useClearReadingCopyMutation, useGetDiscussionThreadsQuery, useCreateDiscussionThreadMutation, useGetDiscussionRepliesQuery, useCreateDiscussionReplyMutation, useUpdateDiscussionThreadMutation, useDeleteDiscussionThreadMutation, useUpdateDiscussionReplyMutation, useDeleteDiscussionReplyMutation, useModerateDiscussionThreadMutation, useModerateDiscussionReplyMutation, useGetDiscussionAuditQuery, useGetDiscussionRecoveryTargetsQuery} = bookClubsApi;

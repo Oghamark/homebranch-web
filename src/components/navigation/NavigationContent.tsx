@@ -41,7 +41,7 @@ export function NavigationContent({onNavigate}: NavigationContentProps) {
                     <Tabs.Root
                         orientation="vertical"
                         variant={"subtle"}
-                        value={location.pathname}
+                        value={location.pathname.startsWith("/book-clubs/") ? "/book-clubs" : location.pathname}
                     >
                         <Tabs.List width={"100%"}>
                             <For each={links}>
@@ -105,4 +105,3 @@ export function NavigationContent({onNavigate}: NavigationContentProps) {
         </>
     );
 }
-

@@ -45,10 +45,35 @@ It provides a user-friendly interface to organize, search, and read your ebooks 
 - Currently Reading and Favorites lists
 - Dark and light mode
 - User management and roles
+- Book clubs with discovery, private clubs, a shared reading plan, and spoiler-safe discussions
 - EPUB, PDF, MP3, and M4B upload; selecting a directory groups its MP3 files into naturally ordered audiobook tracks
 - SSO login via OIDC (configurable in the Settings page)
 - Library Management page (admin): paginated job history with status filtering, book ownership management, linked-format maintenance, and book deduplication
 - Real-time library updates via SSE — new, removed, or updated books reflect automatically without a manual page refresh; job progress streams live as jobs run
+
+---
+
+## Reading together
+
+Open **Book Clubs** to visit **My clubs**, discover clubs open to people on your
+Homebranch, or revisit archived clubs. Create a club using a book from your own
+uploaded library. Private clubs are only visible to people an organizer adds;
+adding a person does not send an invitation email.
+
+Each club has a **Home**, **Reading plan**, and **Discussions**. Choosing your
+reading copy is optional for conversations, but required to track club progress.
+Your copy and private edition labels stay private, and progress sharing is off
+unless you enable it. Club progress is separate from your private reader history.
+Spoilers stay hidden until you choose to reveal an individual post or reply.
+
+Owners and moderators use **Manage** for people and moderation. Owners can also
+change club details and visibility, transfer ownership, archive, or permanently
+delete a club. Editing retained reading steps preserves progress; removing steps
+or changing your reading copy requires confirmation before associated club
+progress is cleared. Archived clubs remain read-only and cannot be reopened.
+
+For frontend checks, run `npm run typecheck`, `npm test`, and `npm run build`.
+The scoped component tests cover the club flows without requiring live accounts.
 
 ---
 
