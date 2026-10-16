@@ -1,11 +1,13 @@
 import {AddBookButton} from "@/entities/book";
-import {Box, Button, Separator, Spinner, Stack, Text} from "@chakra-ui/react";
-import {LuBookOpen, LuFolderSync, LuHeart, LuLibrary, LuLogOut, LuMessagesSquare, LuSettings, LuUser, LuUsers} from "react-icons/lu";
+import {Badge, Box, Button, Separator, Spinner, Stack, Text} from "@chakra-ui/react";
+import {LuBell, LuBookOpen, LuFolderSync, LuHeart, LuLibrary, LuLogOut, LuMessagesSquare, LuSettings, LuUser, LuUsers} from "react-icons/lu";
 import {NavLink, useFetcher} from "react-router";
 import {BookShelfNavigationSection} from "@/entities/bookShelf";
 import type {IconType} from "react-icons";
 import {ColorModeIcon, useColorMode} from "@/shared/ui/color-mode";
 import {config} from "@/shared/config";
+import {useGetUnreadNotificationCountQuery} from "@/entities/social/api";
+import {useNotificationRefresh} from "@/features/social/useNotificationRefresh";
 
 const links: {to: string; label: string; icon: IconType}[] = [
     {to: "/", label: "Library", icon: LuLibrary},
@@ -13,17 +15,23 @@ const links: {to: string; label: string; icon: IconType}[] = [
     {to: "/favorites", label: "Favorites", icon: LuHeart},
     {to: "/authors", label: "Authors", icon: LuUser},
     {to: "/book-clubs", label: "Book clubs", icon: LuMessagesSquare},
+    {to: "/friends", label: "Friends", icon: LuUsers},
+    {to: "/notifications", label: "Notifications", icon: LuBell},
 ];
 
 export function NavigationContent({onNavigate}: {onNavigate?: () => void}) {
     const fetcher = useFetcher();
     const isAdmin = sessionStorage.getItem("user_role") === "ADMIN";
     const {colorMode, toggleColorMode} = useColorMode();
+    const notifications = useGetUnreadNotificationCountQuery(undefined, useNotificationRefresh());
 
     function navigationLink({to, label, icon: Icon}: typeof links[number]) {
         return <Button key={to} asChild justifyContent="start" variant="ghost" minH="44px"
             css={{'&[aria-current="page"]': {background: "var(--chakra-colors-bg-emphasized)", fontWeight: "bold"}}}>
-            <NavLink to={to} end={to === "/"} onClick={onNavigate}><Icon aria-hidden="true"/>{label}</NavLink>
+            <NavLink to={to} end={to === "/"} onClick={onNavigate}><Icon aria-hidden="true"/>{label}
+                {to === "/notifications" && (notifications.error ? <Badge aria-label="Unread count unavailable" title="Open Notifications to retry">!</Badge>
+                    : !!notifications.currentData?.count && <Badge colorPalette="orange" aria-label={`${notifications.currentData.count} unread notifications`}>{notifications.currentData.count > 99 ? "99+" : notifications.currentData.count}</Badge>)}
+            </NavLink>
         </Button>;
     }
 

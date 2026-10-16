@@ -16,6 +16,8 @@ const pathnameToTitle: Record<string, string> = {
     "/authors": "Authors",
     "/library-management": "Library management",
     "/book-clubs": "Book clubs",
+    "/friends": "Friends",
+    "/notifications": "Notifications",
 };
 
 function getDefaultTitle(pathname: string): string {

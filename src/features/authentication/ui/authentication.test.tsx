@@ -65,10 +65,41 @@ describe("account access presentation", () => {
         const password = screen.getByLabelText("Password");
         expect(password).toHaveAttribute("autocomplete", "current-password");
         expect(password).toHaveAttribute("type", "password");
-        fireEvent.click(screen.getByRole("button", {name: "Show password"}));
+        const reveal = screen.getByRole("button", {name: "Show password"});
+        expect(reveal).toHaveTextContent(/^$/);
+        expect(reveal.querySelector("svg")).not.toBeNull();
+        expect(reveal.parentElement).toBe(password.parentElement);
+        fireEvent.click(reveal);
         expect(password).toHaveAttribute("type", "text");
         expect(screen.getByRole("button", {name: "Hide password"})).toHaveAttribute("aria-pressed", "true");
         expect(screen.getByRole("link", {name: "Create an account"})).toHaveAttribute("href", "/sign-up");
+    });
+
+    it("places independent eye icons inside both registration password fields without submitting", () => {
+        mount(signupPage(), true);
+        fillLogin();
+        const password = screen.getByLabelText("Password");
+        const confirmation = screen.getByLabelText("Confirm password");
+        fireEvent.change(confirmation, {target: {value: "test-only-confirmation"}});
+        const reveal = screen.getByRole("button", {name: "Show password"});
+        const revealConfirmation = screen.getByRole("button", {name: "Show confirm password"});
+        for (const [button, input] of [[reveal, password], [revealConfirmation, confirmation]]) {
+            expect(button).toHaveTextContent(/^$/);
+            expect(button.querySelector("svg")).not.toBeNull();
+            expect(button.parentElement).toBe(input.parentElement);
+            expect(button).toHaveAttribute("type", "button");
+            expect(input).toHaveAttribute("autocomplete", "new-password");
+        }
+        fireEvent.click(reveal);
+        expect(password).toHaveAttribute("type", "text");
+        expect(confirmation).toHaveAttribute("type", "password");
+        fireEvent.click(revealConfirmation);
+        expect(confirmation).toHaveAttribute("type", "text");
+        fireEvent.click(screen.getByRole("button", {name: "Hide password"}));
+        expect(password).toHaveAttribute("type", "password");
+        expect(password).toHaveValue("test-only-password");
+        expect(confirmation).toHaveValue("test-only-confirmation");
+        expect(authenticationAxiosInstance.post).not.toHaveBeenCalled();
     });
 
     it("keeps password access available when public provider configuration fails", async () => {

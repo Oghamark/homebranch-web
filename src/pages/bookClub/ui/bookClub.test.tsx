@@ -19,6 +19,10 @@ const mocks = vi.hoisted(() => ({
     candidates: [] as unknown[],
     copyError: false,
     progressError: false,
+    members: [] as unknown[],
+    membersLoading: false,
+    membersError: false,
+    membersQuery: vi.fn(),
 }));
 
 vi.mock("@/entities/bookClub", () => ({
@@ -26,6 +30,11 @@ vi.mock("@/entities/bookClub", () => ({
     useGetArchivedBookClubsQuery: () => ({data: [], refetch: mocks.refetch}),
     useGetBookClubQuery: () => ({data: mocks.club, refetch: mocks.refetch}),
     useGetBookClubScheduleQuery: () => ({data: mocks.schedule, refetch: mocks.refetch}),
+    useGetDiscussionThreadsQuery: () => ({data: [], refetch: mocks.refetch}),
+    useGetBookClubMembersQuery: (clubId: string) => {
+        mocks.membersQuery(clubId);
+        return {data: mocks.members, isLoading: mocks.membersLoading, error: mocks.membersError, refetch: mocks.refetch};
+    },
     useGetReadingCopyQuery: () => ({data: mocks.copy, refetch: mocks.refetch, error: mocks.copyError}),
     useGetReadingCopyMatchesQuery: () => ({data: mocks.candidates, refetch: mocks.refetch}),
     useCreateBookClubMutation: () => [mocks.create, {reset: vi.fn()}],
@@ -46,6 +55,7 @@ vi.mock("@/entities/book", () => ({
 }));
 vi.mock("@/shared", () => ({config: {cloudMode: false}}));
 vi.mock("@/shared/config", () => ({config: {apiUrl: "/api", cloudMode: false}}));
+vi.mock("@/features/social/ClubActivityPreference", () => ({ClubActivityPreference: () => null}));
 vi.mock("./MemberName", () => ({
     MemberName: () => <span>A reader</span>,
     MemberNamesProvider: ({children}: {children: ReactNode}) => children,
@@ -54,6 +64,7 @@ vi.mock("./MemberName", () => ({
 import {BookClubsPage, filterClubs} from "./BookClubsPage";
 import {readingPlanPayload, ReadingPlanEditor} from "./ReadingPlanEditor";
 import {BookClubReadingPlanPage} from "./BookClubReadingPlanPage";
+import {BookClubDetailPage} from "./BookClubDetailPage";
 import {ClubShell} from "./ClubShell";
 import {ConfirmAction} from "./ClubUI";
 import {ReadingCopyPanel} from "./ReadingCopyPanel";
@@ -75,9 +86,56 @@ beforeEach(() => {
     mocks.copy = {available: false, source: "none", book: null}; mocks.candidates = [];
     mocks.copyError = false;
     mocks.progressError = false;
+    mocks.members = [{userId: "owner", role: "owner"}, {userId: "moderator", role: "moderator"}, {userId: "reader", role: "member"}];
+    mocks.membersLoading = false;
+    mocks.membersError = false;
     mocks.save.mockReturnValue({unwrap: () => Promise.resolve({})});
     mocks.progress.mockReturnValue({unwrap: () => Promise.resolve({})});
     mocks.copySet.mockReturnValue({unwrap: () => Promise.resolve({})});
+});
+
+describe("member-visible club roster", () => {
+    it.each(["owner", "moderator", "member"] as const)("shows a read-only list of names and roles to a %s on club home", role => {
+        mocks.club = {...club, currentMembershipRole: role};
+        renderUI(<BookClubDetailPage clubId={club.id}/>);
+        const roster = screen.getByRole("region", {name: "Members"});
+        expect(within(roster).getAllByRole("listitem")).toHaveLength(3);
+        expect(within(roster).getAllByText("A reader")).toHaveLength(3);
+        expect(within(roster).getByText("Club owner")).toBeVisible();
+        expect(within(roster).getByText("Moderator")).toBeVisible();
+        expect(within(roster).getByText("Member")).toBeVisible();
+        expect(within(roster).queryByRole("button")).not.toBeInTheDocument();
+        expect(within(roster).queryByText("owner", {exact: true})).not.toBeInTheDocument();
+        if (role === "member") expect(screen.queryByRole("link", {name: "Manage"})).not.toBeInTheDocument();
+    });
+
+    it("keeps the roster available to members of archived clubs", () => {
+        mocks.club = {...club, status: "archived"};
+        renderUI(<BookClubDetailPage clubId={club.id}/>);
+        expect(within(screen.getByRole("region", {name: "Members"})).getAllByRole("listitem")).toHaveLength(3);
+        expect(screen.queryByRole("button", {name: /Add to club|Make moderator|Remove member/})).not.toBeInTheDocument();
+    });
+
+    it("never fetches or displays the roster for a non-member preview", () => {
+        mocks.club = {...club, currentMembershipRole: null};
+        renderUI(<BookClubDetailPage clubId={club.id}/>);
+        expect(screen.queryByRole("region", {name: "Members"})).not.toBeInTheDocument();
+        expect(mocks.membersQuery).not.toHaveBeenCalled();
+    });
+
+    it("shows loading and an explicit retryable failure without displaying cached members", () => {
+        mocks.membersLoading = true;
+        const view = renderUI(<BookClubDetailPage clubId={club.id}/>);
+        expect(within(screen.getByRole("region", {name: "Members"})).getByRole("status")).toBeVisible();
+        mocks.membersLoading = false;
+        mocks.membersError = true;
+        view.rerender(<ChakraProvider value={defaultSystem}><MemoryRouter><BookClubDetailPage clubId={club.id}/></MemoryRouter></ChakraProvider>);
+        const roster = screen.getByRole("region", {name: "Members"});
+        expect(within(roster).getByRole("alert")).toHaveTextContent("The member list couldn't be loaded.");
+        expect(within(roster).queryByRole("list")).not.toBeInTheDocument();
+        fireEvent.click(within(roster).getByRole("button", {name: "Try again"}));
+        expect(mocks.refetch).toHaveBeenCalledOnce();
+    });
 });
 
 describe("book club discovery", () => {

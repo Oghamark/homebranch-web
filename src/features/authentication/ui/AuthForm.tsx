@@ -2,19 +2,10 @@ import {useEffect, useRef, useState} from "react";
 import {Box, Button, HStack, Separator, Stack, Text} from "@chakra-ui/react";
 import {Link, useFetcher} from "react-router";
 import TextField from "@/shared/ui/TextField";
+import PasswordTextField from "@/shared/ui/PasswordTextField";
 import {ErrorState} from "@/shared/ui/EditorialUI";
 import {config} from "@/shared";
 import {type AuthFormResult, validateAuthForm} from "../api/formFeedback";
-
-function PasswordField({name, label, error, autoComplete}: {name: string; label: string; error?: string; autoComplete: string}) {
-    const [visible, setVisible] = useState(false);
-    return <Stack gap={1}>
-        <TextField label={label} name={name} type={visible ? "text" : "password"} required autoComplete={autoComplete}
-            minH="44px" error={!!error} errorText={error}/>
-        <Button type="button" variant="ghost" size="sm" minH="44px" alignSelf="end" aria-label={`${visible ? "Hide" : "Show"} ${label.toLowerCase()}`}
-            aria-pressed={visible} onClick={() => setVisible(!visible)}>{visible ? "Hide" : "Show"} password</Button>
-    </Stack>;
-}
 
 export function AuthForm({signup = false, oidcEnabled, oidcProviderName, notice}: {
     signup?: boolean; oidcEnabled: boolean; oidcProviderName: string | null; notice?: string | null;
@@ -60,8 +51,10 @@ export function AuthForm({signup = false, oidcEnabled, oidcProviderName, notice}
                 {signup && <TextField label="Name" name="name" required autoComplete="name" minH="44px" error={!!errors.name} errorText={errors.name}/>}
                 <TextField label="Email" name="email" type="email" required autoComplete="username" autoCapitalize="none" spellCheck={false}
                     minH="44px" error={!!errors.email} errorText={errors.email}/>
-                <PasswordField name="password" label="Password" autoComplete={signup ? "new-password" : "current-password"} error={errors.password}/>
-                {signup && <PasswordField name="password_confirmation" label="Confirm password" autoComplete="new-password" error={errors.password_confirmation}/>}
+                <PasswordTextField name="password" label="Password" required autoComplete={signup ? "new-password" : "current-password"}
+                    error={!!errors.password} errorText={errors.password}/>
+                {signup && <PasswordTextField name="password_confirmation" label="Confirm password" required autoComplete="new-password"
+                    error={!!errors.password_confirmation} errorText={errors.password_confirmation}/>}
                 <Button type="submit" colorPalette="orange" minH="44px" w="full" loading={busy} disabled={busy || providerPending}>
                     {signup ? "Create account" : "Sign in"}
                 </Button>

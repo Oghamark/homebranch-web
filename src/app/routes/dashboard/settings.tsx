@@ -8,6 +8,7 @@ import {ErrorState, LoadingState, PageHeader, PageSection} from "@/shared/ui/Edi
 import {useColorMode} from "@/shared/ui/color-mode";
 import {SettingsNavigationGuard} from "@/features/settings/SettingsNavigationGuard";
 import {RegistrationSettings, SignInSettings} from "@/features/settings/SignInSettings";
+import {SocialSettings} from "@/features/social/SocialSettings";
 
 export function meta({}: Route.MetaArgs) {
     return [{title: "Homebranch - Settings"}];
@@ -40,7 +41,7 @@ function AppearanceSettings() {
 function SettingsSections() {
     const isAdmin = sessionStorage.getItem("user_role") === "ADMIN";
     const [params] = useSearchParams();
-    const personal = [["profile", "Profile"], ["appearance", "Appearance"], ["kindle", "Send to Kindle"]];
+    const personal = [["profile", "Profile"], ["appearance", "Appearance"], ["privacy", "Friends and invitations"], ["kindle", "Send to Kindle"]];
     const admin = isAdmin ? [["email", "Email delivery"], ["sign-in", "Sign-in integrations"],
         ...(!config.cloudMode ? [["registration", "Registration"]] : [])] : [];
     const requested = params.get("section") ?? "profile";
@@ -65,6 +66,7 @@ function SettingsSections() {
         <Box bg="bg.panel" borderWidth="1px" borderRadius="xl" p={{base: 4, md: 6}} minW={0}>
             {section === "profile" && <ProfileSettings/>}
             {section === "appearance" && <AppearanceSettings/>}
+            {section === "privacy" && <SocialSettings/>}
             {section === "kindle" && <KindleSettingsCard/>}
             {isAdmin && section === "email" && <MailSettingsCard/>}
             {isAdmin && section === "sign-in" && <SignInSettings/>}

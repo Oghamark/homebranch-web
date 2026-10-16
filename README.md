@@ -45,7 +45,9 @@ It provides a user-friendly interface to organize, search, and read your ebooks 
 - Currently Reading and Favorites lists
 - Dark and light mode
 - User management and roles
-- Book clubs with discovery, private clubs, a shared reading plan, and spoiler-safe discussions
+- Book clubs with discovery, consent-based invitations, private clubs, a shared reading plan, and spoiler-safe discussions
+- Private friends lists, mutual friend requests, blocking, and request privacy settings
+- An in-app notification inbox for requests, friendships, discussions, replies, and reading-plan changes
 - EPUB, PDF, MP3, and M4B upload; selecting a directory groups its MP3 files into naturally ordered audiobook tracks
 - SSO login via OIDC (configurable in the Settings page)
 - Library Management page (admin): paginated job history with status filtering, book ownership management, linked-format maintenance, and book deduplication
@@ -81,8 +83,10 @@ failure so confirmations stay open and display recovery feedback.
 
 Open **Book Clubs** to visit **My clubs**, discover clubs open to people on your
 Homebranch, or revisit archived clubs. Create a club using a book from your own
-uploaded library. Private clubs are only visible to people an organizer adds;
-adding a person does not send an invitation email.
+uploaded library. Owners and moderators invite existing accounts; recipients
+accept or decline in **Book clubs > Invitations**. An invitation grants no
+membership until accepted and expires after 30 days. Private clubs are
+invitation-only, while open clubs still allow anyone to join.
 
 Club cards and headers display real covers from matching books available to you,
 including linked formats. Missing or unavailable artwork uses a simple jacket
@@ -94,6 +98,10 @@ Your copy and private edition labels stay private, and progress sharing is off
 unless you enable it. Club progress is separate from your private reader history.
 Spoilers stay hidden until you choose to reveal an individual post or reply.
 
+Everyone in a club can view its **Members** list on **Home**, including in archived
+clubs. The list shows display names and club roles, not email addresses or library
+details. Non-members cannot view the list.
+
 Owners and moderators use **Manage** for people and moderation. Owners can also
 change club details and visibility, transfer ownership, archive, or permanently
 delete a club. Editing retained reading steps preserves progress; removing steps
@@ -103,6 +111,30 @@ progress is cleared. Archived clubs remain read-only and cannot be reopened.
 For frontend checks, run `npm run typecheck`, `npm test`, and `npm run build`.
 Component tests cover shared interactions and application flows, including book
 clubs, without requiring live accounts.
+
+## Friends and notifications
+
+**Friends** contains your private friends list, incoming/outgoing requests, and
+people search. Search by display name or an exact email address; results show
+names only. Friendships require acceptance and never grant access to another
+person's library, reading history, or private clubs.
+
+**Settings > Friends and invitations** controls incoming friend requests and
+whether club invitations can come from anyone, friends only, or no one.
+Restricting these settings cancels affected pending requests. Blocking cancels
+requests in both directions and removes friendship, but leaves shared club
+membership and discussions unchanged. Unblocking restores nothing automatically.
+
+**Notifications** is a durable inbox with unread counts, mark-read, and dismissal.
+Reading or dismissing a notification does not decide its request. Pending requests
+remain in Friends or Book clubs. The app refreshes notifications every 30 seconds
+while visible and on focus/reconnection; there is no email or browser push.
+
+Members receive new-discussion and reading-plan notifications, and replies in
+conversations they started or joined. Each club's Home page has a mute control.
+Notifications never include post bodies, spoiler snippets, or private progress.
+Declined or canceled requests have a 24-hour resend wait, with additional abuse
+limits.
 
 ---
 

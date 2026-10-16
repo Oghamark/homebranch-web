@@ -1,11 +1,12 @@
-import {Button, Flex, Grid, Heading, HStack, Progress, Stack, Text} from "@chakra-ui/react";
+import {Badge, Button, Flex, Grid, Heading, HStack, Progress, Stack, Text} from "@chakra-ui/react";
 import {Link} from "react-router";
 import {LuArrowRight, LuCheck, LuMessagesSquare} from "react-icons/lu";
-import {type BookClub, useGetBookClubScheduleQuery, useGetDiscussionThreadsQuery} from "@/entities/bookClub";
+import {type BookClub, useGetBookClubMembersQuery, useGetBookClubScheduleQuery, useGetDiscussionThreadsQuery} from "@/entities/bookClub";
 import {ClubShell} from "./ClubShell";
 import {ReadingCopyPanel} from "./ReadingCopyPanel";
 import {ClubLoading, EmptyState, ErrorState} from "./ClubUI";
 import {MemberName, MemberNamesProvider} from "./MemberName";
+import {ClubActivityPreference} from "@/features/social/ClubActivityPreference";
 
 export function BookClubDetailPage({clubId}: {clubId: string}) {
     return <ClubShell clubId={clubId}>{club => <ClubHome club={club}/>}</ClubShell>;
@@ -32,6 +33,7 @@ function ClubHome({club}: {club: BookClub}) {
                 <Button asChild variant="outline" alignSelf="start" minH="44px"><Link to={`/book-clubs/${club.id}/reading-plan`}>{manager && !milestones.length && club.status !== "archived" ? "Make a reading plan" : "View reading plan"} <LuArrowRight/></Link></Button>
             </Stack>
         </Grid>
+        <ClubMembers clubId={club.id}/>
         <Stack gap={4}><Flex justify="space-between" align="center" gap={3} wrap="wrap">
             <Heading size="xl" fontFamily="Georgia, serif">Around the book</Heading><Button asChild variant="ghost" minH="44px"><Link to={`/book-clubs/${club.id}/discussions`}>All discussions <LuArrowRight/></Link></Button></Flex>
             {discussions.isLoading ? <ClubLoading/> : discussions.error ? <ErrorState onRetry={discussions.refetch}>Conversations couldn't be loaded.</ErrorState>
@@ -46,6 +48,28 @@ function ClubHome({club}: {club: BookClub}) {
                     </Stack>)}</Stack>
                 </MemberNamesProvider>}
         </Stack>
-        {club.currentMembershipRole === "owner" && club.status !== "archived" && <Text color="fg.muted" fontSize="sm">Your club, your pace. Add people and adjust club details in <Link style={{textDecoration: "underline"}} to={`/book-clubs/${club.id}/manage`}>Manage</Link>. To leave your club, transfer ownership there first.</Text>}
+        {club.status !== "archived" && <ClubActivityPreference clubId={club.id}/>}
+        {club.currentMembershipRole === "owner" && club.status !== "archived" && <Text color="fg.muted" fontSize="sm">Your club, your pace. Invite people and adjust club details in <Link style={{textDecoration: "underline"}} to={`/book-clubs/${club.id}/manage`}>Manage</Link>. To leave your club, transfer ownership there first.</Text>}
+    </Stack>;
+}
+
+function ClubMembers({clubId}: {clubId: string}) {
+    const members = useGetBookClubMembersQuery(clubId);
+    return <Stack as="section" aria-labelledby="club-members-heading" gap={4} p={{base: 5, md: 6}} borderWidth="1px" borderRadius="xl">
+        <Stack gap={1}>
+            <Heading id="club-members-heading" as="h2" size="xl" fontFamily="Georgia, serif">Members</Heading>
+            <Text color="fg.muted" fontSize="sm">The people reading alongside you.</Text>
+        </Stack>
+        {members.isLoading ? <ClubLoading/> : members.error || !members.data ? <ErrorState onRetry={members.refetch}>The member list couldn't be loaded.</ErrorState>
+            : !members.data.length ? <EmptyState title="No members to show"/> : <MemberNamesProvider userIds={members.data.map(member => member.userId)}>
+                <Stack as="ul" gap={3} m={0} p={0} listStyleType="none">
+                    {members.data.map(member => <Flex as="li" key={member.userId} justify="space-between" align="center" gap={3} wrap="wrap">
+                        <Text fontWeight="medium" overflowWrap="anywhere" minW={0}><MemberName userId={member.userId}/></Text>
+                        <Badge variant="subtle" colorPalette={member.role === "member" ? undefined : "orange"}>
+                            {member.role === "owner" ? "Club owner" : member.role === "moderator" ? "Moderator" : "Member"}
+                        </Badge>
+                    </Flex>)}
+                </Stack>
+            </MemberNamesProvider>}
     </Stack>;
 }

@@ -7,9 +7,18 @@ import {Outlet, redirect, useLocation} from "react-router";
 import {useLibraryEvents} from "@/shared/hooks";
 import {DragDropOverlay} from "@/entities/book";
 import {checkCloudAccess} from "@/features/authentication/api/cloudAccess";
+import {store} from "@/app/store";
+import {authenticationApi, homebranchApi} from "@/shared/api/rtk-query";
+
+let cachedAccountId: string | null = null;
 
 export async function clientLoader() {
     let user_id = sessionStorage.getItem("user_id");
+    if (user_id !== cachedAccountId) {
+        store.dispatch(homebranchApi.util.resetApiState());
+        store.dispatch(authenticationApi.util.resetApiState());
+        cachedAccountId = user_id;
+    }
 
     if (!user_id) {
         return redirect("/login");

@@ -1,10 +1,9 @@
 import {useEffect, useRef, useState} from "react";
 import {Button, Flex, Heading, HStack, Input, NativeSelect, Stack, Text, Textarea} from "@chakra-ui/react";
 import {Link, useNavigate} from "react-router";
-import {useDebounce} from "@uidotdev/usehooks";
-import {LuArrowRight, LuUserPlus} from "react-icons/lu";
-import {type BookClub, type BookClubVisibility, useAddBookClubMemberMutation, useArchiveBookClubMutation, useDeleteBookClubMutation, useGetBookClubMembersQuery, useRemoveBookClubMemberMutation, useTransferBookClubOwnershipMutation, useUpdateBookClubMemberMutation, useUpdateBookClubMutation} from "@/entities/bookClub";
-import {type UserSearchResult, useSearchUsersQuery} from "@/entities/user";
+import {LuArrowRight} from "react-icons/lu";
+import {type BookClub, type BookClubVisibility, useArchiveBookClubMutation, useDeleteBookClubMutation, useGetBookClubMembersQuery, useRemoveBookClubMemberMutation, useTransferBookClubOwnershipMutation, useUpdateBookClubMemberMutation, useUpdateBookClubMutation} from "@/entities/bookClub";
+import {InvitePeople} from "@/features/social/ClubInvitations";
 import {ClubShell} from "./ClubShell";
 import {ClubLoading, ConfirmAction, EmptyState, ErrorState} from "./ClubUI";
 import {MemberName, MemberNamesProvider} from "./MemberName";
@@ -50,7 +49,7 @@ function ClubDetails({club}: {club: BookClub}) {
         <Stack gap={2}><label htmlFor="settings-description">About your club</label><Textarea id="settings-description" value={description} maxLength={3000} disabled={state.isLoading} onChange={e => {edit(); setDescription(e.target.value);}}/></Stack>
         <Stack gap={2}><label htmlFor="settings-visibility">Who can find and join this club?</label><NativeSelect.Root disabled={state.isLoading}><NativeSelect.Field id="settings-visibility" value={visibility} onChange={e => {
             edit(); setVisibility(e.target.value === "private" ? "private" : "instance_visible");
-        }}><option value="instance_visible">Open to everyone</option><option value="private">Private: only people you add</option></NativeSelect.Field><NativeSelect.Indicator/></NativeSelect.Root>
+        }}><option value="instance_visible">Open to everyone</option><option value="private">Private: invitation only</option></NativeSelect.Field><NativeSelect.Indicator/></NativeSelect.Root>
             <Text color="fg.muted" fontSize="sm">Open clubs appear in Discover and can be joined by anyone. Private clubs are only visible to their members. Changing this never shares library books.</Text>
         </Stack>
         <Button type="submit" minH="44px" alignSelf="start" colorPalette="orange" loading={state.isLoading} disabled={!name.trim()}>Save club details</Button>
@@ -61,19 +60,11 @@ function ClubDetails({club}: {club: BookClub}) {
 
 function PeoplePanel({club, owner}: {club: BookClub; owner: boolean}) {
     const members = useGetBookClubMembersQuery(club.id);
-    const [add, adding] = useAddBookClubMemberMutation();
     const [remove] = useRemoveBookClubMemberMutation();
     const [changeRole, changing] = useUpdateBookClubMemberMutation();
     const [transfer] = useTransferBookClubOwnershipMutation();
-    const [query, setQuery] = useState("");
-    const [selected, setSelected] = useState<UserSearchResult | null>(null);
-    const debounced = useDebounce(query.trim(), 250);
-    const canSearch = debounced.length >= 2;
-    const users = useSearchUsersQuery(debounced, {skip: !canSearch});
-    const [added, setAdded] = useState(false);
-    const candidates = (users.data ?? []).filter(user => !members.data?.some(member => member.userId === user.id));
     return <Stack gap={5} p={{base: 5, md: 6}} borderWidth="1px" borderRadius="xl">
-        <Stack gap={1}><Heading size="lg">People</Heading><Text color="fg.muted" fontSize="sm">Only club organizers can browse this list. Membership never gives access to someone's library.</Text></Stack>
+        <Stack gap={1}><Heading size="lg">People</Heading><Text color="fg.muted" fontSize="sm">All club members can see who's here. Only organizers can change membership.</Text></Stack>
         {members.isLoading ? <ClubLoading/> : members.error ? <ErrorState onRetry={members.refetch}>The member list couldn't be loaded.</ErrorState>
             : <MemberNamesProvider userIds={(members.data ?? []).map(member => member.userId)}>
                 <Stack gap={3}>{members.data?.map(member => <Flex key={member.userId} justify="space-between" align="center" wrap="wrap" gap={3} borderBottomWidth="1px" pb={3}>
@@ -91,28 +82,7 @@ function PeoplePanel({club, owner}: {club: BookClub; owner: boolean}) {
                 </Flex>)}</Stack>
             </MemberNamesProvider>}
         {changing.error && <Text role="alert" color="fg.error">The role couldn't be changed. Please try again.</Text>}
-        <Stack as="form" gap={3} borderTopWidth="1px" pt={5} onSubmit={async e => {
-            e.preventDefault();
-            if (!selected) return;
-            setAdded(false);
-            try {await add({clubId: club.id, userId: selected.id}).unwrap(); setQuery(""); setSelected(null); setAdded(true);}
-            catch { /* The mutation error is displayed below. */ }
-        }}>
-            <Heading size="md"><HStack><LuUserPlus/> Add someone to the club</HStack></Heading>
-            <Text color="fg.muted" fontSize="sm">Search for an existing account. They will be added directly; no invitation email is sent.</Text>
-            <label htmlFor="member-search">Name or email</label><Input id="member-search" value={query} minH="44px" disabled={adding.isLoading || !!members.error || members.isLoading} placeholder="Find someone you know" onChange={e => {setQuery(e.target.value); setSelected(null); setAdded(false);}}/>
-            {selected ? <Text fontWeight="medium">Selected: {selected.name} ({selected.email})</Text>
-                : canSearch && debounced === query.trim() && (users.isFetching ? <Text role="status" color="fg.muted">Searching...</Text>
-                    : users.error ? <ErrorState onRetry={users.refetch}>People couldn't be searched.</ErrorState>
-                        : <Stack gap={1} maxH="240px" overflowY="auto">{candidates.length ? candidates.map(user =>
-                            <Button key={user.id} variant="ghost" minH="56px" h="auto" justifyContent="start" textAlign="start" whiteSpace="normal" onClick={() => setSelected(user)}>
-                                <Stack gap={0}><Text>{user.name}</Text><Text color="fg.muted" fontSize="sm">{user.email}</Text></Stack>
-                            </Button>) : <Text color="fg.muted" fontSize="sm">No new matching people. Try a different name or email.</Text>}</Stack>)}
-            {!canSearch && <Text fontSize="sm" color="fg.muted">Type at least 2 characters to search.</Text>}
-            <Button type="submit" alignSelf="start" minH="44px" colorPalette="orange" disabled={!selected} loading={adding.isLoading}>Add to club</Button>
-            {added && <Text role="status" fontSize="sm" color="fg.muted">Member added.</Text>}
-            {adding.error && <Text role="alert" color="fg.error">This person couldn't be added. They may already be a member. Please try again.</Text>}
-        </Stack>
+        {!members.isLoading && !members.error && members.data && <InvitePeople clubId={club.id} memberIds={members.data.map(member => member.userId)}/>}
     </Stack>;
 }
 

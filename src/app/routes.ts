@@ -10,6 +10,8 @@ export default [
         route("authors", "routes/dashboard/authors.tsx"),
         route("authors/:authorName", "routes/dashboard/author.tsx"),
         route("book-clubs", "routes/dashboard/book-clubs.tsx"),
+        route("friends", "routes/dashboard/friends.tsx"),
+        route("notifications", "routes/dashboard/notifications.tsx"),
         route("book-clubs/:clubId", "routes/dashboard/book-club.tsx"),
         route("book-clubs/:clubId/reading-plan", "routes/dashboard/book-club-reading-plan.tsx"),
         route("book-clubs/:clubId/manage", "routes/dashboard/book-club-manage.tsx"),

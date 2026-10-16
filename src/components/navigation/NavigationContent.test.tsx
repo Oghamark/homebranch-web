@@ -4,10 +4,14 @@ import {MemoryRouter} from "react-router";
 import {Provider} from "@/shared/ui/provider";
 import {NavigationContent} from "./NavigationContent";
 
-const mocks = vi.hoisted(() => ({submit: vi.fn(), cloudMode: false, toggleColorMode: vi.fn()}));
+const mocks = vi.hoisted(() => ({submit: vi.fn(), cloudMode: false, toggleColorMode: vi.fn(), unread: 0, notificationsError: false}));
 vi.mock("@/entities/book", () => ({AddBookButton: () => <button>Add books</button>}));
 vi.mock("@/entities/bookShelf", () => ({BookShelfNavigationSection: () => <div>Bookshelves</div>}));
 vi.mock("@/shared/config", () => ({config: {get cloudMode() {return mocks.cloudMode;}}}));
+vi.mock("@/entities/social/api", () => ({
+    notificationRefresh: {pollingInterval: 30_000},
+    useGetUnreadNotificationCountQuery: () => ({currentData: {count: mocks.unread}, error: mocks.notificationsError}),
+}));
 vi.mock("@/shared/ui/color-mode", async importOriginal => ({
     ...await importOriginal<typeof import("@/shared/ui/color-mode")>(),
     useColorMode: () => ({colorMode: "light", toggleColorMode: mocks.toggleColorMode}),
@@ -25,6 +29,7 @@ function renderNavigation(path = "/") {
 beforeEach(() => {
     sessionStorage.clear();
     mocks.cloudMode = false;
+    mocks.unread = 0; mocks.notificationsError = false;
     vi.clearAllMocks();
 });
 
@@ -53,5 +58,18 @@ describe("reading navigation", () => {
         expect(screen.getByRole("link", {name: "User management"})).toHaveAttribute("aria-current", "page");
         fireEvent.click(screen.getByRole("button", {name: "Log out"}));
         expect(mocks.submit).toHaveBeenCalledWith("", {method: "post", action: "/logout"});
+    });
+    it("links social destinations and labels the unread notification count", () => {
+        mocks.unread = 7;
+        renderNavigation("/notifications");
+        expect(screen.getByRole("link", {name: "Friends"})).toHaveAttribute("href", "/friends");
+        expect(screen.getByRole("link", {name: /Notifications/})).toHaveAttribute("aria-current", "page");
+        expect(screen.getByLabelText("7 unread notifications")).toHaveTextContent("7");
+    });
+    it("shows unavailable rather than a stale or falsely zero unread count", () => {
+        mocks.unread = 7; mocks.notificationsError = true;
+        renderNavigation();
+        expect(screen.getByLabelText("Unread count unavailable")).toBeVisible();
+        expect(screen.queryByLabelText("7 unread notifications")).not.toBeInTheDocument();
     });
 });

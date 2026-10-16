@@ -12,20 +12,27 @@ const mocks = vi.hoisted(() => ({
     remove: vi.fn(),
     save: vi.fn(),
     archive: vi.fn(),
+    invite: vi.fn(),
 }));
 vi.mock("@/entities/bookClub", () => ({
     useGetBookClubQuery: () => ({data: mocks.club}),
     useJoinBookClubMutation: () => [vi.fn(), {}],
     useRemoveBookClubMemberMutation: () => [mocks.remove, {}],
     useGetBookClubMembersQuery: () => ({data: mocks.members}),
-    useAddBookClubMemberMutation: () => [vi.fn(), {}],
     useTransferBookClubOwnershipMutation: () => [mocks.transfer, {}],
     useUpdateBookClubMemberMutation: () => [vi.fn(), {}],
     useUpdateBookClubMutation: () => [mocks.save, {}],
     useArchiveBookClubMutation: () => [mocks.archive, {}],
     useDeleteBookClubMutation: () => [vi.fn(), {}],
 }));
-vi.mock("@/entities/user", () => ({useSearchUsersQuery: () => ({data: []})}));
+vi.mock("@uidotdev/usehooks", () => ({useDebounce: (value: string) => value}));
+vi.mock("@/entities/social/api", () => ({
+    useInviteToClubMutation: () => [mocks.invite, {}],
+    useGetOrganizerInvitationsQuery: () => ({data: [], refetch: vi.fn()}),
+    useGetFriendsQuery: () => ({data: [], refetch: vi.fn()}),
+    useCancelClubInvitationMutation: () => [vi.fn(), {}],
+    useSearchPeopleQuery: () => ({currentData: [{id: "new-reader", name: "Morgan"}], refetch: vi.fn()}),
+}));
 vi.mock("./MemberName", () => ({
     MemberName: ({userId}: {userId: string}) => <>{userId === "owner" ? "Alex Owner" : userId === "moderator" ? "Jordan Moderator" : "Sam Reader"}</>,
     MemberNamesProvider: ({children}: {children: ReactNode}) => children,
@@ -41,7 +48,7 @@ function renderPage() {
 beforeEach(() => {
     vi.clearAllMocks(); mocks.club = club;
     mocks.members = [{userId: "owner", role: "owner"}, {userId: "moderator", role: "moderator"}, {userId: "member", role: "member"}];
-    for (const action of [mocks.transfer, mocks.remove, mocks.save, mocks.archive]) action.mockReturnValue({unwrap: () => Promise.resolve({})});
+    for (const action of [mocks.transfer, mocks.remove, mocks.save, mocks.archive, mocks.invite]) action.mockReturnValue({unwrap: () => Promise.resolve({})});
 });
 
 describe("role-correct organizer management", () => {
@@ -52,7 +59,8 @@ describe("role-correct organizer management", () => {
         expect(screen.getAllByRole("button", {name: "Transfer ownership"})).toHaveLength(2);
         expect(screen.getAllByRole("button", {name: "Remove member"})).toHaveLength(2);
         expect(screen.getByLabelText("Who can find and join this club?")).toHaveValue("private");
-        expect(screen.getByText(/no invitation email is sent/)).toBeVisible();
+        expect(screen.getByText(/They'll decide whether to join/)).toBeVisible();
+        expect(screen.queryByRole("button", {name: "Add to club"})).not.toBeInTheDocument();
     });
     it("does not offer moderators owner settings or removal of moderators", () => {
         mocks.club = {...club, currentMembershipRole: "moderator"};
@@ -103,5 +111,15 @@ describe("role-correct organizer management", () => {
         fireEvent.click(screen.getByRole("button", {name: "Save club details"}));
         await waitFor(() => expect(mocks.save).toHaveBeenCalledWith({clubId: club.id, name: club.name, description: null, visibility: "instance_visible"}));
         expect(await screen.findByText("Club details saved.")).toBeVisible();
+    });
+    it("sends an ordinary invitation instead of immediately adding a searched account", async () => {
+        renderPage();
+        fireEvent.change(screen.getByRole("searchbox", {name: "Name or exact email"}), {target: {value: "Morgan"}});
+        fireEvent.click(screen.getByRole("button", {name: "Morgan"}));
+        expect(mocks.invite).not.toHaveBeenCalled();
+        fireEvent.click(screen.getByRole("button", {name: "Send invitation"}));
+        await waitFor(() => expect(mocks.invite).toHaveBeenCalledWith({clubId: club.id, userId: "new-reader"}));
+        expect(await screen.findByRole("status")).toHaveTextContent("Invitation sent to Morgan.");
+        expect(screen.queryByText("new-reader")).not.toBeInTheDocument();
     });
 });

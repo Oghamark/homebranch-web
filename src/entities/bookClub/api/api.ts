@@ -13,6 +13,16 @@ export interface BookClub { id: string; name: string; description?: string | nul
 export interface BookClubMember { id?: string; clubId?: string; userId: string; role: BookClubRole; createdAt?: string; }
 export interface Milestone { id: string; workId?: string; name: string; kind: MilestoneKind; position: number; memberMapping?: {memberLabel: string; memberPosition?: number | null} | null; memberProgress?: {status: ProgressStatus; percentage?: number | null} | null; }
 export interface BookClubSchedule { clubId?: string; startDate?: string | null; completionDate?: string | null; milestones: Milestone[]; progressSharingEnabled?: boolean; sharedProgress?: Array<{userId: string; milestoneId: string; status: ProgressStatus; percentage?: number | null}>; }
+export interface BookClubScheduleResponse {
+ clubId: string;
+ startDate: string | null;
+ completionDate: string | null;
+ milestones: Array<Omit<Milestone, "memberMapping" | "memberProgress">>;
+ progressSharingEnabled: boolean;
+ myMappings: Array<{milestoneId: string; memberLabel: string; memberPosition: number | null}>;
+ myProgress: Array<{milestoneId: string; status: ProgressStatus; percentage: number | null}>;
+ sharedProgress: Array<{userId: string; milestones: Array<{milestoneId: string; status: ProgressStatus; percentage: number | null}>}>;
+}
 export interface ReadingCopyState { clubId: string; workId: string; source: ReadingCopySource; available: boolean; book: {id: string; title: string; author: string} | null; associationMethod?: "identifier" | "metadata_candidate" | "manual_confirmation" | null; confidence?: number | null; }
 export interface ReadingCopyMatch { bookId: string; title: string; author: string; method: "identifier" | "metadata_candidate"; confidence: number; confirmationRequired: true; }
 export interface DiscussionThread { id: string; clubId: string; authorUserId: string; title: string; body?: string; spoiler: boolean; locked: boolean; pinned: boolean; promptKind: boolean; createdAt: string; updatedAt: string; }
@@ -27,7 +37,11 @@ const scheduleTags = (clubId: string) => [...detailTags(clubId), clubTag(`schedu
 const copyTags = (clubId: string, workId: string) => [...scheduleTags(clubId), clubTag(`copy:${clubId}:${workId}`), clubTag(`matches:${clubId}:${workId}`)];
 const coverTag = {type: "Book" as const, id: "LIST"};
 
-function clearDiscussionBodies({clubId}: {clubId: string}, {dispatch, getState}: Pick<BaseQueryApi, "dispatch" | "getState">): void {
+function clearDiscussionBodies({clubId}: {clubId: string}, {dispatch, getState, queryFulfilled}: Pick<BaseQueryApi, "dispatch" | "getState"> & {queryFulfilled?: Promise<unknown>}): void {
+ if (queryFulfilled) void queryFulfilled.then(
+  () => dispatch(homebranchApi.util.invalidateTags(["Social", "Notification"])),
+  () => undefined,
+ );
  const state = getState() as Parameters<typeof bookClubsApi.util.selectCachedArgsForQuery>[0];
  for (const args of bookClubsApi.util.selectCachedArgsForQuery(state, "getDiscussionThread")) {
   if (args.clubId === clubId) dispatch(bookClubsApi.util.updateQueryData("getDiscussionThread", args, draft => {delete draft.body;}));
@@ -54,11 +68,29 @@ export const bookClubsApi = homebranchApi.injectEndpoints({
   archiveBookClub: build.mutation<BookClub, string>({query: (clubId) => ({url: `/book-clubs/${encodeURIComponent(clubId)}/archive`, method: "POST"}), invalidatesTags: (_r, _e, clubId) => [...detailTags(clubId), clubTag("LIST"), clubTag("ARCHIVED")]}),
   deleteBookClub: build.mutation<void, string>({query: (clubId) => ({url: `/book-clubs/${encodeURIComponent(clubId)}`, method: "DELETE"}), invalidatesTags: (_r, _e, clubId) => [...detailTags(clubId), clubTag("LIST"), clubTag("ARCHIVED"), clubTag(`roster:${clubId}`), clubTag(`schedule:${clubId}`)]}),
   getBookClubMembers: build.query<BookClubMember[], string>({query: (clubId) => ({url: `/book-clubs/${encodeURIComponent(clubId)}/members`}), providesTags: (_r, _e, clubId) => [clubTag(`roster:${clubId}`)]}),
-  addBookClubMember: build.mutation<BookClubMember, {clubId: string; userId: string; role?: "moderator" | "member"}>({query: ({clubId, ...body}) => ({url: `/book-clubs/${encodeURIComponent(clubId)}/members`, method: "POST", body}), invalidatesTags: (_r, _e, {clubId}) => memberTags(clubId)}),
   updateBookClubMember: build.mutation<BookClubMember, {clubId: string; userId: string; role: "moderator" | "member"}>({query: ({clubId, userId, ...body}) => ({url: `/book-clubs/${encodeURIComponent(clubId)}/members/${encodeURIComponent(userId)}`, method: "PATCH", body}), invalidatesTags: (_r, _e, {clubId}) => memberTags(clubId)}),
   removeBookClubMember: build.mutation<void, {clubId: string; userId: string}>({query: ({clubId, userId}) => ({url: `/book-clubs/${encodeURIComponent(clubId)}/members/${encodeURIComponent(userId)}`, method: "DELETE"}), invalidatesTags: (_r, _e, {clubId}) => memberTags(clubId)}),
   transferBookClubOwnership: build.mutation<BookClub, {clubId: string; newOwnerUserId: string}>({query: ({clubId, newOwnerUserId}) => ({url: `/book-clubs/${encodeURIComponent(clubId)}/transfer-ownership`, method: "POST", body: {newOwnerUserId}}), invalidatesTags: (_r, _e, {clubId}) => memberTags(clubId)}),
-  getBookClubSchedule: build.query<BookClubSchedule, string>({query: (clubId) => ({url: `/book-clubs/${encodeURIComponent(clubId)}/schedule`}), providesTags: (_r, _e, clubId) => [clubTag(`schedule:${clubId}`), clubTag(`club:${clubId}`)]}),
+  getBookClubSchedule: build.query<BookClubSchedule, string>({
+   query: (clubId) => ({url: `/book-clubs/${encodeURIComponent(clubId)}/schedule`}),
+   transformResponse: (response: BookClubScheduleResponse): BookClubSchedule => {
+    const mappings = new Map(response.myMappings.map(({milestoneId, ...mapping}) => [milestoneId, mapping]));
+    const progress = new Map(response.myProgress.map(({milestoneId, ...progress}) => [milestoneId, progress]));
+    return {
+     clubId: response.clubId,
+     startDate: response.startDate,
+     completionDate: response.completionDate,
+     progressSharingEnabled: response.progressSharingEnabled,
+     milestones: response.milestones.map(step => ({
+      ...step,
+      memberMapping: mappings.get(step.id) ?? null,
+      memberProgress: progress.get(step.id) ?? null,
+     })),
+     sharedProgress: response.sharedProgress.flatMap(({userId, milestones}) => milestones.map(step => ({userId, ...step}))),
+    };
+   },
+   providesTags: (_r, _e, clubId) => [clubTag(`schedule:${clubId}`), clubTag(`club:${clubId}`)],
+  }),
   updateBookClubSchedule: build.mutation<BookClubSchedule, {clubId: string; startDate?: string | null; completionDate?: string | null; milestones?: Array<{name: string; kind: MilestoneKind; position: number}>}>({query: ({clubId, ...body}) => ({url: `/book-clubs/${encodeURIComponent(clubId)}/schedule`, method: "PUT", body}), invalidatesTags: (_r, _e, {clubId}) => scheduleTags(clubId)}),
   patchBookClubSchedule: build.mutation<BookClubSchedule, {clubId: string; startDate?: string | null; completionDate?: string | null; milestones?: Array<{id?: string; name: string; kind: MilestoneKind; position: number}>}>({query: ({clubId, ...body}) => ({url: `/book-clubs/${encodeURIComponent(clubId)}/schedule`, method: "PATCH", body}), invalidatesTags: (_r, _e, {clubId}) => scheduleTags(clubId)}),
   setProgressSharing: build.mutation<void, {clubId: string; enabled: boolean}>({query: ({clubId, enabled}) => ({url: `/book-clubs/${encodeURIComponent(clubId)}/progress-sharing`, method: "PUT", body: {enabled}}), invalidatesTags: (_r, _e, {clubId}) => scheduleTags(clubId)}),
@@ -105,7 +137,6 @@ bookClubsApi.enhanceEndpoints({
   joinBookClub: {onQueryStarted: (clubId, api) => clearDiscussionBodies({clubId}, api)},
   archiveBookClub: {onQueryStarted: (clubId, api) => clearDiscussionBodies({clubId}, api)},
   deleteBookClub: {onQueryStarted: (clubId, api) => clearDiscussionBodies({clubId}, api)},
-  addBookClubMember: {onQueryStarted: clearDiscussionBodies},
   updateBookClubMember: {onQueryStarted: clearDiscussionBodies},
   removeBookClubMember: {onQueryStarted: clearDiscussionBodies},
   transferBookClubOwnership: {onQueryStarted: clearDiscussionBodies},
@@ -120,4 +151,4 @@ bookClubsApi.enhanceEndpoints({
 
 export const {usePatchBookClubScheduleMutation, useLazyGetDiscussionThreadQuery, useLazyGetDiscussionReplyQuery} = bookClubsApi;
 
-export const {useGetBookClubsQuery, useGetArchivedBookClubsQuery, useGetBookClubQuery, useCreateBookClubMutation, useUpdateBookClubMutation, useJoinBookClubMutation, useArchiveBookClubMutation, useDeleteBookClubMutation, useGetBookClubMembersQuery, useAddBookClubMemberMutation, useUpdateBookClubMemberMutation, useRemoveBookClubMemberMutation, useTransferBookClubOwnershipMutation, useGetBookClubScheduleQuery, useUpdateBookClubScheduleMutation, useSetProgressSharingMutation, useSetMilestoneMappingMutation, useClearMilestoneMappingMutation, useSetMilestoneProgressMutation, useGetReadingCopyQuery, useGetReadingCopyMatchesQuery, useConfirmReadingCopyMatchMutation, useSetReadingCopyMutation, useClearReadingCopyMutation, useGetDiscussionThreadsQuery, useCreateDiscussionThreadMutation, useGetDiscussionRepliesQuery, useCreateDiscussionReplyMutation, useUpdateDiscussionThreadMutation, useDeleteDiscussionThreadMutation, useUpdateDiscussionReplyMutation, useDeleteDiscussionReplyMutation, useModerateDiscussionThreadMutation, useModerateDiscussionReplyMutation, useGetDiscussionAuditQuery, useGetDiscussionRecoveryTargetsQuery} = bookClubsApi;
+export const {useGetBookClubsQuery, useGetArchivedBookClubsQuery, useGetBookClubQuery, useCreateBookClubMutation, useUpdateBookClubMutation, useJoinBookClubMutation, useArchiveBookClubMutation, useDeleteBookClubMutation, useGetBookClubMembersQuery, useUpdateBookClubMemberMutation, useRemoveBookClubMemberMutation, useTransferBookClubOwnershipMutation, useGetBookClubScheduleQuery, useUpdateBookClubScheduleMutation, useSetProgressSharingMutation, useSetMilestoneMappingMutation, useClearMilestoneMappingMutation, useSetMilestoneProgressMutation, useGetReadingCopyQuery, useGetReadingCopyMatchesQuery, useConfirmReadingCopyMatchMutation, useSetReadingCopyMutation, useClearReadingCopyMutation, useGetDiscussionThreadsQuery, useCreateDiscussionThreadMutation, useGetDiscussionRepliesQuery, useCreateDiscussionReplyMutation, useUpdateDiscussionThreadMutation, useDeleteDiscussionThreadMutation, useUpdateDiscussionReplyMutation, useDeleteDiscussionReplyMutation, useModerateDiscussionThreadMutation, useModerateDiscussionReplyMutation, useGetDiscussionAuditQuery, useGetDiscussionRecoveryTargetsQuery} = bookClubsApi;

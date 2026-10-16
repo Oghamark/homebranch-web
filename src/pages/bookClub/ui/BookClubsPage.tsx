@@ -7,6 +7,7 @@ import {type BookModel} from "@/entities/book";
 import {config} from "@/shared/config";
 import {OwnedLibraryBookSelect} from "./OwnedLibraryBookSelect";
 import {BookJacket, clubPalette, ClubLoading, EmptyState, ErrorState} from "./ClubUI";
+import {ClubInvitations} from "@/features/social/ClubInvitations";
 
 export function filterClubs(clubs: BookClub[], view: string, query: string) {
     const needle = query.trim().toLocaleLowerCase();
@@ -16,7 +17,7 @@ export function filterClubs(clubs: BookClub[], view: string, query: string) {
 
 export function BookClubsPage() {
     const [params, setParams] = useSearchParams();
-    const view = ["discover", "archived"].includes(params.get("view") ?? "") ? params.get("view")! : "mine";
+    const view = ["discover", "archived", "invitations"].includes(params.get("view") ?? "") ? params.get("view")! : "mine";
     const [search, setSearch] = useState("");
     const active = useGetBookClubsQuery();
     const archived = useGetArchivedBookClubsQuery(undefined, {skip: view !== "archived"});
@@ -31,17 +32,17 @@ export function BookClubsPage() {
         </Flex>
         <Flex justify="space-between" align="center" gap={4} wrap="wrap">
             <HStack as="nav" aria-label="Book club views" gap={1} wrap="wrap">
-                {[["mine", "My clubs"], ["discover", "Discover"], ["archived", "Archived"]].map(([value, label]) =>
+                {[["mine", "My clubs"], ["discover", "Discover"], ["invitations", "Invitations"], ["archived", "Archived"]].map(([value, label]) =>
                     <Button key={value} minH="44px" variant={view === value ? "solid" : "ghost"} colorPalette={view === value ? "orange" : undefined}
                         aria-current={view === value ? "page" : undefined} onClick={() => {setParams(value === "mine" ? {} : {view: value}); setSearch("");}}>{label}</Button>)}
             </HStack>
-            <Box position="relative" w={{base: "full", sm: "280px"}}>
+            {view !== "invitations" && <Box position="relative" w={{base: "full", sm: "280px"}}>
                 <Box position="absolute" left={3} top="14px" color="fg.muted"><LuSearch/></Box>
                 <Input aria-label="Find a club" placeholder="Find a club or book" pl={10} minH="44px" value={search} onChange={e => setSearch(e.target.value)}/>
-            </Box>
+            </Box>}
         </Flex>
         {view === "discover" && <Text color="fg.muted" fontSize="sm">Clubs open to everyone. Private clubs are only visible to their members.</Text>}
-        {query.isLoading ? <ClubLoading/> : query.error ? <ErrorState onRetry={query.refetch}>Book clubs couldn't be loaded. Your reading spaces will be here when you reconnect.</ErrorState>
+        {view === "invitations" ? <ClubInvitations/> : query.isLoading ? <ClubLoading/> : query.error ? <ErrorState onRetry={query.refetch}>Book clubs couldn't be loaded. Your reading spaces will be here when you reconnect.</ErrorState>
             : !clubs.length ? <EmptyState title={search ? "No matching clubs" : view === "mine" ? "Make a little room for reading together" : view === "archived" ? "No archived clubs" : "No new clubs to discover"}
                 action={view === "mine" && !search ? <Button colorPalette="orange" minH="44px" onClick={() => setParams({view: "discover"})}>Discover clubs <LuArrowRight/></Button> : search ? <Button variant="outline" onClick={() => setSearch("")}>Clear search</Button> : undefined}>
                 {search ? "Try a different club name, book title, or author." : view === "mine" ? "Join a club to share your next read, or start one of your own." : view === "archived" ? "Clubs you've finished will appear here when their owner archives them." : "Start a club of your own, or check back for something new."}
@@ -91,13 +92,13 @@ function CreateClubForm() {
                     close(); navigate(`/book-clubs/${club.id}`);
                 } catch { /* The mutation error is displayed below. */ }
             }}><Stack gap={5}>
-                <Text color="fg.muted">Choose a book from your library. You can add people and plan your read after creating the club.</Text>
+                <Text color="fg.muted">Choose a book from your library. You can invite people and plan your read after creating the club.</Text>
                 <Stack gap={2}><label htmlFor="club-name">Club name</label><Input id="club-name" autoComplete="off" placeholder="The Sunday reading circle" required maxLength={120} value={name} onChange={e => setName(e.target.value)}/></Stack>
                 <OwnedLibraryBookSelect id="club-work" label="What are you reading?" selectedBookId={selectedBook?.id} onSelect={setSelectedBook}/>
                 <Stack gap={2}><label htmlFor="create-description">A few words about your club (optional)</label><Textarea id="create-description" value={description} maxLength={3000} onChange={e => setDescription(e.target.value)}/></Stack>
                 <Stack as="fieldset" gap={3}><Text as="legend" fontWeight="medium">Who can join?</Text>
                     <Box as="label" display="flex" alignItems="center" gap={3} minH="44px"><input type="radio" name="visibility" value="instance_visible" checked={visibility === "instance_visible"} onChange={() => setVisibility("instance_visible")}/> Open to everyone</Box>
-                    <Box as="label" display="flex" alignItems="center" gap={3} minH="44px"><input type="radio" name="visibility" value="private" checked={visibility === "private"} onChange={() => setVisibility("private")}/> Private: only people you add</Box>
+                    <Box as="label" display="flex" alignItems="center" gap={3} minH="44px"><input type="radio" name="visibility" value="private" checked={visibility === "private"} onChange={() => setVisibility("private")}/> Private: invitation only</Box>
                     <Text fontSize="sm" color="fg.muted">Your library and reading history stay private either way.</Text>
                 </Stack>
                 {state.error && <Text role="alert" color="fg.error">We couldn't create your club. Your details are still here. Check your connection and try again.</Text>}
