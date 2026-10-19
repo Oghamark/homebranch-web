@@ -9,6 +9,7 @@ import {useColorMode} from "@/shared/ui/color-mode";
 import {SettingsNavigationGuard} from "@/features/settings/SettingsNavigationGuard";
 import {RegistrationSettings, SignInSettings} from "@/features/settings/SignInSettings";
 import {SocialSettings} from "@/features/social/SocialSettings";
+import {KoreaderSettings} from "@/features/koreader/KoreaderSettings";
 
 export function meta({}: Route.MetaArgs) {
     return [{title: "Homebranch - Settings"}];
@@ -41,7 +42,7 @@ function AppearanceSettings() {
 function SettingsSections() {
     const isAdmin = sessionStorage.getItem("user_role") === "ADMIN";
     const [params] = useSearchParams();
-    const personal = [["profile", "Profile"], ["appearance", "Appearance"], ["privacy", "Friends and invitations"], ["kindle", "Send to Kindle"]];
+    const personal = [["profile", "Profile"], ["appearance", "Appearance"], ["privacy", "Friends and invitations"], ["kindle", "Send to Kindle"], ["koreader", "KOReader"]];
     const admin = isAdmin ? [["email", "Email delivery"], ["sign-in", "Sign-in integrations"],
         ...(!config.cloudMode ? [["registration", "Registration"]] : [])] : [];
     const requested = params.get("section") ?? "profile";
@@ -68,6 +69,7 @@ function SettingsSections() {
             {section === "appearance" && <AppearanceSettings/>}
             {section === "privacy" && <SocialSettings/>}
             {section === "kindle" && <KindleSettingsCard/>}
+            {section === "koreader" && <KoreaderSettings/>}
             {isAdmin && section === "email" && <MailSettingsCard/>}
             {isAdmin && section === "sign-in" && <SignInSettings/>}
             {isAdmin && !config.cloudMode && section === "registration" && <RegistrationSettings/>}

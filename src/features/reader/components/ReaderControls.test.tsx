@@ -108,6 +108,31 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 describe("reader control preservation", () => {
+    it("consumes EPUB selection taps and never turns pages while editing an annotation", async () => {
+        const view = renderReader("EPUB");
+        await waitFor(() => expect(engine.created).toHaveBeenCalledOnce());
+        const iframe = document.createElement("iframe");
+        iframe.src = "http://localhost/books/fixture/chapter.xhtml";
+        document.body.appendChild(iframe);
+        const wnd = iframe.contentWindow!;
+        wnd.document.open(); wnd.document.write("<html><head></head><body><p>Selected quote</p></body></html>"); wnd.document.close();
+        act(() => engine.listeners!.frameLoaded(wnd));
+        const range = wnd.document.createRange();
+        range.selectNodeContents(wnd.document.querySelector("p")!);
+        wnd.getSelection()!.addRange(range);
+        act(() => wnd.document.dispatchEvent(new Event("selectionchange")));
+        expect(engine.listeners!.tap({x: 1, y: 1} as Parameters<EpubNavigatorListeners["tap"]>[0])).toBe(true);
+        expect(engine.listeners!.click({x: 1, y: 1} as Parameters<EpubNavigatorListeners["click"]>[0])).toBe(true);
+        act(() => engine.listeners!.peripheral({key: "ArrowRight"} as Parameters<EpubNavigatorListeners["peripheral"]>[0]));
+        expect(engine.forward).not.toHaveBeenCalled();
+        fireEvent.click(screen.getByRole("button", {name: /Private annotations/}));
+        const note = screen.getByRole("textbox", {name: "New annotation note"});
+        fireEvent.keyDown(note, {key: "ArrowRight"});
+        expect(engine.forward).not.toHaveBeenCalled();
+        view.unmount();
+        iframe.remove();
+    });
+
     it("keeps the EPUB navigator, locator and save cadence through settings, themes and contents", async () => {
         renderReader("EPUB");
         await waitFor(() => expect(engine.created).toHaveBeenCalledOnce());

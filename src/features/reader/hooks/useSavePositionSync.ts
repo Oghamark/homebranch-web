@@ -7,7 +7,7 @@ import type {Locator} from "@readium/shared";
 import {saveLocatorLocal} from "@/features/reader/utils/savedPositionState";
 import {serializeLocatorForCloud} from "@/features/reader/utils/locatorUtils";
 
-export function useSavePositionSync(bookId: string, format: BookFormatType, deviceName: string, resourceBaseRef?: RefObject<string | undefined>) {
+export function useSavePositionSync(bookId: string, format: BookFormatType, deviceName: string, resourceBaseRef?: RefObject<string | undefined>, savesEnabledRef?: RefObject<boolean>) {
     const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const failedRef = useRef(false);
     const lastSerializedRef = useRef<string | null>(null);
@@ -20,12 +20,14 @@ export function useSavePositionSync(bookId: string, format: BookFormatType, devi
 
     const onLocationChange = useCallback(
         (locator: Locator, percentage?: number) => {
+            if (savesEnabledRef && !savesEnabledRef.current) return;
             saveLocatorLocal(bookId, locator);
             const cloudSerialized = serializeLocatorForCloud(locator, resourceBaseRef?.current);
             lastSerializedRef.current = cloudSerialized;
 
             if (timerRef.current) clearTimeout(timerRef.current);
             timerRef.current = setTimeout(async () => {
+                if (savesEnabledRef && !savesEnabledRef.current) return;
                 try {
                     await savePosition(bookId, {position: cloudSerialized, deviceName, percentage});
                     if (failedRef.current) {

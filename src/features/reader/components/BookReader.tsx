@@ -29,6 +29,6 @@ export function BookReader({book, format}: BookReaderProps) {
     }
 
     return <Box fontFamily="system-ui, sans-serif" minH="100dvh">
-        <ReaderComponent book={book} format={format}/>
+        <ReaderComponent key={`${book.id}:${format}:${sessionStorage.getItem("user_id") ?? ""}`} book={book} format={format}/>
     </Box>;
 }

@@ -136,6 +136,52 @@ Notifications never include post bodies, spoiler snippets, or private progress.
 Declined or canceled requests have a 24-hour resend wait, with additional abuse
 limits.
 
+## KOReader integration
+
+**Settings > KOReader** approves the short-lived code displayed by the maintained
+Homebranch KOReader plugin. A deep link fills the code but never approves a reader
+automatically. Review the pairing action before approving. This issues a revocable,
+sync-only device credential, not a general account token. The same settings section
+lists connected devices and their contact/expiry times and lets you revoke them.
+Use the displayed API-based `/koreader` URL for the plugin and `/opds/v1/catalog` catalog
+URL for ordinary OPDS downloads. Existing OPDS login is unchanged.
+
+The EPUB reader's **Private annotations** panel creates highlights from real text
+selections and supports notes, colors, deletion, and chapter/quote navigation.
+Annotations belong to the current account, never a club or a shared library.
+When the book has a server-provided EPUB format ID, the panel shows a selectable
+copy for manual plugin linking of identical-content editions. This never replaces
+server content verification or book-access checks.
+Pending operations are kept in browser storage separately for each account and
+book, including stable mutation IDs for retries. They retry on reconnect, focus,
+and visible refresh. Failures stay visible; do not clear browser storage while
+changes are pending. Latest server-accepted edits win, including an explicitly
+restored draft after a remote deletion.
+
+Anchors use an EPUB resource path plus literal quote and surrounding context.
+Native-only anchors are checked against every reading-order resource before a
+portable path is inferred. A unique literal quote is accepted; repeated quotes
+require unique exact context. There is no fuzzy matching, whitespace rewriting,
+native XPointer interpretation, or invented CFI conversion. Missing, ambiguous,
+or unsupported anchors remain visible as unresolved annotations. Highlight
+rendering requires the browser CSS Highlight API and does not alter book text;
+unsupported browsers retain the annotation list and report the limitation.
+Readium's blob-backed frames are identified using its injected original-resource
+base URL, constrained to the publication root, rather than treating blob URLs as
+portable EPUB paths.
+Frame registration also observes the reader container's standard iframe lifecycle
+because cached Readium frames can activate without another `frameLoaded` callback.
+Quote jumps use a verified DOM range and the current layout's geometry.
+
+Newer KOReader progress offers an explicitly approximate percentage jump.
+Existing exact web-position prompts remain separate. Automatic startup saves
+pause until the position check finishes and any offered position is accepted or
+declined. A failed check stays paused with retry and an explicit stay-here action.
+Server acceptance timestamps are compared conservatively with locally recorded
+web-save timestamps; device clock differences can suppress an approximate offer.
+Older local saves without that timestamp rely on the server's latest-source
+ordering. PDF and audio readers do not use the KOReader bridge or annotations.
+
 ---
 
 ## Installation
