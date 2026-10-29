@@ -2,7 +2,7 @@
   "name": "homebranch-vite",
   "private": true,
   "type": "module",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "scripts": {
     "build": "react-router build",
     "dev": "react-router dev --host",
