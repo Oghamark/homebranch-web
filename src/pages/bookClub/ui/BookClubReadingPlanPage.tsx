@@ -1,20 +1,20 @@
 import {useState} from "react";
 import {Badge, Button, Flex, Heading, HStack, Input, NativeSelect, Progress, Stack, Text} from "@chakra-ui/react";
-import {type BookClub, type Milestone, type ProgressStatus, useClearMilestoneMappingMutation, useGetBookClubScheduleQuery, useGetReadingCopyQuery, useSetMilestoneMappingMutation, useSetMilestoneProgressMutation, useSetProgressSharingMutation} from "@/entities/bookClub";
+import {type BookClub, type Milestone, type ProgressStatus, useClearMilestoneMappingMutation, useGetBookClubScheduleQuery, useGetReadingCopyQuery, useSetMilestoneMappingMutation, useSetMilestoneProgressMutation} from "@/entities/bookClub";
 import {ClubShell} from "./ClubShell";
 import {ClubLoading, EmptyState, ErrorState} from "./ClubUI";
 import {ReadingCopyPanel} from "./ReadingCopyPanel";
 import {ReadingPlanEditor} from "./ReadingPlanEditor";
-import {MemberName, MemberNamesProvider} from "./MemberName";
+import {ClubReadingProgress} from "./ClubReadingProgress";
+import {useVisibleRefresh} from "@/shared/hooks/useVisibleRefresh";
 
 export function BookClubReadingPlanPage({clubId}: {clubId: string}) {
     return <ClubShell clubId={clubId}>{club => <ReadingPlan club={club}/>}</ClubShell>;
 }
 
 function ReadingPlan({club}: {club: BookClub}) {
-    const query = useGetBookClubScheduleQuery(club.id);
+    const query = useGetBookClubScheduleQuery(club.id, useVisibleRefresh());
     const copy = useGetReadingCopyQuery({clubId: club.id, workId: club.selectedWork.id});
-    const [sharing, sharingState] = useSetProgressSharingMutation();
     const [editing, setEditing] = useState(false);
     const archived = club.status === "archived";
     const manager = club.currentMembershipRole === "owner" || club.currentMembershipRole === "moderator";
@@ -35,23 +35,7 @@ function ReadingPlan({club}: {club: BookClub}) {
             <Progress.Root aria-label="Completed reading steps" value={completed / data.milestones.length * 100} colorPalette="orange" size="sm"><Progress.Track borderRadius="full"><Progress.Range/></Progress.Track></Progress.Root>
             {data.milestones.map(step => <ReadingStep key={step.id} clubId={club.id} step={step} canTrack={canTrack} archived={archived}/>)}
         </Stack> : <EmptyState title="A reading plan is still taking shape">{manager && !archived ? "Use Edit reading plan to add chapters, parts, or a few comfortable checkpoints." : "There are no reading steps yet. Enjoy the book at your own pace and keep the conversation going."}</EmptyState>}
-        {!archived && <Stack gap={3} borderTopWidth="1px" pt={5}>
-            <Heading size="md">Reading together, privately</Heading>
-            <label style={{display: "flex", gap: "10px", alignItems: "center", minHeight: "44px"}}>
-                <input type="checkbox" checked={data.progressSharingEnabled ?? false} disabled={sharingState.isLoading} onChange={e => {void sharing({clubId: club.id, enabled: e.target.checked});}}/> Share my reading progress
-            </label>
-            <Text color="fg.muted" fontSize="sm">Off unless you choose it. Members can see which steps you've started or finished, never your copy, chapter labels, reading position, or history.</Text>
-            {sharingState.error && <Text role="alert" color="fg.error">Your sharing preference couldn't be saved. Please try again.</Text>}
-            {sharingState.isLoading && <Text role="status" fontSize="sm">Saving your preference...</Text>}
-        </Stack>}
-        {!!data.sharedProgress?.length && <Stack gap={3} borderTopWidth="1px" pt={5}><Heading size="md">Reading alongside you</Heading><Text color="fg.muted" fontSize="sm">Only progress members have chosen to share appears here.</Text>
-            <MemberNamesProvider userIds={data.sharedProgress.map(row => row.userId)}>
-                {Array.from(new Set(data.sharedProgress.map(row => row.userId))).map(userId => {
-                    const rows = data.sharedProgress!.filter(row => row.userId === userId);
-                    return <HStack key={userId} justify="space-between" wrap="wrap"><Text><MemberName userId={userId}/></Text><Text color="fg.muted" fontSize="sm">{rows.filter(row => row.status === "completed").length} steps finished · {rows.filter(row => row.status === "in_progress").length} in progress</Text></HStack>;
-                })}
-            </MemberNamesProvider>
-        </Stack>}
+        <ClubReadingProgress schedule={data}/>
     </Stack>;
 }
 

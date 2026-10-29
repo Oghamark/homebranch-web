@@ -7,13 +7,15 @@ import {ReadingCopyPanel} from "./ReadingCopyPanel";
 import {ClubLoading, EmptyState, ErrorState} from "./ClubUI";
 import {MemberName, MemberNamesProvider} from "./MemberName";
 import {ClubActivityPreference} from "@/features/social/ClubActivityPreference";
+import {ClubReadingProgress} from "./ClubReadingProgress";
+import {useVisibleRefresh} from "@/shared/hooks/useVisibleRefresh";
 
 export function BookClubDetailPage({clubId}: {clubId: string}) {
     return <ClubShell clubId={clubId}>{club => <ClubHome club={club}/>}</ClubShell>;
 }
 
 function ClubHome({club}: {club: BookClub}) {
-    const schedule = useGetBookClubScheduleQuery(club.id);
+    const schedule = useGetBookClubScheduleQuery(club.id, useVisibleRefresh());
     const discussions = useGetDiscussionThreadsQuery({clubId: club.id});
     const milestones = schedule.data?.milestones ?? [];
     const completed = milestones.filter(step => step.memberProgress?.status === "completed").length;
@@ -34,6 +36,7 @@ function ClubHome({club}: {club: BookClub}) {
             </Stack>
         </Grid>
         <ClubMembers clubId={club.id}/>
+        {schedule.data && !schedule.error && <ClubReadingProgress schedule={schedule.data}/>}
         <Stack gap={4}><Flex justify="space-between" align="center" gap={3} wrap="wrap">
             <Heading size="xl" fontFamily="Georgia, serif">Around the book</Heading><Button asChild variant="ghost" minH="44px"><Link to={`/book-clubs/${club.id}/discussions`}>All discussions <LuArrowRight/></Link></Button></Flex>
             {discussions.isLoading ? <ClubLoading/> : discussions.error ? <ErrorState onRetry={discussions.refetch}>Conversations couldn't be loaded.</ErrorState>

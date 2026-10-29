@@ -7,7 +7,7 @@ import type {IconType} from "react-icons";
 import {ColorModeIcon, useColorMode} from "@/shared/ui/color-mode";
 import {config} from "@/shared/config";
 import {useGetUnreadNotificationCountQuery} from "@/entities/social/api";
-import {useNotificationRefresh} from "@/features/social/useNotificationRefresh";
+import {useVisibleRefresh} from "@/shared/hooks/useVisibleRefresh";
 
 const links: {to: string; label: string; icon: IconType}[] = [
     {to: "/", label: "Library", icon: LuLibrary},
@@ -23,7 +23,7 @@ export function NavigationContent({onNavigate}: {onNavigate?: () => void}) {
     const fetcher = useFetcher();
     const isAdmin = sessionStorage.getItem("user_role") === "ADMIN";
     const {colorMode, toggleColorMode} = useColorMode();
-    const notifications = useGetUnreadNotificationCountQuery(undefined, useNotificationRefresh());
+    const notifications = useGetUnreadNotificationCountQuery(undefined, useVisibleRefresh());
 
     function navigationLink({to, label, icon: Icon}: typeof links[number]) {
         return <Button key={to} asChild justifyContent="start" variant="ghost" minH="44px"

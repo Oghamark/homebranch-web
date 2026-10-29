@@ -103,7 +103,3 @@ export const {
     useSetClubActivityPreferenceMutation, useGetNotificationsQuery, useGetUnreadNotificationCountQuery,
     useMarkNotificationReadMutation, useMarkAllNotificationsReadMutation, useDismissNotificationMutation,
 } = socialApi;
-
-export const notificationRefresh = {
-    pollingInterval: 30_000, skipPollingIfUnfocused: true, refetchOnFocus: true, refetchOnReconnect: true,
-};

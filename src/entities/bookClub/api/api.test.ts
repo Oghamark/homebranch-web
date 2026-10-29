@@ -20,6 +20,8 @@ vi.mock("@/shared/api/rtk-query", async () => {
                 const milestoneId = request.url.split("/").at(-2)!;
                 const {status} = request.body as {status: ProgressStatus};
                 server.schedule!.myProgress = [{milestoneId, status, percentage: null}];
+                const member = server.schedule!.sharedProgress?.find(group => group.userId === "current-reader");
+                if (member) member.milestones = [{milestoneId, status, percentage: null}];
                 return {data: {milestoneId, status, percentage: null}};
             }
             return {data: structuredClone(server.schedule)};
@@ -69,7 +71,7 @@ describe("book club schedule API response", () => {
         expect(server.schedule!.milestones[0]).not.toHaveProperty("memberMapping");
     });
 
-    it("flattens opted-in shared summaries without applying another reader's status to the caller", async () => {
+    it("preserves every member group without applying another reader's status to the caller", async () => {
         server.schedule!.sharedProgress = [{
             userId: "another-reader", milestones: [
                 {milestoneId: "step-1", status: "completed", percentage: null},
@@ -78,13 +80,26 @@ describe("book club schedule API response", () => {
         }];
         const response = await store.dispatch(bookClubsApi.endpoints.getBookClubSchedule.initiate(clubId)).unwrap();
         expect(response.sharedProgress).toEqual([
-            {userId: "another-reader", milestoneId: "step-1", status: "completed", percentage: null},
-            {userId: "another-reader", milestoneId: "step-2", status: "in_progress", percentage: 50},
+            {userId: "another-reader", milestones: [
+                {milestoneId: "step-1", status: "completed", percentage: null},
+                {milestoneId: "step-2", status: "in_progress", percentage: 50},
+            ]},
         ]);
         expect(response.milestones.every(step => step.memberProgress === null)).toBe(true);
     });
+    it("retains members with no reading steps in the view model", async () => {
+        server.schedule!.milestones = [];
+        server.schedule!.sharedProgress = [{userId: "new-member", milestones: []}];
+        const response = await store.dispatch(bookClubsApi.endpoints.getBookClubSchedule.initiate(clubId)).unwrap();
+        expect(response.sharedProgress).toEqual([{userId: "new-member", milestones: []}]);
+    });
 
     it("refetches and exposes persisted completion, undo, and in-progress changes in the shared schedule cache", async () => {
+        const otherReader = {userId: "another-reader", milestones: [{milestoneId: "step-1", status: "completed" as const, percentage: null}]};
+        server.schedule!.sharedProgress = [
+            {userId: "current-reader", milestones: [{milestoneId: "step-1", status: "not_started", percentage: null}]},
+            otherReader,
+        ];
         const query = store.dispatch(bookClubsApi.endpoints.getBookClubSchedule.initiate(clubId));
         await query.unwrap();
         for (const status of ["completed", "not_started", "in_progress"] as const) {
@@ -93,6 +108,10 @@ describe("book club schedule API response", () => {
             })).unwrap();
             await waitFor(() => expect(bookClubsApi.endpoints.getBookClubSchedule.select(clubId)(store.getState())
                 .data?.milestones[0].memberProgress?.status).toBe(status));
+            expect(bookClubsApi.endpoints.getBookClubSchedule.select(clubId)(store.getState()).data?.sharedProgress).toEqual([
+                {userId: "current-reader", milestones: [{milestoneId: "step-1", status, percentage: null}]},
+                otherReader,
+            ]);
         }
         expect(server.requests.filter(request => request.method === "PUT")).toEqual(
             ["completed", "not_started", "in_progress"].map(status => ({

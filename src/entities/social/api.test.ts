@@ -5,7 +5,7 @@ import {socialApi, type SocialNotification} from "./api";
 import {setupListeners} from "@reduxjs/toolkit/query";
 import {createElement, type ReactNode} from "react";
 import {Provider} from "react-redux";
-import {useNotificationRefresh} from "@/features/social/useNotificationRefresh";
+import {useVisibleRefresh} from "@/shared/hooks/useVisibleRefresh";
 
 const server = vi.hoisted(() => ({
     requests: [] as Array<{url: string; method?: string; body?: unknown; params?: unknown}>,
@@ -100,7 +100,7 @@ describe("social wire contracts and caches", () => {
         const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
         const stop = setupListeners(store.dispatch);
         const wrapper = ({children}: {children: ReactNode}) => createElement(Provider, {store, children});
-        const query = renderHook(() => socialApi.useGetUnreadNotificationCountQuery(undefined, useNotificationRefresh()), {wrapper});
+        const query = renderHook(() => socialApi.useGetUnreadNotificationCountQuery(undefined, useVisibleRefresh()), {wrapper});
         try {
             await act(() => vi.advanceTimersByTimeAsync(1));
             const requests = () => server.requests.filter(request => request.url === "/notifications/unread-count").length;

@@ -33,7 +33,7 @@ export function ClubInvitations() {
                 }}>Accept invitation</ActionButton>
                 <ActionButton run={() => respond({invitationId: invitation.id, action: "decline"}).unwrap()}>Decline</ActionButton>
             </Flex>}
-            <Text color="fg.muted" fontSize="sm">Joining never shares your library or progress. You'll choose your reading copy separately.</Text>
+            <Text color="fg.muted" fontSize="sm">Club reading-plan progress is visible to all members. Your library and private reading positions stay private; you'll choose your reading copy separately.</Text>
         </Stack>;
     })}</Stack>;
 }

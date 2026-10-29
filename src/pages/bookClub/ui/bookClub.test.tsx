@@ -12,7 +12,6 @@ const mocks = vi.hoisted(() => ({
     clubs: [] as unknown[],
     save: vi.fn(),
     progress: vi.fn(),
-    share: vi.fn(),
     refetch: vi.fn(),
     create: vi.fn(),
     copySet: vi.fn(),
@@ -42,7 +41,6 @@ vi.mock("@/entities/bookClub", () => ({
     useRemoveBookClubMemberMutation: () => [vi.fn(), {}],
     usePatchBookClubScheduleMutation: () => [mocks.save, {}],
     useSetMilestoneProgressMutation: () => [mocks.progress, {error: mocks.progressError}],
-    useSetProgressSharingMutation: () => [mocks.share, {}],
     useSetMilestoneMappingMutation: () => [vi.fn(), {}],
     useClearMilestoneMappingMutation: () => [vi.fn(), {}],
     useClearReadingCopyMutation: () => [vi.fn(), {}],
@@ -207,7 +205,8 @@ describe("member reading experience", () => {
         renderUI(<BookClubReadingPlanPage clubId={club.id}/>);
         expect(screen.getByRole("button", {name: /Choose your copy/})).toBeVisible();
         expect(screen.queryByRole("button", {name: "Mark complete"})).not.toBeInTheDocument();
-        expect(screen.getByRole("checkbox", {name: "Share my reading progress"})).not.toBeChecked();
+        expect(screen.queryByRole("checkbox", {name: "Share my reading progress"})).not.toBeInTheDocument();
+        expect(screen.getByRole("region", {name: "Club reading progress"})).toBeVisible();
         expect(screen.queryByRole("button", {name: "Edit reading plan"})).not.toBeInTheDocument();
     });
     it("marks a step complete in one action when a copy is available", async () => {

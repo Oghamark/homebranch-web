@@ -1,5 +1,4 @@
 import {useSyncExternalStore} from "react";
-import {notificationRefresh} from "@/entities/social/api";
 
 const subscribe = (listener: () => void) => {
     document.addEventListener("visibilitychange", listener);
@@ -7,8 +6,8 @@ const subscribe = (listener: () => void) => {
 };
 const visible = () => document.visibilityState !== "hidden";
 
-export function useNotificationRefresh() {
+export function useVisibleRefresh() {
     const active = useSyncExternalStore(subscribe, visible, () => true);
     // Explicitly stop the timer rather than relying on a previously scheduled focus check.
-    return {...notificationRefresh, pollingInterval: active ? notificationRefresh.pollingInterval : 0};
+    return {pollingInterval: active ? 30_000 : 0, skipPollingIfUnfocused: true, refetchOnFocus: true, refetchOnReconnect: true};
 }

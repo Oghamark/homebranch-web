@@ -94,8 +94,13 @@ fallback. Cover lookup stays local and respects Cloud library ownership.
 
 Each club has a **Home**, **Reading plan**, and **Discussions**. Choosing your
 reading copy is optional for conversations, but required to track club progress.
-Your copy and private edition labels stay private, and progress sharing is off
-unless you enable it. Club progress is separate from your private reader history.
+Your copy and private edition labels stay private. All current members can see
+everyone's club reading-plan progress on **Home** and **Reading plan**, including
+members who have not started. Expand a person's reading steps to see completed
+and in-progress checkpoints. Club progress is separate from private reader history;
+private positions, library details, and edition labels are never shared.
+The group view refreshes every 30 seconds while visible and when you return to
+the app, without creating progress notifications.
 Spoilers stay hidden until you choose to reveal an individual post or reply.
 
 Everyone in a club can view its **Members** list on **Home**, including in archived

@@ -6,7 +6,7 @@ import {
 } from "@/entities/social/api";
 import {EmptyState, ErrorState, LoadingState, PageHeader} from "@/shared/ui/EditorialUI";
 import {ActionButton} from "@/features/social/SocialUI";
-import {useNotificationRefresh} from "@/features/social/useNotificationRefresh";
+import {useVisibleRefresh} from "@/shared/hooks/useVisibleRefresh";
 
 export function notificationCopy(item: SocialNotification): string {
     switch (item.kind) {
@@ -35,7 +35,7 @@ export function NotificationsPage() {
     const [params, setParams] = useSearchParams();
     const number = Number(params.get("page") ?? 1);
     const page = Number.isSafeInteger(number) && number > 0 ? number : 1;
-    const query = useGetNotificationsQuery(page, useNotificationRefresh());
+    const query = useGetNotificationsQuery(page, useVisibleRefresh());
     const [readAll] = useMarkAllNotificationsReadMutation();
     const data = query.currentData;
     return <Stack maxW="900px" mx="auto" py={{base: 4, md: 7}} gap={7}>

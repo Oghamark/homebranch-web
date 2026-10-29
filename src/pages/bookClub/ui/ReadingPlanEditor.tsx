@@ -36,7 +36,7 @@ export function ReadingPlanEditor({clubId, schedule, onSaved}: {clubId: string; 
     return <Stack as="form" gap={5} p={{base: 4, md: 6}} borderWidth="1px" borderRadius="xl" bg="bg.muted"
         onSubmit={e => {e.preventDefault(); if (!removed.length) void submit().catch(() => {/* The mutation error is displayed below. */});}}>
         <Heading size="lg" fontFamily="Georgia, serif">Make room for a good read</Heading>
-        <Text fontSize="sm" color="fg.muted">Add a few chapters, parts, or checkpoints. Editing or reordering a step keeps everyone's existing progress and private labels.</Text>
+        <Text fontSize="sm" color="fg.muted">Add a few chapters, parts, or checkpoints.</Text>
         <Flex gap={4} wrap="wrap"><Stack flex="1" minW="180px" gap={2}><label htmlFor="plan-start">Start date (optional)</label><Input id="plan-start" type="date" value={start} onChange={e => {dirty.current = true; setStart(e.target.value);}}/></Stack>
             <Stack flex="1" minW="180px" gap={2}><label htmlFor="plan-finish">Finish date (optional)</label><Input id="plan-finish" type="date" value={completion} onChange={e => {dirty.current = true; setCompletion(e.target.value);}}/></Stack></Flex>
         {start && completion && start > completion && <Text role="alert" color="fg.error">Choose a finish date on or after the start date.</Text>}
