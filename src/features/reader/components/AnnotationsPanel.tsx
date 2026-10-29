@@ -1,10 +1,14 @@
 import {useState} from "react";
-import {Box, Button, Flex, Input, Stack, Text, Textarea} from "@chakra-ui/react";
+import {Box, Button, Flex, IconButton, Input, Stack, Text, Textarea} from "@chakra-ui/react";
+import {LuHighlighter} from "react-icons/lu";
 import type {Annotation, AnnotationAnchor, AnnotationMutation} from "@/features/koreader/api";
 import {annotationColors, annotationPalette} from "../utils/annotationCodec";
 import {annotationId} from "@/features/koreader/annotationId";
+import type {ThemeColors} from "../types/ReaderTheme";
+import {ReaderDialog, readerSurface} from "./ReaderUI";
 
 interface Props {
+    colors: ThemeColors;
     epubFormatId?: string;
     items: Annotation[];
     selection: AnnotationAnchor | null;
@@ -27,7 +31,7 @@ function AnnotationEditor({item, mutate, close, removed}: {item: Annotation; mut
             {annotationColors.map(value => <option key={value} value={annotationPalette[value]}>{value}</option>)}
         </select></label>
         {removed && <Text role="alert">This annotation was removed remotely. Saving your draft will restore it as a new accepted edit.</Text>}
-        <Flex gap={2}><Button onClick={() => { if (mutate(item.id, {quote: item.quote, note, color, anchor: item.anchor, ...(removed ? {deleted: false} : {})})) close(); }}>Save note and style</Button>
+        <Flex gap={2} wrap="wrap"><Button onClick={() => { if (mutate(item.id, {quote: item.quote, note, color, anchor: item.anchor, ...(removed ? {deleted: false} : {})})) close(); }}>Save note and style</Button>
             <Button variant="outline" onClick={close}>Cancel edit</Button></Flex>
     </Stack>;
 }
@@ -35,10 +39,19 @@ export function AnnotationsPanel(props: Props) {
     const [open, setOpen] = useState(false);
     const [editing, setEditing] = useState<Annotation | null>(null);
     const [note, setNote] = useState("");
-    return <Box position="fixed" top="64px" right="8px" zIndex={1200} maxW="min(420px, calc(100vw - 16px))">
-        <Button onClick={() => setOpen(!open)} aria-expanded={open}>Private annotations{props.pending > 0 ? ` (${props.pending} pending)` : ""}{props.selection ? " + selection" : ""}</Button>
-        {open && <Stack bg="bg.panel" color="fg" borderWidth="1px" borderRadius="lg" p={4} gap={3} maxH="75dvh" overflowY="auto" aria-label="Private EPUB annotations">
-            <Text fontWeight="semibold">Private EPUB annotations</Text>
+    const label = `Private annotations${props.pending > 0 ? ` (${props.pending} pending)` : ""}${props.selection ? " + selection" : ""}`;
+    return <>
+        <Box position="fixed" top={2} right="112px" zIndex={1002} {...readerSurface(props.colors)} borderRadius="lg">
+            <IconButton aria-label={label} title={label} aria-haspopup="dialog" aria-expanded={open}
+                onClick={() => setOpen(true)} position="relative" borderRadius="lg" minW="44px" minH="44px"
+                bg={props.colors.btnBg} color={props.colors.text} boxShadow="md" _hover={{bg: props.colors.btnHoverBg}}>
+                <LuHighlighter/>
+                {(props.pending > 0 || !!props.selection || !!props.error) && <Box as="span" aria-hidden="true"
+                    position="absolute" top="4px" right="4px" boxSize="6px" borderRadius="full" bg={props.colors.text}/>}
+            </IconButton>
+        </Box>
+        <ReaderDialog open={open} onClose={() => setOpen(false)} title="Private EPUB annotations" colors={props.colors}>
+        <Stack gap={3}>
             {props.epubFormatId && <Box>
                 <label>EPUB format ID for manual linking<Input readOnly value={props.epubFormatId} onFocus={event => event.target.select()}/></label>
                 <Text fontSize="sm">Use this if the plugin asks which identical-content edition to link. The server still verifies your EPUB content and access.</Text>
@@ -76,6 +89,7 @@ export function AnnotationsPanel(props: Props) {
                     }}>Delete annotation</Button>
                 </Flex>
             </Stack>)}
-        </Stack>}
-    </Box>;
+        </Stack>
+        </ReaderDialog>
+    </>;
 }

@@ -261,7 +261,7 @@ export function Reader({ book, format }: ReaderProps) {
             />
 
             <ReaderProgressBar percentage={percentage} colors={colors} />
-            {format === "EPUB" && <AnnotationsPanel {...annotations} items={resolvedAnnotations.items}
+            {format === "EPUB" && <AnnotationsPanel {...annotations} colors={colors} items={resolvedAnnotations.items}
                 epubFormatId={book.formats?.find(item => item.format === "EPUB")?.id}
                 selection={annotationFrames.selection} clearSelection={annotationFrames.clearSelection}
                 resolution={{...annotationFrames.resolution, ...resolvedAnnotations.unresolved}} jump={jumpToAnnotation}

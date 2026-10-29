@@ -126,7 +126,7 @@ describe("reader control preservation", () => {
         act(() => engine.listeners!.peripheral({key: "ArrowRight"} as Parameters<EpubNavigatorListeners["peripheral"]>[0]));
         expect(engine.forward).not.toHaveBeenCalled();
         fireEvent.click(screen.getByRole("button", {name: /Private annotations/}));
-        const note = screen.getByRole("textbox", {name: "New annotation note"});
+        const note = await screen.findByRole("textbox", {name: "New annotation note"});
         fireEvent.keyDown(note, {key: "ArrowRight"});
         expect(engine.forward).not.toHaveBeenCalled();
         view.unmount();

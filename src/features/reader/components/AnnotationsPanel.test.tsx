@@ -1,16 +1,34 @@
-import {fireEvent, render, screen} from "@testing-library/react";
+import {fireEvent, render, screen, waitFor} from "@testing-library/react";
 import {describe, expect, it, vi} from "vitest";
 import {Provider} from "@/shared/ui/provider";
 import {AnnotationsPanel} from "./AnnotationsPanel";
+import {getReaderControlColors} from "./ReaderUI";
 import type {Annotation} from "@/features/koreader/api";
 const item: Annotation = {id: "a", bookId: "book", quote: "Actual quote", note: "Original", color: "yellow", anchor: {version: 1, href: "one.xhtml", exact: "Actual quote", native: {pos0: "a", pos1: "b"}}, deleted: false, revision: "1", updatedAt: ""};
-const props = () => ({items: [item], selection: null, resolution: {a: "Unresolved: quote missing or ambiguous"}, pending: 0, syncing: false, error: "", mutate: vi.fn(() => true), refresh: vi.fn(async () => {}), clearSelection: vi.fn(), jump: vi.fn()});
+const props = () => ({colors: getReaderControlColors("light"), items: [item], selection: null, resolution: {a: "Unresolved: quote missing or ambiguous"}, pending: 0, syncing: false, error: "", mutate: vi.fn(() => true), refresh: vi.fn(async () => {}), clearSelection: vi.fn(), jump: vi.fn()});
 describe("annotation editing UI", () => {
-    it("keeps unsaved note/style edits intact across remote refresh and preserves native selectors", () => {
+    it("opens a dismissible dialog from the toolbar and returns focus after closing", async () => {
+        render(<Provider><AnnotationsPanel {...props()}/></Provider>);
+        const trigger = screen.getByRole("button", {name: "Private annotations"});
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+        trigger.focus();
+        fireEvent.click(trigger);
+        const dialog = await screen.findByRole("dialog", {name: "Private EPUB annotations"});
+        await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true));
+        expect(trigger).toHaveAttribute("aria-expanded", "true");
+        fireEvent.keyDown(document.activeElement!, {key: "Escape"});
+        await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+        await waitFor(() => expect(trigger).toHaveFocus());
+        expect(trigger).toHaveAttribute("aria-expanded", "false");
+        fireEvent.click(trigger);
+        fireEvent.click(await screen.findByRole("button", {name: "Close private epub annotations"}));
+        await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    });
+    it("keeps unsaved note/style edits intact across remote refresh and preserves native selectors", async () => {
         const data = props();
         const view = render(<Provider><AnnotationsPanel {...data}/></Provider>);
         fireEvent.click(screen.getByRole("button", {name: "Private annotations"}));
-        fireEvent.click(screen.getByRole("button", {name: "Edit note / style"}));
+        fireEvent.click(await screen.findByRole("button", {name: "Edit note / style"}));
         fireEvent.change(screen.getByRole("textbox", {name: "Note"}), {target: {value: "Unsaved local note"}});
         fireEvent.change(screen.getByRole("combobox", {name: "Highlight color"}), {target: {value: "#90ee90"}});
         view.rerender(<Provider><AnnotationsPanel {...data} items={[{...item, note: "Remote edit", color: "blue"}]}/></Provider>);
@@ -22,11 +40,11 @@ describe("annotation editing UI", () => {
         fireEvent.click(screen.getByRole("button", {name: "Delete annotation"}));
         expect(data.mutate).toHaveBeenLastCalledWith("a", expect.objectContaining({deleted: true, anchor: item.anchor}));
     });
-    it("creates only from a real supplied selection and exposes pending failures and retry", () => {
+    it("creates only from a real supplied selection and exposes pending failures and retry", async () => {
         const data = props();
         render(<Provider><AnnotationsPanel {...data} epubFormatId="verified-format-id" selection={item.anchor} pending={1} error="Annotation sync failed"/></Provider>);
         fireEvent.click(screen.getByRole("button", {name: /Private annotations/}));
-        expect(screen.getByRole("alert")).toHaveTextContent("sync failed");
+        expect(await screen.findByRole("alert")).toHaveTextContent("sync failed");
         expect(screen.getByRole("status")).toHaveTextContent("1 pending changes");
         expect(screen.getByRole("textbox", {name: "EPUB format ID for manual linking"})).toHaveValue("verified-format-id");
         fireEvent.change(screen.getByRole("textbox", {name: "New annotation note"}), {target: {value: "New note"}});
@@ -36,11 +54,11 @@ describe("annotation editing UI", () => {
         fireEvent.click(screen.getByRole("button", {name: "Retry / refresh annotations"}));
         expect(data.refresh).toHaveBeenCalled();
     });
-    it("retains an unsaved draft when a remote tombstone removes its list item", () => {
+    it("retains an unsaved draft when a remote tombstone removes its list item", async () => {
         const data = props();
         const view = render(<Provider><AnnotationsPanel {...data}/></Provider>);
         fireEvent.click(screen.getByRole("button", {name: "Private annotations"}));
-        fireEvent.click(screen.getByRole("button", {name: "Edit note / style"}));
+        fireEvent.click(await screen.findByRole("button", {name: "Edit note / style"}));
         fireEvent.change(screen.getByRole("textbox", {name: "Note"}), {target: {value: "Keep this draft"}});
         view.rerender(<Provider><AnnotationsPanel {...data} items={[]}/></Provider>);
         expect(screen.getByRole("textbox", {name: "Note"})).toHaveValue("Keep this draft");
@@ -48,11 +66,11 @@ describe("annotation editing UI", () => {
         fireEvent.click(screen.getByRole("button", {name: "Save note and style"}));
         expect(data.mutate).toHaveBeenCalledWith("a", expect.objectContaining({note: "Keep this draft", deleted: false, anchor: item.anchor}));
     });
-    it("preserves an unsupported original color on a note-only edit", () => {
+    it("preserves an unsupported original color on a note-only edit", async () => {
         const data = props();
         render(<Provider><AnnotationsPanel {...data} items={[{...item, color: "#ff00ff"}]}/></Provider>);
         fireEvent.click(screen.getByRole("button", {name: "Private annotations"}));
-        fireEvent.click(screen.getByRole("button", {name: "Edit note / style"}));
+        fireEvent.click(await screen.findByRole("button", {name: "Edit note / style"}));
         fireEvent.change(screen.getByRole("textbox", {name: "Note"}), {target: {value: "Note only"}});
         fireEvent.click(screen.getByRole("button", {name: "Save note and style"}));
         expect(data.mutate).toHaveBeenCalledWith("a", expect.objectContaining({note: "Note only", color: "#ff00ff", anchor: item.anchor}));
