@@ -15,7 +15,7 @@ const jobNameLabels: Record<string, string> = {
 };
 
 function formatTime(iso: string | null): string {
-    if (!iso) return "—";
+    if (!iso) return "Not available";
     return new Date(iso).toLocaleString(undefined, {
         month: "short",
         day: "numeric",
@@ -45,9 +45,10 @@ export function JobRow({job}: JobRowProps) {
 
     return (
         <Flex
-            align="center"
+            align="start"
+            direction={{base: "column", md: "row"}}
             gap={3}
-            py={2}
+            py={4}
             px={3}
             borderRadius="md"
             _hover={{bg: "bg.subtle"}}
@@ -55,30 +56,39 @@ export function JobRow({job}: JobRowProps) {
             <Box color={job.status === "failed" ? "red.500" : "fg.muted"} flexShrink={0}>
                 <StatusIcon size={16}/>
             </Box>
-            <Box flex="1" minW={0}>
-                <Flex align="center" gap={2}>
-                    <Text fontWeight="medium" fontSize="sm" truncate>
+            <Box flex="1" minW={0} w="full">
+                <Flex align="center" gap={2} wrap="wrap">
+                    <Text fontWeight="medium" fontSize="sm" overflowWrap="anywhere">
                         {label}
                     </Text>
                     <JobStatusBadge status={job.status}/>
                 </Flex>
-                {job.status === "active" && typeof job.progress === "number" && job.progress > 0 && (
-                    <Progress.Root size="xs" value={job.progress} mt={1} colorPalette="blue">
+                {job.status === "active" && typeof job.progress === "number" && (
+                    <Progress.Root size="xs" value={job.progress} mt={1} colorPalette="orange">
+                        <Progress.Label>Job progress: {job.progress}%</Progress.Label>
                         <Progress.Track>
                             <Progress.Range/>
                         </Progress.Track>
                     </Progress.Root>
                 )}
                 {description && (
-                    <Text fontSize="xs" color="fg.muted" truncate>
+                    <Text fontSize="sm" color="fg.muted" overflowWrap="anywhere">
                         {description}
                     </Text>
                 )}
                 {job.failedReason && (
-                    <Text fontSize="xs" color="red.500" truncate>
+                    <Text fontSize="sm" color="fg.error" overflowWrap="anywhere">
                         {job.failedReason}
                     </Text>
                 )}
+                <Box as="details" mt={2} fontSize="sm">
+                    <Box as="summary" cursor="pointer" minH="44px" py={3}>Technical details</Box>
+                    <Text overflowWrap="anywhere">Job {job.id} in {job.queue}</Text>
+                    {job.attemptsMade !== undefined && <Text>Attempts: {job.attemptsMade}</Text>}
+                    <Text>Created: {formatTime(job.createdAt)}</Text>
+                    <Text>Started: {formatTime(job.processedAt)}</Text>
+                    <Text>Finished: {formatTime(job.finishedAt)}</Text>
+                </Box>
             </Box>
             <Text fontSize="xs" color="fg.muted" flexShrink={0}>
                 {formatTime(job.finishedAt ?? job.processedAt ?? job.createdAt)}

@@ -1,5 +1,5 @@
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
-import {Box, Flex, IconButton, Input, Text, useMediaQuery} from "@chakra-ui/react";
+import {Box, Button, Flex, IconButton, Input, Text, useMediaQuery} from "@chakra-ui/react";
 import {Document, Page, pdfjs} from "react-pdf";
 import pdfjsWorker from "pdfjs-dist/build/pdf.worker.min.mjs?worker&url";
 import "react-pdf/dist/Page/AnnotationLayer.css";
@@ -9,7 +9,7 @@ import type {BookModel} from "@/entities/book";
 import type {BookFormatType} from "@/entities/book/model/bookFormats";
 import {config} from "@/shared";
 import {useAppSelector} from "@/app/hooks";
-import {getThemeColors} from "../types/ReaderTheme";
+import {getReaderControlColors, readerSurface} from "./ReaderUI";
 import {useDeviceName} from "../hooks/useDeviceName";
 import {useSavePositionSync} from "../hooks/useSavePositionSync";
 import {getSavedPosition} from "../api/savedPositionApi";
@@ -102,7 +102,7 @@ async function buildPdfToc(pdf: PdfDocumentLike): Promise<PdfTocItem[]> {
 
 export function PdfReader({book, format}: PdfReaderProps) {
     const themeState = useAppSelector((state) => state.readerTheme);
-    const colors = getThemeColors(themeState.mode);
+    const colors = getReaderControlColors(themeState.mode);
     const [isMobile] = useMediaQuery(["(max-width: 768px)"]);
     const deviceName = useDeviceName();
     const {onLocationChange} = useSavePositionSync(book.id, format, deviceName);
@@ -336,6 +336,7 @@ export function PdfReader({book, format}: PdfReaderProps) {
         if (!isClient) return;
 
         const handleKeyDown = (event: KeyboardEvent) => {
+            if (document.querySelector("[data-reader-dialog]")) return;
             const target = event.target as HTMLElement | null;
             if (target && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)) {
                 return;
@@ -391,7 +392,7 @@ export function PdfReader({book, format}: PdfReaderProps) {
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [closeReader, goToNextPage, goToPreviousPage, isClient, numPages, zoomIn, zoomOut]);
 
-    /* Touch-swipe navigation for mobile — a horizontal swipe turns the page and
+    /* Touch-swipe navigation for mobile: a horizontal swipe turns the page and
        contributes to the rapid-navigation burst that triggers the jump-back widget. */
     useEffect(() => {
         if (!isClient) return;
@@ -449,7 +450,7 @@ export function PdfReader({book, format}: PdfReaderProps) {
                 top={0}
                 left={0}
                 zIndex={1000}
-                pt="48px"
+                pt={{base: "116px", md: "68px"}}
                 pb="28px"
             >
                 <ReaderLoadingState isLoading={isLoading} error={loadError} colors={colors} />
@@ -492,22 +493,25 @@ export function PdfReader({book, format}: PdfReaderProps) {
             </Box>
 
             {/* Top-left: TOC */}
-            <IconButton
+            <Button
                 aria-label="Table of contents"
+                aria-haspopup="dialog"
+                aria-expanded={isTocOpen}
                 position="fixed"
                 top={2}
                 left={2}
                 zIndex={1001}
-                borderRadius="full"
-                size="sm"
+                borderRadius="lg"
+                minH="44px"
+                gap={2}
                 bg={colors.btnBg}
                 color={colors.text}
                 boxShadow="md"
                 _hover={{ bg: colors.btnHoverBg }}
                 onClick={() => setIsTocOpen(true)}
             >
-                <LuList />
-            </IconButton>
+                <LuList /> Contents
+            </Button>
 
             <ReaderToc
                 isOpen={isTocOpen}
@@ -527,16 +531,18 @@ export function PdfReader({book, format}: PdfReaderProps) {
             {/* Top-center: page navigation and zoom controls */}
             <Flex
                 position="fixed"
-                top={2}
+                top={{base: "60px", md: 2}}
                 left="50%"
                 transform="translateX(-50%)"
                 zIndex={1001}
+                {...readerSurface(colors)}
                 align="center"
-                gap={1}
+                gap={{base: 0, md: 1}}
+                maxW="calc(100vw - 16px)"
                 bg={colors.btnBg}
                 color={colors.text}
-                borderRadius="full"
-                px={2}
+                borderRadius="lg"
+                px={{base: 1, md: 2}}
                 py={1}
                 boxShadow="md"
             >
@@ -593,7 +599,7 @@ export function PdfReader({book, format}: PdfReaderProps) {
                     bg="transparent"
                     border="none"
                     p={0}
-                    _focusVisible={{ outline: "none", boxShadow: "none" }}
+                    _focusVisible={{ outline: `2px solid ${colors.text}`, outlineOffset: "2px" }}
                 />
                 <Text fontSize="xs" whiteSpace="nowrap">/ {numPages ?? "?"}</Text>
                 <IconButton
@@ -619,8 +625,9 @@ export function PdfReader({book, format}: PdfReaderProps) {
                 top={2}
                 right={2}
                 zIndex={1001}
-                borderRadius="full"
-                size="sm"
+                borderRadius="lg"
+                minH="44px"
+                minW="44px"
                 bg={colors.btnBg}
                 color={colors.text}
                 boxShadow="md"
@@ -630,7 +637,7 @@ export function PdfReader({book, format}: PdfReaderProps) {
                 <LuX />
             </IconButton>
 
-            {/* Side navigation arrows — hidden on mobile */}
+            {/* Side navigation arrows, hidden on mobile */}
             {!isMobile && (
                 <>
                     <IconButton
@@ -642,6 +649,8 @@ export function PdfReader({book, format}: PdfReaderProps) {
                         zIndex={1001}
                         borderRadius="full"
                         size="md"
+                        minH="44px"
+                        minW="44px"
                         bg={colors.btnBg}
                         color={colors.text}
                         boxShadow="md"
@@ -660,6 +669,8 @@ export function PdfReader({book, format}: PdfReaderProps) {
                         zIndex={1001}
                         borderRadius="full"
                         size="md"
+                        minH="44px"
+                        minW="44px"
                         bg={colors.btnBg}
                         color={colors.text}
                         boxShadow="md"

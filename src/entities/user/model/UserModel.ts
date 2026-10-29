@@ -5,3 +5,5 @@ export type UserModel = {
     role?: string;
     provider: string;
 }
+
+export type UserSearchResult = Pick<UserModel, 'id' | 'name' | 'email'>;

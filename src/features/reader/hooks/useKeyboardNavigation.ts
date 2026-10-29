@@ -5,6 +5,7 @@ import type { EpubNavigator } from "@readium/navigator";
 export function useKeyboardNavigation(navigatorRef: RefObject<EpubNavigator | null>) {
     useEffect(() => {
         function handleKey(e: KeyboardEvent) {
+            if (e.defaultPrevented || (e.target instanceof Element && e.target.closest("input,textarea,select,[contenteditable=true]"))) return;
             const nav = navigatorRef.current;
             if (!nav) return;
             if (e.key === "ArrowRight" || e.key === "ArrowDown") nav.goForward(false, () => {});

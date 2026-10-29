@@ -13,18 +13,17 @@ export function AuthorCard({author}: { author: AuthorModel }) {
             <Stack
                 align="center"
                 gap={3}
-                p={4}
+                p={{base: 2, sm: 4}}
                 borderRadius="xl"
-                transition="background 0.2s"
                 _hover={{bg: "bg.subtle"}}
                 cursor="pointer"
             >
                 {isLoading ? (
-                    <Skeleton width="120px" height="120px" borderRadius="full" flexShrink={0}/>
+                    <Skeleton width={{base: "96px", sm: "120px"}} height={{base: "96px", sm: "120px"}} borderRadius="full" flexShrink={0}/>
                 ) : (
                     <Avatar.Root
-                        width="120px"
-                        height="120px"
+                        width={{base: "96px", sm: "120px"}}
+                        height={{base: "96px", sm: "120px"}}
                         flexShrink={0}
                     >
                         <Avatar.Fallback name={author.name} css={{fontSize: "2.5rem"}}/>

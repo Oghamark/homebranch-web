@@ -1,4 +1,4 @@
-import { Box, IconButton } from "@chakra-ui/react";
+import { Box, Button, IconButton } from "@chakra-ui/react";
 import { LuX } from "react-icons/lu";
 import type { ThemeColors } from "../types/ReaderTheme";
 
@@ -17,20 +17,20 @@ export function JumpBackButton({ onJumpBack, onDismiss, colors, pageLabel, thumb
             bottom={6}
             left={4}
             zIndex={1002}
-            w="80px"
+            w="160px"
             borderRadius="md"
             boxShadow="lg"
             border="1px solid"
             borderColor={colors.uiBorder}
             overflow="hidden"
-            cursor="pointer"
-            role="button"
-            aria-label={pageLabel ? `Jump back to ${pageLabel}` : "Jump back to previous position"}
-            onClick={onJumpBack}
-            animation="popIn 0.25s ease-out"
+            bg={colors.uiBg}
+            color={colors.text}
         >
+            <Button variant="ghost" h="auto" p={0} pt={3} w="full" display="flex" flexDirection="column" gap={2}
+                color={colors.text} _hover={{bg: colors.hoverBg}}
+                aria-label={pageLabel ? `Jump back to ${pageLabel}` : "Jump back to previous position"} onClick={onJumpBack}>
             {/* Page thumbnail */}
-            <Box w="80px" bg={colors.contentBg} overflow="hidden" position="relative" lineHeight={0}>
+            <Box aria-hidden="true" w="80px" bg={colors.contentBg} overflow="hidden" position="relative" lineHeight={0}>
                 {thumbnailContent ?? (
                     /* Fallback placeholder styled to match reader theme */
                     <Box w="80px" h="104px" bg={colors.contentBg} p="8px" display="flex" flexDirection="column" gap="4px">
@@ -53,20 +53,21 @@ export function JumpBackButton({ onJumpBack, onDismiss, colors, pageLabel, thumb
                 <Box
                     bg={colors.btnBg}
                     color={colors.text}
-                    fontSize="10px"
+                    fontSize="xs"
                     textAlign="center"
-                    py="3px"
+                    py={3}
                     px={1}
                     userSelect="none"
                     overflow="hidden"
                     whiteSpace="nowrap"
                     textOverflow="ellipsis"
                 >
-                    {pageLabel}
+                    Back to {pageLabel}
                 </Box>
             )}
+            </Button>
 
-            {/* Dismiss button — overlaid at top-right corner */}
+            {/* Dismiss button, overlaid at top-right corner */}
             <IconButton
                 aria-label="Dismiss jump back"
                 size="xs"
@@ -78,8 +79,8 @@ export function JumpBackButton({ onJumpBack, onDismiss, colors, pageLabel, thumb
                 top={0}
                 right={0}
                 zIndex={3}
-                minW="18px"
-                h="18px"
+                minW="44px"
+                h="44px"
                 p={0}
                 _hover={{ bg: colors.btnHoverBg }}
                 onClick={(e) => {
@@ -87,7 +88,7 @@ export function JumpBackButton({ onJumpBack, onDismiss, colors, pageLabel, thumb
                     onDismiss();
                 }}
             >
-                <LuX size={9} />
+                <LuX size={16} />
             </IconButton>
         </Box>
     );

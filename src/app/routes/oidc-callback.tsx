@@ -1,8 +1,9 @@
 import type {Route} from "./+types/oidc-callback";
 
-import {Center, Spinner, Stack, Text} from "@chakra-ui/react";
 import {redirect} from "react-router";
 import {authenticationAxiosInstance} from "@/features/authentication/api/axios";
+import {AuthLayout} from "@/features/authentication/ui/AuthLayout";
+import {LoadingState} from "@/shared/ui/EditorialUI";
 
 export async function clientLoader({request}: Route.ClientLoaderArgs) {
     const url = new URL(request.url);
@@ -26,12 +27,7 @@ export async function clientLoader({request}: Route.ClientLoaderArgs) {
 }
 
 export default function OidcCallback() {
-    return (
-        <Center minH="100vh">
-            <Stack align="center" gap={4}>
-                <Spinner size="xl"/>
-                <Text color="fg.muted">Completing sign in...</Text>
-            </Stack>
-        </Center>
-    );
+    return <AuthLayout title="Returning to your library" description="We're completing sign in with your identity provider.">
+        <LoadingState label="Completing sign in..."/>
+    </AuthLayout>;
 }

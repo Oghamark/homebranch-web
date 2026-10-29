@@ -13,15 +13,19 @@ export function LibraryDisplayOptions({
 }: LibraryDisplayOptionsProps) {
     return (
         <Flex align="center" gap={2} wrap="wrap">
-            <ButtonGroup size="sm" variant="outline">
+            <ButtonGroup size="sm" variant="outline" aria-label="Collection display">
                 <Button
                     variant={displayMode === "grid" ? "solid" : "outline"}
+                    aria-pressed={displayMode === "grid"}
+                    minH="44px"
                     onClick={() => onDisplayModeChange("grid")}
                 >
                     Grid
                 </Button>
                 <Button
                     variant={displayMode === "table" ? "solid" : "outline"}
+                    aria-pressed={displayMode === "table"}
+                    minH="44px"
                     onClick={() => onDisplayModeChange("table")}
                 >
                     List
@@ -46,6 +50,8 @@ export function LibraryDisplayToggleButton({
         <IconButton
             variant="ghost"
             size="sm"
+            minH="44px"
+            minW="44px"
             aria-label={isGrid ? "Switch to list view" : "Switch to grid view"}
             onClick={() => onDisplayModeChange(isGrid ? "table" : "grid")}
         >

@@ -43,14 +43,12 @@ export function useMobileNavConfig(title: string, rightAction?: ReactNode) {
 
     useEffect(() => {
         setTitle(title);
-        if (rightAction !== undefined) {
-            setRightAction(rightAction);
-        }
+        setRightAction(rightAction ?? null);
         return () => {
             setTitle(null);
             setRightAction(null);
         };
-    }, [title, rightAction]);
+    }, [title, rightAction, setTitle, setRightAction]);
 }
 
 /**
@@ -63,5 +61,5 @@ export function useMobileNavUserToggle() {
     useEffect(() => {
         setShowUserToggle(true);
         return () => setShowUserToggle(false);
-    }, []);
+    }, [setShowUserToggle]);
 }

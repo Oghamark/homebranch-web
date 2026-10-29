@@ -4,6 +4,7 @@ import {type Action, configureStore, type ThunkAction} from '@reduxjs/toolkit';
 import {listenerMiddleware, startAppListening} from "@/app/listenerMiddleware";
 import {authenticationApi, homebranchApi} from "@/shared/api/rtk-query";
 import libraryReducer from "@/features/library/store/librarySlice";
+import {setupListeners} from "@reduxjs/toolkit/query";
 
 registerReaderThemeListeners(startAppListening);
 
@@ -20,6 +21,8 @@ export const store = configureStore({
             .concat(homebranchApi.middleware)
             .concat(authenticationApi.middleware)
 })
+
+setupListeners(store.dispatch);
 
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;

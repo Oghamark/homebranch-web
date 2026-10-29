@@ -1,6 +1,6 @@
-import { Box, Flex, Text, IconButton } from "@chakra-ui/react";
-import { LuX } from "react-icons/lu";
+import { Box, Button, Text } from "@chakra-ui/react";
 import type { ThemeColors } from "../types/ReaderTheme";
+import {ReaderDialog} from "./ReaderUI";
 
 export interface ReaderTocItem {
     id: string;
@@ -34,8 +34,12 @@ function TocEntry<TItem extends ReaderTocItem>({
 
     return (
         <Box>
-            <Box
-                as="button"
+            <Button
+                variant="ghost"
+                h="auto"
+                minH="44px"
+                justifyContent="flex-start"
+                whiteSpace="normal"
                 w="100%"
                 textAlign="left"
                 px={3}
@@ -44,14 +48,14 @@ function TocEntry<TItem extends ReaderTocItem>({
                 fontSize="sm"
                 color={colors.text}
                 borderRadius="md"
-                aria-disabled={isNavigationDisabled}
+                disabled={isNavigationDisabled}
                 opacity={isNavigationDisabled ? 0.6 : 1}
                 cursor={isNavigationDisabled ? "not-allowed" : "pointer"}
                 _hover={isNavigationDisabled ? undefined : { bg: colors.hoverBg }}
                 onClick={handleClick}
             >
                 {item.label}
-            </Box>
+            </Button>
             {children.map((child, index) => (
                 <TocEntry
                     key={`${child.id}-${index}`}
@@ -88,60 +92,11 @@ export function ReaderToc<TItem extends ReaderTocItem>({
     colors,
     title = "Table of Contents",
 }: ReaderTocProps<TItem>) {
-    if (!isOpen) return null;
-
     return (
-        <>
-            {/* Backdrop */}
-            <Box
-                position="fixed"
-                inset={0}
-                zIndex={1003}
-                onClick={onClose}
-            />
-
-            {/* Drawer */}
-            <Box
-                position="fixed"
-                top={0}
-                left={0}
-                h="100dvh"
-                w={{ base: "80vw", md: "320px" }}
-                maxW="320px"
-                zIndex={1004}
-                bg={colors.uiBg}
-                color={colors.text}
-                boxShadow="xl"
-                display="flex"
-                flexDirection="column"
-            >
-                <Flex
-                    align="center"
-                    justify="space-between"
-                    px={4}
-                    py={3}
-                    borderBottom="1px solid"
-                    borderColor={colors.uiBorder}
-                    flexShrink={0}
-                >
-                    <Text fontWeight="semibold" fontSize="sm">
-                        {title}
-                    </Text>
-                    <IconButton
-                        aria-label="Close table of contents"
-                        size="sm"
-                        variant="ghost"
-                        color={colors.text}
-                        _hover={{ bg: colors.hoverBg }}
-                        onClick={onClose}
-                    >
-                        <LuX />
-                    </IconButton>
-                </Flex>
-
-                <Box flex={1} overflowY="auto" py={2}>
+        <ReaderDialog open={isOpen} onClose={onClose} title={title} colors={colors}>
+                <Box as="nav" aria-label={title} py={2}>
                     {tocItems.length === 0 ? (
-                        <Text px={4} py={3} fontSize="sm" opacity={0.6}>
+                        <Text px={4} py={3} fontSize="sm" color={colors.muted}>
                             No table of contents available.
                         </Text>
                     ) : (
@@ -161,7 +116,6 @@ export function ReaderToc<TItem extends ReaderTocItem>({
                         ))
                     )}
                 </Box>
-            </Box>
-        </>
+        </ReaderDialog>
     );
 }

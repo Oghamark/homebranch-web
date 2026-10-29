@@ -1,10 +1,11 @@
 import {BookCard, BookCardSkeleton, type BookModel} from "@/entities/book";
-import {Avatar, For, Grid, HStack, Link as ChakraLink, Table, Text} from "@chakra-ui/react";
+import {Avatar, Box, Button, For, Grid, HStack, Link as ChakraLink, Stack, Table, Text} from "@chakra-ui/react";
 import InfiniteScroll from "react-infinite-scroll-component";
 import type {LibraryDisplayMode} from "@/features/library/store/librarySlice";
 import {Link} from "react-router";
 import {config} from "@/shared";
 import type {ReactNode} from "react";
+import {ErrorState, LoadingState} from "@/shared/ui/EditorialUI";
 
 interface LibraryPageProps {
     books: BookModel[];
@@ -13,6 +14,8 @@ interface LibraryPageProps {
     fetchMore: () => void;
     displayMode?: LibraryDisplayMode;
     getBookBadge?: (book: BookModel) => ReactNode;
+    loadingMore?: boolean;
+    loadMoreError?: boolean;
 }
 
 interface BookGridSkeletonsProps {
@@ -57,7 +60,7 @@ export function BookGridSkeletons({count = 12, displayMode = "grid"}: BookGridSk
     }
 
     return (
-        <Grid gridTemplateColumns={responsiveGridTemplateColumns} gap={6} p={1}>
+        <Grid gridTemplateColumns={responsiveGridTemplateColumns} gap={6} p={1} role="status" aria-label="Loading books">
             {Array.from({length: count}).map((_, i) => (
                 <BookCardSkeleton key={i}/>
             ))}
@@ -65,17 +68,18 @@ export function BookGridSkeletons({count = 12, displayMode = "grid"}: BookGridSk
     );
 }
 
-export function LibraryPage({books, hasMore, totalBooks, fetchMore, displayMode = "grid", getBookBadge}: LibraryPageProps) {
-    const remaining = totalBooks != null ? Math.max(totalBooks - books.length, 0) : 12;
-
-    return (
+export function LibraryPage({books, hasMore, totalBooks, fetchMore, displayMode = "grid", getBookBadge, loadingMore = false, loadMoreError = false}: LibraryPageProps) {
+    return <Stack gap={4} minW={0}>
+        <Text fontSize="sm" color="fg.muted" role="status">{books.length}{totalBooks != null ? ` of ${totalBooks}` : ""} {totalBooks === 1 || (totalBooks == null && books.length === 1) ? "book" : "books"}</Text>
         <InfiniteScroll
             next={fetchMore}
-            hasMore={hasMore && books.length > 0}
-            loader={<BookGridSkeletons count={remaining} displayMode={displayMode}/>}
+            hasMore={hasMore && !loadMoreError && books.length > 0}
+            loader={null}
             dataLength={books.length}
+            style={{overflow: "visible"}}
         >
             {displayMode === "table" ? (
+                <Box overflowX="auto" borderWidth="1px" borderRadius="lg">
                 <Table.Root variant="outline" size="sm">
                     <Table.Header>
                         <Table.Row>
@@ -95,17 +99,19 @@ export function LibraryPage({books, hasMore, totalBooks, fetchMore, displayMode 
                                                 <Avatar.Fallback name={book.title}/>
                                             </Avatar.Root>
                                             <ChakraLink asChild>
-                                                <Link to={`/books/${book.id}`}>{book.title}</Link>
+                                                <Link to={`/books/${book.id}`} style={{display: "inline-flex", alignItems: "center", minHeight: "44px"}}>{book.title}</Link>
                                             </ChakraLink>
+                                            {getBookBadge && <Box position="relative" minW="44px" minH="36px">{getBookBadge(book)}</Box>}
                                         </HStack>
                                     </Table.Cell>
                                     <Table.Cell>{book.author}</Table.Cell>
-                                    <Table.Cell>{book.publishedYear ?? "—"}</Table.Cell>
+                                    <Table.Cell>{book.publishedYear ?? "Not listed"}</Table.Cell>
                                 </Table.Row>
                             )}
                         </For>
                     </Table.Body>
                 </Table.Root>
+                </Box>
             ) : (
                 <Grid
                     gridTemplateColumns={responsiveGridTemplateColumns}
@@ -116,6 +122,7 @@ export function LibraryPage({books, hasMore, totalBooks, fetchMore, displayMode 
                     <For each={books}>
                         {(book) => (
                             <BookCard
+                                key={book.id}
                                 book={book}
                                 badge={getBookBadge?.(book)}
                             />
@@ -124,5 +131,8 @@ export function LibraryPage({books, hasMore, totalBooks, fetchMore, displayMode 
                 </Grid>
             )}
         </InfiniteScroll>
-    );
+        {loadingMore && <LoadingState label="Loading more books..."/>}
+        {loadMoreError && <ErrorState onRetry={fetchMore}>More books could not be loaded. Your current results are still here.</ErrorState>}
+        {hasMore && !loadingMore && !loadMoreError && <Button alignSelf="center" minH="44px" variant="outline" onClick={fetchMore}>Load more books</Button>}
+    </Stack>;
 }

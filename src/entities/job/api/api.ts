@@ -44,8 +44,12 @@ export const jobsApi = homebranchApi.injectEndpoints({
             invalidatesTags: [{type: 'Book', id: 'UNOWNED'}, 'Book'],
         }),
         getLibrarySetting: build.query<{ key: string; value: string } | null, string>({
-            query: (key) => ({url: `/settings/${key}`}),
-            transformErrorResponse: () => null,
+            queryFn: async (key, _api, _options, baseQuery) => {
+                const response = await baseQuery({url: `/settings/${key}`});
+                // An unset optional setting is a 404; permission/network/server failures are not defaults.
+                if (response.error) return response.error.status === 404 ? {data: null} : {error: response.error};
+                return {data: response.data as {key: string; value: string}};
+            },
             providesTags: (_result, _error, key) => [{type: 'Book', id: `setting-${key}`}],
         }),
         upsertLibrarySetting: build.mutation<void, { key: string; value: string }>({

@@ -11,6 +11,8 @@ import type {BookFormatType} from "@/entities/book/model/bookFormats";
 import { getSavedPosition } from "../api/savedPositionApi";
 import { getStoredLocator } from "@/features/reader";
 import { deserializeLocatorFromCloud } from "@/features/reader";
+import {approximateProgressLocator} from "../utils/approximateProgress";
+import {resourceHref} from "../utils/annotationCodec";
 
 const CHAPTER_TRANSITION_TIMEOUT_MS = 8000;
 const MOBILE_BOUNDARY_SWIPE_TRIGGER_RATIO = 0.12;
@@ -27,6 +29,8 @@ export interface UseEpubNavigatorResult {
     percentage: number | undefined;
     tocItems: Link[];
     resolveStoredLocator: (stored: Locator) => Locator;
+    resolvePercentage: (percentage: number) => Locator | null;
+    resolveResource: (href: string) => Locator | null;
 }
 
 export type MobileSwipeDirection = "forward" | "backward";
@@ -45,6 +49,8 @@ export function useEpubNavigator(
     onLocationChange: (locator: Locator) => void,
     enableMobileSwipeOverlay: boolean,
     resourceBaseRef: React.RefObject<string | undefined>,
+    onFrameLoaded?: (wnd: Window) => void,
+    onTextSelected?: () => void,
 ): UseEpubNavigatorResult {
     function deserializeLinks(raw: unknown): Link[] {
         if (!Array.isArray(raw)) return [];
@@ -86,6 +92,18 @@ export function useEpubNavigator(
     themeStateRef.current = themeState;
     const onLocationChangeRef = useRef(onLocationChange);
     onLocationChangeRef.current = onLocationChange;
+    const onFrameLoadedRef = useRef(onFrameLoaded);
+    onFrameLoadedRef.current = onFrameLoaded;
+    const onTextSelectedRef = useRef(onTextSelected);
+    onTextSelectedRef.current = onTextSelected;
+    const selectionWindowsRef = useRef(new Set<Window>());
+    const hasSelection = () => {
+        const windows = new Set(selectionWindowsRef.current);
+        containerRef.current?.querySelectorAll<HTMLIFrameElement>("iframe.readium-navigator-iframe").forEach(frame => {
+            if (frame.contentWindow) windows.add(frame.contentWindow);
+        });
+        return [...windows].some(wnd => !wnd.closed && !!wnd.getSelection()?.toString());
+    };
     const readingOrderItemsRef = useRef<Link[]>([]);
     const positionsRef = useRef<Locator[]>([]);
     const prefetchedHrefSetRef = useRef(new Set<string>());
@@ -352,6 +370,11 @@ export function useEpubNavigator(
                     };
 
                     const touchMove = (event: TouchEvent) => {
+                        if (wnd.getSelection()?.toString()) {
+                            mobileSwipeStartXRef.current = null;
+                            retreatSwipeOverlay();
+                            return;
+                        }
                         if (mobileSwipeStartXRef.current === null || event.touches.length !== 1) return;
 
                         const currentX = event.touches[0]?.clientX;
@@ -383,6 +406,12 @@ export function useEpubNavigator(
                     };
 
                     const touchEnd = () => {
+                        if (wnd.getSelection()?.toString()) {
+                            mobileSwipeStartXRef.current = null;
+                            mobileSwipeBoundaryDirectionRef.current = null;
+                            retreatSwipeOverlay();
+                            return;
+                        }
                         const direction = mobileSwipeBoundaryDirectionRef.current;
                         const swipeDistance = mobileSwipeDistanceRef.current;
                         mobileSwipeStartXRef.current = null;
@@ -441,6 +470,11 @@ export function useEpubNavigator(
                 const listeners: EpubNavigatorListeners = {
                     frameLoaded: (wnd: Window) => {
                         if (cancelled) return;
+                        selectionWindowsRef.current.add(wnd);
+                        const unload = () => selectionWindowsRef.current.delete(wnd);
+                        wnd.addEventListener("unload", unload, {once: true});
+                        frameSwipeCleanupRef.current.push(() => wnd.removeEventListener("unload", unload));
+                        onFrameLoadedRef.current?.(wnd);
                         attachMobileSwipeTracking(wnd);
                         clearChapterTransition();
                     },
@@ -466,17 +500,18 @@ export function useEpubNavigator(
                         }
                         onLocationChangeRef.current(normalizedLocator);
                     },
-                    tap: (e) => e.interactiveElement == null,
-                    click: (e) => e.interactiveElement == null,
+                    tap: (e) => hasSelection() || e.interactiveElement == null,
+                    click: (e) => hasSelection() || e.interactiveElement == null,
                     zoom: () => {},
                     miscPointer: () => {},
                     scroll: () => {},
                     customEvent: () => {},
                     handleLocator: () => false,
-                    textSelected: () => {},
+                    textSelected: () => { onTextSelectedRef.current?.(); },
                     contentProtection: () => {},
                     contextMenu: () => {},
                     peripheral: (data) => {
+                        if (hasSelection()) return;
                         if (data.key === "ArrowRight" || data.key === "ArrowDown") nav?.goForward(false, () => {});
                         else if (data.key === "ArrowLeft" || data.key === "ArrowUp") nav?.goBackward(false, () => {});
                     },
@@ -598,6 +633,7 @@ export function useEpubNavigator(
             clearChapterTransition();
             nav?.destroy();
             navigatorRef.current = null;
+            selectionWindowsRef.current.clear();
         };
     }, [book.id, format]);
 
@@ -618,6 +654,13 @@ export function useEpubNavigator(
         mobileSwipeOverlay,
         percentage,
         tocItems,
+        resolvePercentage: (value: number) => approximateProgressLocator(positionsRef.current, value),
+        resolveResource: (href: string) => {
+            const base = resourceBaseRef.current;
+            if (!base) return null;
+            const path = resourceHref(href, base);
+            return path ? positionsRef.current.find(position => resourceHref(position.href, base) === path) ?? null : null;
+        },
         resolveStoredLocator: (stored: Locator): Locator => {
             const positions = positionsRef.current;
             if (!positions.length) return stored;

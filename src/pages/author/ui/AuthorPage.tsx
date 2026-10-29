@@ -1,24 +1,22 @@
 import type React from "react";
-import {BookCard, BookCardSkeleton, type BookModel} from "@/entities/book";
+import {type BookModel} from "@/entities/book";
 import {
     Avatar,
     Box,
     Button,
     Card,
     Flex,
-    For,
-    Grid,
-    Heading,
     Image,
     Link,
     Skeleton,
     Stack,
     Text
 } from "@chakra-ui/react";
-import InfiniteScroll from "react-infinite-scroll-component";
 import {useState} from "react";
 import ReactMarkdown from "react-markdown";
-import {ShowAllUsersButton} from "@/features/library";
+import {BookGridSkeletons, LibraryPage} from "@/pages/library";
+import {PageHeader} from "@/shared/ui/EditorialUI";
+import type {LibraryDisplayMode} from "@/features/library/store/librarySlice";
 
 interface AuthorPageProps {
     authorName: string;
@@ -30,6 +28,10 @@ interface AuthorPageProps {
     totalBooks?: number;
     fetchMore: () => void;
     noResultsNode?: React.ReactNode;
+    toolbar?: React.ReactNode;
+    displayMode?: LibraryDisplayMode;
+    loadingMore?: boolean;
+    loadMoreError?: boolean;
 }
 
 const BIOGRAPHY_CHAR_LIMIT = 400;
@@ -65,7 +67,7 @@ function Biography({text}: { text: string }) {
                 </ReactMarkdown>
             </Box>
             {isLong && (
-                <Button variant="plain" size="xs" color="fg.subtle" px={0} mt={1}
+                <Button variant="plain" minH="44px" color="fg.muted" px={0} mt={1} aria-expanded={expanded}
                         onClick={() => setExpanded(e => !e)}>
                     {expanded ? "Show less" : "Read more"}
                 </Button>
@@ -79,6 +81,7 @@ function AuthorHero({authorName, biography, profilePictureUrl}: {
     biography?: string | null;
     profilePictureUrl?: string | null;
 }) {
+    const [failedUrl, setFailedUrl] = useState<string | null>(null);
     return (
         <Card.Root variant="subtle" overflow="hidden">
             <Card.Body p={0}>
@@ -87,18 +90,16 @@ function AuthorHero({authorName, biography, profilePictureUrl}: {
                     gap={0}
                     align="stretch"
                 >
-                    {/* Author image — large, prominent */}
                     <Box
                         flexShrink={0}
                         width={{base: "100%", md: "200px"}}
-                        minH={{base: "200px", md: "auto"}}
                         display="flex"
                         alignItems="center"
                         justifyContent="center"
                         bg="bg.subtle"
                         p={6}
                     >
-                        {profilePictureUrl ? (
+                        {profilePictureUrl && failedUrl !== profilePictureUrl ? (
                             <Image
                                 src={profilePictureUrl}
                                 alt={authorName}
@@ -107,6 +108,7 @@ function AuthorHero({authorName, biography, profilePictureUrl}: {
                                 maxH="220px"
                                 width="auto"
                                 shadow="md"
+                                onError={() => setFailedUrl(profilePictureUrl)}
                             />
                         ) : (
                             <Avatar.Root size="2xl" width="140px" height="140px">
@@ -115,9 +117,8 @@ function AuthorHero({authorName, biography, profilePictureUrl}: {
                         )}
                     </Box>
 
-                    {/* Author info */}
                     <Stack gap={3} p={6} flex={1} justify="center" minW={0}>
-                        <Heading size="2xl">{authorName}</Heading>
+                        <PageHeader title={authorName}/>
                         {biography && <Biography text={biography}/>}
                     </Stack>
                 </Stack>
@@ -162,54 +163,28 @@ function AuthorHeroSkeleton() {
     );
 }
 
-function BookGridSkeletons({count = 12}: { count?: number } = {}) {
-    return (
-        <Grid gridTemplateColumns="repeat(auto-fill, minmax(160px, 1fr))" gap={6} p={1}>
-            {Array.from({length: count}).map((_, index) => (
-                <BookCardSkeleton key={index}/>
-            ))}
-        </Grid>
-    );
-}
-
-export function AuthorPage({authorName, biography, profilePictureUrl, isAuthorLoading, books, hasMore, totalBooks, fetchMore, noResultsNode}: AuthorPageProps) {
-    const remaining = totalBooks != null ? Math.max(totalBooks - books.length, 0) : 12;
-
+export function AuthorPage({authorName, biography, profilePictureUrl, isAuthorLoading, books, hasMore, totalBooks, fetchMore, noResultsNode, toolbar, displayMode, loadingMore, loadMoreError}: AuthorPageProps) {
     return (
         <Stack gap={6} height="100%">
             {isAuthorLoading
                 ? <AuthorHeroSkeleton/>
                 : <AuthorHero authorName={authorName} biography={biography} profilePictureUrl={profilePictureUrl}/>
             }
-            <Flex display={{base: "none", md: "flex"}} justify="flex-end">
-                <ShowAllUsersButton showLabel/>
-            </Flex>
+            {toolbar}
             {noResultsNode
                 ? <Flex flex={1} alignItems="center" justifyContent="center">{noResultsNode}</Flex>
                 : (
-                <InfiniteScroll
-                    next={fetchMore}
-                    hasMore={hasMore && books.length > 0}
-                    loader={<BookGridSkeletons count={remaining}/>}
-                    dataLength={books.length}
-                >
-                    <Grid gridTemplateColumns="repeat(auto-fill, minmax(160px, 1fr))" gap={6} p={1} pb={3}>
-                        <For each={books}>
-                            {(book, _index) => (
-                                <BookCard book={book}/>
-                            )}
-                        </For>
-                    </Grid>
-                </InfiniteScroll>
+                <LibraryPage books={books} fetchMore={fetchMore} hasMore={hasMore} totalBooks={totalBooks}
+                    displayMode={displayMode} loadingMore={loadingMore} loadMoreError={loadMoreError}/>
             )}
         </Stack>
     );
 }
 
-export function AuthorPageSkeleton() {
+export function AuthorPageSkeleton({booksOnly = false}: {booksOnly?: boolean} = {}) {
     return (
         <Stack gap={6}>
-            <AuthorHeroSkeleton/>
+            {!booksOnly && <AuthorHeroSkeleton/>}
             <BookGridSkeletons/>
         </Stack>
     );

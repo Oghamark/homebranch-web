@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Box, Spinner, useMediaQuery } from "@chakra-ui/react";
+import { Box, Button, Spinner, Text, useMediaQuery } from "@chakra-ui/react";
 import { LuChevronLeft, LuChevronRight } from "react-icons/lu";
 import { useAppSelector } from "@/app/hooks";
-import { getThemeColors } from "../types/ReaderTheme";
+import {getReaderControlColors} from "./ReaderUI";
 import type { BookModel } from "@/entities/book/model/BookModel";
 import type {BookFormatType} from "@/entities/book/model/bookFormats";
 import { useDeviceName } from "../hooks/useDeviceName";
@@ -15,6 +15,11 @@ import { ReaderProgressBar } from "./ReaderProgressBar";
 import { ReaderControls } from "./ReaderControls";
 import { JumpToSavedPositionModal } from "@/features/reader";
 import { Locator } from "@readium/shared";
+import {useAnnotations} from "@/features/koreader/useAnnotations";
+import {useAnnotationFrames} from "../hooks/useAnnotationFrames";
+import {useResolvedAnnotations} from "../hooks/useResolvedAnnotations";
+import {AnnotationsPanel} from "./AnnotationsPanel";
+import type {Annotation} from "@/features/koreader/api";
 
 const KEYBOARD_HINT_KEY = "reader-keyboard-hint-shown";
 
@@ -26,7 +31,7 @@ interface ReaderProps {
 export function Reader({ book, format }: ReaderProps) {
     const deviceName = useDeviceName();
     const themeState = useAppSelector((state) => state.readerTheme);
-    const colors = getThemeColors(themeState.mode);
+    const colors = getReaderControlColors(themeState.mode);
     const [isMobile] = useMediaQuery(["(max-width: 768px)"]);
     const [showKeyboardHint, setShowKeyboardHint] = useState(() => {
         if (typeof window === "undefined") return false;
@@ -43,8 +48,15 @@ export function Reader({ book, format }: ReaderProps) {
        the manifest loads). Passed to useSavePositionSync so cloud-saved hrefs are stored
        as EPUB-internal paths rather than full server URLs. */
     const resourceBaseRef = useRef<string | undefined>(undefined);
+    const savesEnabledRef = useRef(false);
+    const annotations = useAnnotations(book.id, format === "EPUB");
+    const frameCallbacks = useRef<{register: (wnd: Window) => void; capture: () => void} | null>(null);
+    const registerFrame = useCallback((wnd: Window) => frameCallbacks.current?.register(wnd), []);
+    const captureSelection = useCallback(() => frameCallbacks.current?.capture(), []);
+    const [annotationJumpError, setAnnotationJumpError] = useState("");
+    const pendingAnnotationJump = useRef<Annotation | null>(null);
 
-    /* Rapid-swipe detection for EPUB — tracks consecutive positionChanged events.
+    /* Rapid-swipe detection for EPUB: tracks consecutive positionChanged events.
        Three or more page turns within 800 ms → save origin for jump-back immediately. */
     const prevLocatorJsonRef = useRef<string | null>(null);
     const navigatorRefForRapidNav = useRef<typeof navigatorRef.current>(null);
@@ -54,7 +66,7 @@ export function Reader({ book, format }: ReaderProps) {
         changeCount: number;
     }>({ startLocatorJson: null, lastChangeTime: 0, changeCount: 0 });
 
-    const { onLocationChange, saveImmediate } = useSavePositionSync(book.id, format, deviceName, resourceBaseRef);
+    const { onLocationChange, saveImmediate } = useSavePositionSync(book.id, format, deviceName, resourceBaseRef, savesEnabledRef);
 
     const handleLocationChange = useCallback((locator: Locator, percentage?: number) => {
         const prevLocatorJson = prevLocatorJsonRef.current;
@@ -93,13 +105,16 @@ export function Reader({ book, format }: ReaderProps) {
         prevLocatorJsonRef.current = navLocator ? JSON.stringify(navLocator.serialize()) : JSON.stringify(locator.serialize());
     }, [onLocationChange]);
 
-    const { containerRef, navigatorRef, isLoading, isLoaded, loadError, isChapterTransitioning, mobileSwipeOverlay, percentage, tocItems, resolveStoredLocator } =
-        useEpubNavigator(book, format, themeState, handleLocationChange, isMobile && !themeState.scroll, resourceBaseRef);
+    const { containerRef, navigatorRef, isLoading, isLoaded, loadError, isChapterTransitioning, mobileSwipeOverlay, percentage, tocItems, resolveStoredLocator, resolvePercentage, resolveResource } =
+        useEpubNavigator(book, format, themeState, handleLocationChange, isMobile && !themeState.scroll, resourceBaseRef, registerFrame, captureSelection);
+    const resolvedAnnotations = useResolvedAnnotations(annotations.items, navigatorRef, isLoaded, book.id);
+    const annotationFrames = useAnnotationFrames(resolvedAnnotations.items, resourceBaseRef, themeState, containerRef);
+    frameCallbacks.current = annotationFrames;
 
     // Keep the proxy ref in sync so handleLocationChange can read currentLocator
     navigatorRefForRapidNav.current = navigatorRef.current;
 
-    const { modalCase, setModalCase, handleJump, handleKeepLocal } = usePositionConflict(
+    const { modalCase, handleJump, handleKeepLocal, closePositionPrompt, positionError, retryPosition } = usePositionConflict(
         book.id,
         navigatorRef,
         deviceName,
@@ -108,7 +123,41 @@ export function Reader({ book, format }: ReaderProps) {
         saveImmediate,
         resolveStoredLocator,
         resourceBaseRef,
+        savesEnabledRef,
+        resolvePercentage,
     );
+    useEffect(() => {
+        const item = pendingAnnotationJump.current;
+        const status = item ? annotationFrames.resolution[item.id] : undefined;
+        if (!item || !status || status === "Not in an open chapter") return;
+        pendingAnnotationJump.current = null;
+        const progression = annotationFrames.locate(item, themeState.scroll);
+        const locator = item.anchor.href ? resolveResource(item.anchor.href) : null;
+        if (progression === null || !locator) { setAnnotationJumpError("Quote or layout unresolved in this chapter. No guessed quote jump was applied."); return; }
+        navigatorRef.current?.go(locator.copyWithLocations({progression}), true, ok => {
+            if (!ok) setAnnotationJumpError("Unable to show the exact quote. Its chapter remains open.");
+        });
+    }, [annotationFrames.resolution, annotationFrames.locate, themeState.scroll, resolveResource, navigatorRef]);
+
+    function jumpToAnnotation(item: Annotation) {
+        setAnnotationJumpError("");
+        const locator = item.anchor.href ? resolveResource(item.anchor.href) : null;
+        if (!locator) { setAnnotationJumpError("Annotation resource is unresolved. No guessed jump was applied."); return; }
+        const progression = annotationFrames.locate(item, themeState.scroll);
+        if (progression !== null) {
+            navigatorRef.current?.go(locator.copyWithLocations({progression}), true, ok => {
+                if (!ok) setAnnotationJumpError("Unable to show the exact quote. Retry when the reader is ready.");
+            });
+            return;
+        }
+        pendingAnnotationJump.current = item;
+        navigatorRef.current?.go(locator, true, ok => {
+            if (!ok) {
+                pendingAnnotationJump.current = null;
+                setAnnotationJumpError("Unable to open annotation chapter. Retry when the reader is ready.");
+            }
+        });
+    }
 
     useKeyboardNavigation(navigatorRef);
 
@@ -149,7 +198,7 @@ export function Reader({ book, format }: ReaderProps) {
                 zIndex={1000}
                 display="flex"
                 justifyContent="center"
-                pt="48px"
+                pt="60px"
                 pb="28px"
             >
                 <ReaderLoadingState isLoading={isLoading} error={loadError} colors={colors} />
@@ -212,6 +261,17 @@ export function Reader({ book, format }: ReaderProps) {
             />
 
             <ReaderProgressBar percentage={percentage} colors={colors} />
+            {format === "EPUB" && <AnnotationsPanel {...annotations} items={resolvedAnnotations.items}
+                epubFormatId={book.formats?.find(item => item.format === "EPUB")?.id}
+                selection={annotationFrames.selection} clearSelection={annotationFrames.clearSelection}
+                resolution={{...annotationFrames.resolution, ...resolvedAnnotations.unresolved}} jump={jumpToAnnotation}
+                error={[annotations.error, resolvedAnnotations.error, annotationJumpError, resolvedAnnotations.searching ? "Verifying native quotes across all EPUB chapters..." : ""].filter(Boolean).join(" ")}
+                refresh={async () => { resolvedAnnotations.retry(); await annotations.refresh(); }}/>}
+            {positionError && <Box position="fixed" bottom="36px" left="8px" right="8px" p={4} bg="bg.panel" color="fg" zIndex={1300}>
+                <Text role="alert">{positionError}</Text>
+                <Button onClick={retryPosition}>Retry position check</Button>
+                <Button onClick={closePositionPrompt}>Stay here and enable saves</Button>
+            </Box>}
 
             {modalCase && (
                 <JumpToSavedPositionModal
@@ -219,7 +279,7 @@ export function Reader({ book, format }: ReaderProps) {
                     open={!!modalCase}
                     onJump={handleJump}
                     onKeepLocal={handleKeepLocal}
-                    onClose={() => setModalCase(null)}
+                    onClose={closePositionPrompt}
                 />
             )}
         </>

@@ -1,107 +1,65 @@
 import {AddBookButton} from "@/entities/book";
-import {Box, Button, For, Separator, Spinner, Stack, Tabs, Text} from "@chakra-ui/react";
-import {LuBookOpen, LuFolderSync, LuHeart, LuLibrary, LuLogOut, LuSettings, LuUser, LuUsers} from "react-icons/lu";
-import {Link, useFetcher, useLocation} from "react-router";
+import {Badge, Box, Button, Separator, Spinner, Stack, Text} from "@chakra-ui/react";
+import {LuBell, LuBookOpen, LuFolderSync, LuHeart, LuLibrary, LuLogOut, LuMessagesSquare, LuSettings, LuUser, LuUsers} from "react-icons/lu";
+import {NavLink, useFetcher} from "react-router";
 import {BookShelfNavigationSection} from "@/entities/bookShelf";
-import {SearchLibrary} from "@/features/library";
 import type {IconType} from "react-icons";
 import {ColorModeIcon, useColorMode} from "@/shared/ui/color-mode";
 import {config} from "@/shared/config";
+import {useGetUnreadNotificationCountQuery} from "@/entities/social/api";
+import {useVisibleRefresh} from "@/shared/hooks/useVisibleRefresh";
 
-interface NavigationContentProps {
-    onNavigate?: () => void;
-}
-
-const links: { to: string; label: string; icon: IconType }[] = [
+const links: {to: string; label: string; icon: IconType}[] = [
     {to: "/", label: "Library", icon: LuLibrary},
-    {to: "/currently-reading", label: "Currently Reading", icon: LuBookOpen},
+    {to: "/currently-reading", label: "Continue reading", icon: LuBookOpen},
     {to: "/favorites", label: "Favorites", icon: LuHeart},
     {to: "/authors", label: "Authors", icon: LuUser},
+    {to: "/book-clubs", label: "Book clubs", icon: LuMessagesSquare},
+    {to: "/friends", label: "Friends", icon: LuUsers},
+    {to: "/notifications", label: "Notifications", icon: LuBell},
 ];
 
-export function NavigationContent({onNavigate}: NavigationContentProps) {
-    const location = useLocation();
+export function NavigationContent({onNavigate}: {onNavigate?: () => void}) {
     const fetcher = useFetcher();
-    let busy = fetcher.state !== 'idle';
-    const isAdmin = sessionStorage.getItem('user_role') === 'ADMIN';
+    const isAdmin = sessionStorage.getItem("user_role") === "ADMIN";
     const {colorMode, toggleColorMode} = useColorMode();
+    const notifications = useGetUnreadNotificationCountQuery(undefined, useVisibleRefresh());
 
-    return (
-        <>
-            <Box
-                flex="1"
-                minH="0"
-                overflowY="auto"
-                scrollbarWidth="none"
-                css={{"&::-webkit-scrollbar": {display: "none"}}}
-            >
-                <Stack gap={2}>
-                    <SearchLibrary/>
-                    <Tabs.Root
-                        orientation="vertical"
-                        variant={"subtle"}
-                        value={location.pathname}
-                    >
-                        <Tabs.List width={"100%"}>
-                            <For each={links}>
-                                {(link) => (
-                                    <Tabs.Trigger value={link.to} asChild>
-                                        <Link to={link.to} onClick={onNavigate}>
-                                            <link.icon size={16}/>
-                                            {link.label}
-                                        </Link>
-                                    </Tabs.Trigger>
-                                )}
-                            </For>
-                        </Tabs.List>
-                    </Tabs.Root>
-                    <AddBookButton/>
-                </Stack>
-                <Separator my={4}/>
-                <Text fontWeight="medium" fontSize="sm" color="fg.muted" mb={2}>Book Shelves</Text>
-                <BookShelfNavigationSection onNavigate={onNavigate}/>
-                <Separator my={4}/>
-                <Tabs.Root
-                    orientation="vertical"
-                    variant={"subtle"}
-                    value={location.pathname}
-                >
-                    <Tabs.List width={"100%"}>
-                        <Tabs.Trigger value={"/settings"} asChild>
-                            <Link to={"/settings"} onClick={onNavigate}><LuSettings size={16}/> Settings</Link>
-                        </Tabs.Trigger>
-                        {(!config.cloudMode || isAdmin) && (
-                            <Tabs.Trigger value={"/library-management"} asChild>
-                                <Link to={"/library-management"} onClick={onNavigate}><LuFolderSync size={16}/> Library Management</Link>
-                            </Tabs.Trigger>
-                        )}
-                        {isAdmin && (
-                            <Tabs.Trigger value={"/users"} asChild>
-                                <Link to={"/users"} onClick={onNavigate}><LuUsers size={16}/> User Management</Link>
-                            </Tabs.Trigger>
-                        )}
-                    </Tabs.List>
-                </Tabs.Root>
-            </Box>
-            <Separator my={4}/>
-            <Stack gap={2} flexShrink={0}>
-                <Button
-                    variant={"ghost"}
-                    width="100%"
-                    justifyContent="flex-start"
-                    onClick={toggleColorMode}
-                >
-                    <ColorModeIcon/> {colorMode === "dark" ? "Dark Mode" : "Light Mode"}
-                </Button>
-                <Button
-                    variant={"outline"}
-                    width="100%"
-                    onClick={() => fetcher.submit('', {method: 'post', action: '/logout'})}
-                >
-                    {busy ? <Spinner/> : <><LuLogOut/> Log out</>}
-                </Button>
+    function navigationLink({to, label, icon: Icon}: typeof links[number]) {
+        return <Button key={to} asChild justifyContent="start" variant="ghost" minH="44px"
+            css={{'&[aria-current="page"]': {background: "var(--chakra-colors-bg-emphasized)", fontWeight: "bold"}}}>
+            <NavLink to={to} end={to === "/"} onClick={onNavigate}><Icon aria-hidden="true"/>{label}
+                {to === "/notifications" && (notifications.error ? <Badge aria-label="Unread count unavailable" title="Open Notifications to retry">!</Badge>
+                    : !!notifications.currentData?.count && <Badge colorPalette="orange" aria-label={`${notifications.currentData.count} unread notifications`}>{notifications.currentData.count > 99 ? "99+" : notifications.currentData.count}</Badge>)}
+            </NavLink>
+        </Button>;
+    }
+
+    return <>
+        <Box flex="1" minH="0" overflowY="auto">
+            <Stack as="nav" aria-label="Reading" gap={1}>
+                {links.map(navigationLink)}
             </Stack>
-        </>
-    );
+            <Box mt={3}><AddBookButton/></Box>
+            <Separator my={4}/>
+            <Text fontWeight="medium" fontSize="sm" color="fg.muted" mb={2}>Bookshelves</Text>
+            <BookShelfNavigationSection onNavigate={onNavigate}/>
+            <Separator my={4}/>
+            <Stack as="nav" aria-label="Account and administration" gap={1}>
+                {navigationLink({to: "/settings", label: "Settings", icon: LuSettings})}
+                {(!config.cloudMode || isAdmin) && navigationLink({to: "/library-management", label: "Library management", icon: LuFolderSync})}
+                {isAdmin && navigationLink({to: "/users", label: "User management", icon: LuUsers})}
+            </Stack>
+        </Box>
+        <Separator my={4}/>
+        <Stack gap={2} flexShrink={0}>
+            <Button variant="ghost" minH="44px" justifyContent="start" onClick={toggleColorMode}>
+                <ColorModeIcon/> {colorMode === "dark" ? "Dark mode" : "Light mode"}
+            </Button>
+            <Button variant="outline" minH="44px" disabled={fetcher.state !== "idle"}
+                onClick={() => fetcher.submit("", {method: "post", action: "/logout"})}>
+                {fetcher.state !== "idle" ? <Spinner/> : <LuLogOut/>} Log out
+            </Button>
+        </Stack>
+    </>;
 }
-

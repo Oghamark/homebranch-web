@@ -1,25 +1,34 @@
-import {useEffect, useState} from "react";
+import {useCallback, useEffect, useState} from "react";
 import {getAllSavedPositions} from "../api/savedPositionApi";
 import type {StorageLocation} from "../components/StorageIndicator";
 
 interface StorageLocationsResult {
     locations: Record<string, StorageLocation>;
     allBookIds: string[];
+    isLoading: boolean;
+    discoveryError: boolean;
+    retry: () => void;
 }
 
 export function useStorageLocations(localBookIds: string[]): StorageLocationsResult {
-    const [result, setResult] = useState<StorageLocationsResult>({
+    const [result, setResult] = useState<Omit<StorageLocationsResult, "retry">>({
         locations: {},
         allBookIds: localBookIds,
+        isLoading: true,
+        discoveryError: false,
     });
+    const [requestVersion, setRequestVersion] = useState(0);
+    const retry = useCallback(() => setRequestVersion(version => version + 1), []);
 
     useEffect(() => {
         let cancelled = false;
 
         async function fetch() {
+            setResult(previous => ({...previous, isLoading: true, discoveryError: false}));
             const localSet = new Set(localBookIds);
             const locations: Record<string, StorageLocation> = {};
             const allIds = new Set(localBookIds);
+            let discoveryError = false;
 
             try {
                 const cloudPositions = await getAllSavedPositions();
@@ -36,6 +45,7 @@ export function useStorageLocations(localBookIds: string[]): StorageLocationsRes
                     }
                 }
             } catch {
+                discoveryError = true;
                 for (const id of localBookIds) {
                     locations[id] = "local";
                 }
@@ -45,13 +55,15 @@ export function useStorageLocations(localBookIds: string[]): StorageLocationsRes
                 setResult({
                     locations,
                     allBookIds: Array.from(allIds),
+                    isLoading: false,
+                    discoveryError,
                 });
             }
         }
 
         fetch();
         return () => { cancelled = true; };
-    }, [localBookIds.join(",")]);
+    }, [localBookIds.join(","), requestVersion]);
 
-    return result;
+    return {...result, retry};
 }

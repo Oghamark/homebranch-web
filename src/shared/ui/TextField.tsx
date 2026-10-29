@@ -1,4 +1,4 @@
-import {Field, Input, type InputProps} from "@chakra-ui/react";
+import {Field, HStack, Input, type InputProps} from "@chakra-ui/react";
 import {Tooltip} from "@/shared/ui/tooltip";
 import {LuInfo} from "react-icons/lu";
 
@@ -19,18 +19,20 @@ export default function TextField({
     return (
         <Field.Root invalid={error}>
             {label && (
-                <Field.Label>
-                    {label}
+                <HStack gap={1}>
+                    <Field.Label>{label}</Field.Label>
                     {tooltip && (
                         <Tooltip content={tooltip} showArrow>
-                            <span style={{display: "inline-flex", alignItems: "center", marginLeft: "4px", cursor: "default"}}>
+                            <span tabIndex={0} role="img" aria-label={tooltip}
+                                style={{display: "inline-flex", alignItems: "center", marginLeft: "4px", cursor: "help"}}>
                                 <LuInfo size={13}/>
                             </span>
                         </Tooltip>
                     )}
-                </Field.Label>
+                </HStack>
             )}
-            <Input {...props}/>
+            <Input minH="44px" {...props}/>
+            {tooltip && <Field.HelperText srOnly>{tooltip}</Field.HelperText>}
             <Field.ErrorText>{errorText}</Field.ErrorText>
         </Field.Root>
     );

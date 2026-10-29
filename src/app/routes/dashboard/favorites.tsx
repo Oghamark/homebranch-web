@@ -1,90 +1,29 @@
-import {Button, Flex, Heading, Stack} from "@chakra-ui/react";
-import {Link} from "react-router";
+import {Stack} from "@chakra-ui/react";
 import type {Route} from "./+types/favorites";
-import {BookGridSkeletons, LibraryPage} from "@/pages/library";
+import {BookGridSkeletons, CollectionEmpty, LibraryPage} from "@/pages/library";
 import {useGetFavoriteBooksInfiniteQuery} from "@/entities/book";
-import {useMemo} from "react";
-import {
-    LibraryDisplayOptions,
-    LibraryDisplayToggleButton,
-    setDisplayMode,
-    useLibraryDisplayMode,
-    useLibrarySearch
-} from "@/features/library";
-import {LuHeart} from "react-icons/lu";
-import {useAppDispatch} from "@/app/hooks";
+import {CollectionToolbar, useLibraryDisplayMode, useLibrarySearch} from "@/features/library";
 import {useMobileNavConfig} from "@/components/navigation/MobileNavContext";
+import {ErrorState, PageHeader} from "@/shared/ui/EditorialUI";
 
 export function meta({}: Route.MetaArgs) {
-    return [
-        {title: "Homebranch - Favorites"},
-        {name: "description", content: "Welcome to React Router!"},
-    ];
+    return [{title: "Homebranch - Favorites"}, {name: "description", content: "Your favorite books"}];
 }
 
 export default function Favorites() {
-    const dispatch = useAppDispatch();
+    useMobileNavConfig("Favorites");
     const displayMode = useLibraryDisplayMode();
-    const query = useLibrarySearch()
-    const {data, hasNextPage, fetchNextPage, isLoading} = useGetFavoriteBooksInfiniteQuery({query: query});
-    const mobileNavRightAction = useMemo(() => (
-        <LibraryDisplayToggleButton
-            displayMode={displayMode}
-            onDisplayModeChange={(mode) => dispatch(setDisplayMode(mode))}
-        />
-    ), [displayMode, dispatch]);
-
-    useMobileNavConfig(
-        "Favorites",
-        mobileNavRightAction
-    );
-
-    const books = useMemo(() => {
-        return data?.pages.flatMap(page => page.data) ?? []
-    }, [data])
-
-    if (!isLoading && (!data || books.length === 0)) {
-        return _noBooks()
-    }
-
-    return (
-        <Stack gap={4}>
-            <Flex align="center" gap={3} display={{base: "none", md: "flex"}} justify="space-between">
-                <Flex align="center" gap={3}>
-                    <LuHeart size={24}/>
-                    <Heading size="2xl">Favorites</Heading>
-                </Flex>
-                <LibraryDisplayOptions
-                    displayMode={displayMode}
-                    onDisplayModeChange={(mode) => dispatch(setDisplayMode(mode))}
-                />
-            </Flex>
-            {isLoading
-                ? <BookGridSkeletons displayMode={displayMode}/>
-                : <LibraryPage
-                    books={books}
-                    fetchMore={fetchNextPage}
-                    hasMore={hasNextPage}
-                    totalBooks={data?.pages[0]?.total}
-                    displayMode={displayMode}
-                />
-            }
-        </Stack>
-    );
-}
-
-function _noBooks() {
-    return (
-        <Stack
-            height={"100%"}
-            alignItems={"center"}
-            justifyContent={"center"}
-            gap={4}
-        >
-            <Heading>You don't have any favorited books!</Heading>
-            <Link to={"/"}>
-                <Button>Go to Library</Button>
-            </Link>
-        </Stack>
-    );
+    const query = useLibrarySearch();
+    const {currentData: data, hasNextPage, fetchNextPage, isFetching, isError, refetch, isFetchingNextPage} = useGetFavoriteBooksInfiniteQuery({query});
+    const books = data?.pages.flatMap(page => page.data) ?? [];
+    const isFetchNextPageError = isError && books.length > 0;
+    return <Stack gap={6}>
+        <PageHeader title="Favorites" description="A place for the books you want to keep close."/>
+        <CollectionToolbar label="Search favorites"/>
+        {isError && !isFetchNextPageError && <ErrorState onRetry={refetch}>Your favorites could not be loaded.</ErrorState>}
+        {isFetching && !data ? <BookGridSkeletons displayMode={displayMode}/>
+            : books.length ? <LibraryPage books={books} fetchMore={fetchNextPage} hasMore={!!hasNextPage}
+                totalBooks={data?.pages[0]?.total} displayMode={displayMode} loadingMore={isFetchingNextPage} loadMoreError={isFetchNextPageError}/>
+            : !isError && <CollectionEmpty title="No favorites yet" libraryLink>Mark a book as a favorite from its details to find it here.</CollectionEmpty>}
+    </Stack>;
 }

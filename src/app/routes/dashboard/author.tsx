@@ -1,78 +1,39 @@
 import {AuthorPage, AuthorPageSkeleton} from "@/pages/author";
 import type {Route} from "./+types/author";
-import {useEffect, useMemo} from "react";
-import {Heading, Stack} from "@chakra-ui/react";
+import {Stack} from "@chakra-ui/react";
 import {useGetAuthorQuery, useGetBooksByAuthorInfiniteQuery} from "@/entities/author";
-import {useLibrarySearch, useShowAllUsers} from "@/features/library";
-import {handleRtkError} from "@/shared/api/rtk-query";
-import {useMobileNavUserToggle} from "@/components/navigation/MobileNavContext";
+import {CollectionToolbar, useLibraryDisplayMode, useLibrarySearch, useShowAllUsers} from "@/features/library";
+import {useMobileNavConfig} from "@/components/navigation/MobileNavContext";
+import {ErrorState} from "@/shared/ui/EditorialUI";
+import {CollectionEmpty} from "@/pages/library";
 
 export function meta({params}: Route.MetaArgs) {
-    return [
-        {title: `Homebranch - ${params.authorName}`},
-        {name: "description", content: `Books by ${params.authorName}`},
-    ];
+    return [{title: `Homebranch - ${params.authorName}`}, {name: "description", content: `Books by ${params.authorName}`}];
 }
 
 export default function Author({params}: Route.ComponentProps) {
-    useMobileNavUserToggle();
     const authorName = decodeURIComponent(params.authorName);
+    useMobileNavConfig(authorName);
     const query = useLibrarySearch();
+    const displayMode = useLibraryDisplayMode();
     const showAllUsers = useShowAllUsers();
     const userId = showAllUsers ? undefined : (sessionStorage.getItem("user_id") ?? undefined);
+    const {data: authorData, isLoading: isAuthorLoading, isError: authorError, refetch: retryAuthor} = useGetAuthorQuery(authorName);
+    const {currentData: data, hasNextPage, fetchNextPage, isFetching, isError, refetch, isFetchingNextPage} = useGetBooksByAuthorInfiniteQuery({authorName, query, userId});
+    const books = data?.pages.flatMap(page => page.data) ?? [];
+    const loadMoreError = isError && books.length > 0;
 
-    const {data: authorData, isLoading: isAuthorLoading, error: authorError} = useGetAuthorQuery(authorName);
-    const {data, hasNextPage, fetchNextPage, isLoading: isBooksLoading, error: booksError} = useGetBooksByAuthorInfiniteQuery({
-        authorName,
-        query,
-        userId,
-    });
-
-    useEffect(() => {
-        if (authorError) handleRtkError(authorError);
-    }, [authorError]);
-
-    useEffect(() => {
-        if (booksError) handleRtkError(booksError);
-    }, [booksError]);
-
-    const books = useMemo(() => {
-        return data?.pages.flatMap(page => page.data) ?? [];
-    }, [data]);
-
-    const isEmpty = !isBooksLoading && books.length === 0;
-
-    return (
-        <Stack gap={4}>
-            {isBooksLoading
-                ? <AuthorPageSkeleton/>
-                : <AuthorPage
-                    authorName={authorName}
-                    biography={authorData?.biography}
-                    profilePictureUrl={authorData?.profilePictureUrl}
-                    isAuthorLoading={isAuthorLoading}
-                    books={books}
-                    fetchMore={fetchNextPage}
-                    hasMore={hasNextPage ?? false}
-                    totalBooks={data?.pages[0]?.total}
-                    noResultsNode={isEmpty ? <NoBooksMessage authorName={authorName}/> : undefined}
-                />
-            }
-        </Stack>
-    );
-}
-
-function NoBooksMessage({authorName}: { authorName: string }) {
-    const query = useLibrarySearch();
-    return (
-        <Stack alignItems={"center"} gap={4} py={4}>
-            {query
-                ? <>
-                    <Heading>No books match your search.</Heading>
-                    <Heading size="md" color="fg.muted">Try a different title.</Heading>
-                  </>
-                : <Heading>No books found for {authorName}</Heading>
-            }
-        </Stack>
-    );
+    return <Stack gap={6}>
+        <AuthorPage authorName={authorName} biography={authorData?.biography} profilePictureUrl={authorData?.profilePictureUrl}
+            isAuthorLoading={isAuthorLoading} books={books} fetchMore={fetchNextPage} hasMore={!!hasNextPage}
+            totalBooks={data?.pages[0]?.total} displayMode={displayMode} loadingMore={isFetchingNextPage} loadMoreError={loadMoreError}
+            toolbar={<>
+                {authorError && <ErrorState onRetry={retryAuthor}>The author biography could not be loaded. You can still browse available books.</ErrorState>}
+                <CollectionToolbar label={`Search books by ${authorName}`} scope/>
+                {isError && !loadMoreError && <ErrorState onRetry={refetch}>Books by this author could not be loaded.</ErrorState>}
+            </>}
+            noResultsNode={isFetching && !data ? <AuthorPageSkeleton booksOnly/>
+                : !books.length ? isError ? <></> : <CollectionEmpty title={`No books by ${authorName} in this collection`} libraryLink/>
+                : undefined}/>
+    </Stack>;
 }

@@ -32,7 +32,15 @@ export function saveLocatorLocal(bookId: string, locator: Locator): string {
     const serializedLocator = JSON.stringify(locator.serialize());
     map[bookId] = serializedLocator;
     writeCurrentlyReadingMap(map);
+    const userId = getCurrentUserId();
+    if (userId) localStorage.setItem(`reader_position_time_${userId}_${bookId}`, String(Date.now()));
     return serializedLocator;
+}
+export function getStoredPositionTime(bookId: string): number | null {
+    const userId = getCurrentUserId();
+    if (!userId) return null;
+    const value = Number(localStorage.getItem(`reader_position_time_${userId}_${bookId}`));
+    return Number.isFinite(value) && value > 0 ? value : null;
 }
 export function getStoredLocator(bookId: string): Locator | null {
     if (typeof window === "undefined") return null;

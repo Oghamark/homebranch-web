@@ -1,8 +1,11 @@
 import {SignUpDto} from "@/features/authentication/dtos";
-import {authenticationAxiosInstance, axiosErrorHandler} from "@/features/authentication/api/axios";
+import {authenticationAxiosInstance} from "@/features/authentication/api/axios";
 import {redirect} from "react-router";
+import {authFailure, validateAuthForm} from "./formFeedback";
 
 export default async function signUp(formData: FormData) {
+    const validation = validateAuthForm(formData, true);
+    if (validation.fieldErrors) return validation;
     const name = formData.get('name');
     const email = formData.get('email');
     const password = formData.get('password');
@@ -31,7 +34,8 @@ export default async function signUp(formData: FormData) {
                 }
                 return redirect("/")
             }
+            return {error: "We couldn't create your account. Check your details and try again."};
         })
-        .catch(axiosErrorHandler);
+        .catch(error => authFailure(error, "We couldn't create your account. Please try again."));
 
 }

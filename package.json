@@ -2,12 +2,13 @@
   "name": "homebranch-vite",
   "private": true,
   "type": "module",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "scripts": {
     "build": "react-router build",
     "dev": "react-router dev --host",
     "start": "react-router-serve ./build/server/index.js",
-    "typecheck": "react-router typegen && tsc"
+    "typecheck": "react-router typegen && tsc",
+    "test": "vitest run"
   },
   "dependencies": {
     "@chakra-ui/react": "^3.21.0",
@@ -35,6 +36,10 @@
     "zustand": "^5.0.5"
   },
   "devDependencies": {
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "jsdom": "^26.1.0",
+    "vitest": "^3.2.4",
     "@react-router/dev": "^7.5.3",
     "@types/node": "^20",
     "@types/react": "^19.1.2",

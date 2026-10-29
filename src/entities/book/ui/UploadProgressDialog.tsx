@@ -1,11 +1,12 @@
-import {Badge, Button, CloseButton, Dialog, HStack, Portal, Spinner, Text, VStack} from "@chakra-ui/react";
-import type {FileUploadStatus} from "./AddBookButton";
+import {Badge, Button, CloseButton, Dialog, HStack, Portal, Progress, Spinner, Text, VStack} from "@chakra-ui/react";
+import type {FileUploadStatus} from "./useBookUpload";
 
 interface UploadProgressDialogProps {
     statuses: FileUploadStatus[];
     isOpen: boolean;
     isUploading: boolean;
     onClose: () => void;
+    onRetryFailed?: () => Promise<unknown>;
 }
 
 function StatusBadge({status}: { status: FileUploadStatus["status"] }) {
@@ -28,13 +29,14 @@ function StatusBadge({status}: { status: FileUploadStatus["status"] }) {
     }
 }
 
-export function UploadProgressDialog({statuses, isOpen, isUploading, onClose}: UploadProgressDialogProps) {
+export function UploadProgressDialog({statuses, isOpen, isUploading, onClose, onRetryFailed}: UploadProgressDialogProps) {
     const successCount = statuses.filter(s => s.status === "success").length;
     const skippedCount = statuses.filter(s => s.status === "skipped").length;
     const failedCount = statuses.filter(s => s.status === "failed").length;
 
     return (
-        <Dialog.Root open={isOpen} onOpenChange={({open}) => { if (!open && !isUploading) onClose(); }}>
+        <Dialog.Root open={isOpen} closeOnEscape={!isUploading} closeOnInteractOutside={!isUploading}
+            onOpenChange={({open}) => { if (!open && !isUploading) onClose(); }}>
             <Portal>
                 <Dialog.Backdrop/>
                 <Dialog.Positioner>
@@ -43,16 +45,24 @@ export function UploadProgressDialog({statuses, isOpen, isUploading, onClose}: U
                             <Dialog.Title>
                                 {isUploading
                                     ? `Uploading ${statuses.length} book${statuses.length !== 1 ? "s" : ""}…`
-                                    : "Upload Complete"}
+                                    : failedCount ? "Upload needs attention" : "Upload complete"}
                             </Dialog.Title>
                         </Dialog.Header>
 
                         <Dialog.Body overflowY="auto">
+                            <Progress.Root value={successCount + skippedCount + failedCount} max={statuses.length || 1} mb={4}>
+                                <Progress.Label>Books processed</Progress.Label>
+                                <Progress.Track><Progress.Range/></Progress.Track>
+                                <Progress.ValueText/>
+                            </Progress.Root>
+                            <Text role="status" aria-live="polite" mb={3} fontSize="sm">
+                                {successCount + skippedCount + failedCount} of {statuses.length} processed{isUploading ? ". Keep this window open while your books upload." : "."}
+                            </Text>
                             <VStack align="stretch" gap={2}>
                                 {statuses.map((s, i) => (
                                     <VStack key={i} align="stretch" gap={0.5}>
                                         <HStack justify="space-between">
-                                            <Text fontSize="sm" truncate maxW="70%">{s.name}</Text>
+                                            <Text fontSize="sm" overflowWrap="anywhere" minW={0}>{s.name}</Text>
                                             <StatusBadge status={s.status}/>
                                         </HStack>
                                         {s.status === "failed" && s.error && (
@@ -67,28 +77,29 @@ export function UploadProgressDialog({statuses, isOpen, isUploading, onClose}: U
                             <Dialog.Footer>
                                 <VStack align="stretch" width="100%" gap={2}>
                                     {successCount > 0 && (
-                                        <Text fontSize="sm" color="green.600">
+                                        <Text fontSize="sm" color="fg">
                                             {successCount} book{successCount !== 1 ? "s" : ""} added successfully.
                                         </Text>
                                     )}
                                     {skippedCount > 0 && (
-                                        <Text fontSize="sm" color="yellow.600">
+                                        <Text fontSize="sm" color="fg">
                                             {skippedCount} book{skippedCount !== 1 ? "s" : ""} already exist{skippedCount === 1 ? "s" : ""} in the library.
                                         </Text>
                                     )}
                                     {failedCount > 0 && (
-                                        <Text fontSize="sm" color="red.600">
-                                            {failedCount} book{failedCount !== 1 ? "s" : ""} failed to upload.
+                                        <Text fontSize="sm" color="fg.error">
+                                            {failedCount} book{failedCount !== 1 ? "s" : ""} failed to upload. Successfully added books are kept.
                                         </Text>
                                     )}
-                                    <Button onClick={onClose} alignSelf="flex-end">Close</Button>
+                                    {failedCount > 0 && onRetryFailed && <Button minH="44px" variant="outline" onClick={() => void onRetryFailed()}>Retry failed uploads</Button>}
+                                    <Button minH="44px" onClick={onClose} alignSelf="flex-end">Close</Button>
                                 </VStack>
                             </Dialog.Footer>
                         )}
 
                         {!isUploading && (
                             <Dialog.CloseTrigger asChild>
-                                <CloseButton/>
+                                <CloseButton aria-label="Close upload results" minH="44px" minW="44px"/>
                             </Dialog.CloseTrigger>
                         )}
                     </Dialog.Content>

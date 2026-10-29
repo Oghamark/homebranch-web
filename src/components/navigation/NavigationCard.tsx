@@ -13,12 +13,12 @@ export function NavigationCard() {
             borderRadius="lg"
             borderWidth="1px"
             p={4}
-            mr={4}
-            boxShadow="md"
+            top={4}
+            left={4}
             position={"fixed"}
             float={"left"}
             width="250px"
-            height={"calc(100vh - 2rem)"}
+            height={"calc(100dvh - 2rem)"}
             display="flex"
             flexDirection="column"
             overflow="hidden"

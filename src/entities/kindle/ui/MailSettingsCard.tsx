@@ -1,122 +1,89 @@
-import {Button, Card, Flex, Separator, Stack, Switch, Text} from "@chakra-ui/react";
-import {useEffect, useState} from "react";
-import {LuMail} from "react-icons/lu";
+import {Box, Button, Flex, Separator, Stack, Switch, Text, chakra} from "@chakra-ui/react";
+import {useMemo, useState} from "react";
 import TextField from "@/shared/ui/TextField";
 import PasswordTextField from "@/shared/ui/PasswordTextField";
-import ToastFactory from "@/shared/lib/toast/toast";
-import {
-    getApiErrorMessage,
-    useGetMailConfigQuery,
-    useSendTestMailMutation,
-    useUpdateMailConfigMutation,
-} from "@/entities/kindle/api/api";
+import {ErrorState, LoadingState, PageSection} from "@/shared/ui/EditorialUI";
+import {useSettingsDraft} from "@/features/settings/useSettingsDraft";
+import {getApiErrorMessage, useGetMailConfigQuery, useSendTestMailMutation, useUpdateMailConfigMutation} from "@/entities/kindle/api/api";
+
+const empty = {host: "", port: "587", secure: false, user: "", password: "", from: ""};
 
 export function MailSettingsCard() {
-    const {data} = useGetMailConfigQuery();
-    const [updateMailConfig, {isLoading: isSaving}] = useUpdateMailConfigMutation();
-    const [sendTestMail, {isLoading: isSendingTest}] = useSendTestMailMutation();
-    const [form, setForm] = useState({host: "", port: "587", secure: false, user: "", password: "", from: ""});
-    const [testRecipient, setTestRecipient] = useState("");
-
-    useEffect(() => {
-        if (data?.smtp) {
-            setForm({
-                host: data.smtp.host,
-                port: String(data.smtp.port),
-                secure: data.smtp.secure,
-                user: data.smtp.user ?? "",
-                password: "",
-                from: data.smtp.from,
-            });
-        }
-    }, [data]);
-
-    const handleSave = async () => {
-        try {
-            await updateMailConfig({
-                host: form.host.trim(),
-                port: Number(form.port),
-                secure: form.secure,
-                user: form.user.trim() || undefined,
-                password: form.password || undefined,
-                from: form.from.trim(),
-            }).unwrap();
-            ToastFactory({message: "Email settings saved", type: "success"});
-        } catch (error) {
-            ToastFactory({message: getApiErrorMessage(error), type: "error"});
-        }
+    const query = useGetMailConfigQuery();
+    const [update, {isLoading: saving}] = useUpdateMailConfigMutation();
+    const [sendTest, {isLoading: sending}] = useSendTestMailMutation();
+    const incoming = useMemo(() => query.data ? query.data.smtp ? {
+        host: query.data.smtp.host, secure: query.data.smtp.secure, from: query.data.smtp.from,
+        port: String(query.data.smtp.port), user: query.data.smtp.user ?? "", password: "",
+    } : empty : undefined, [query.data]);
+    const draft = useSettingsDraft(incoming, empty);
+    const {value: form, setValue: setForm} = draft;
+    const [recipient, setRecipient] = useState("");
+    const [error, setError] = useState("");
+    const [success, setSuccess] = useState("");
+    const [testError, setTestError] = useState("");
+    const [testSuccess, setTestSuccess] = useState("");
+    const portValid = /^\d+$/.test(form.port) && Number(form.port) >= 1 && Number(form.port) <= 65535;
+    const change = (key: keyof typeof empty, value: string | boolean) => {
+        setForm(previous => ({...previous, [key]: value})); setSuccess("");
     };
-
-    const handleTest = async () => {
-        try {
-            await sendTestMail(testRecipient.trim()).unwrap();
-            ToastFactory({message: "Test email sent", type: "success"});
-        } catch (error) {
-            ToastFactory({message: getApiErrorMessage(error), type: "error"});
-        }
-    };
-
-    return (
-        <Card.Root>
-            <Card.Header>
-                <Flex align="center" gap={3}>
-                    <LuMail/>
-                    <Card.Title>Email (SMTP)</Card.Title>
-                </Flex>
-            </Card.Header>
-            <Card.Body>
-                <Stack gap={4}>
-                    <Text fontSize="sm" color="fg.muted">
-                        Used to send books to users' Kindle devices.
-                    </Text>
-                    <TextField label="SMTP host" placeholder="smtp.example.com" value={form.host}
-                               onChange={e => setForm(prev => ({...prev, host: e.target.value}))}/>
-                    <TextField label="Port" placeholder="587" value={form.port}
-                               onChange={e => setForm(prev => ({...prev, port: e.target.value}))}/>
-                    <Flex align="center" justify="space-between">
-                        <Stack gap={0}>
-                            <Text fontWeight="medium">Use TLS</Text>
-                            <Text fontSize="sm" color="fg.muted">Enable for implicit TLS (usually port 465)</Text>
-                        </Stack>
-                        <Switch.Root checked={form.secure}
-                                     onCheckedChange={({checked}) => setForm(prev => ({...prev, secure: checked}))}>
-                            <Switch.HiddenInput/>
-                            <Switch.Control><Switch.Thumb/></Switch.Control>
+    if (query.isLoading) return <LoadingState label="Loading email settings..."/>;
+    if (query.isError && !query.data) return <ErrorState onRetry={query.refetch}>Email settings could not be loaded.</ErrorState>;
+    return <PageSection title="Email delivery (SMTP)" description="Configure the server used to send books to Kindle devices.">
+        {query.isError && <ErrorState onRetry={query.refetch}>The latest settings could not be refreshed. Your draft is unchanged.</ErrorState>}
+        <Box as="form" onSubmit={async event => {
+            event.preventDefault(); setError(""); setSuccess("");
+            if (!portValid) {setError("Enter a port between 1 and 65535."); return;}
+            const submitted = {...form, host: form.host.trim(), user: form.user.trim(), from: form.from.trim()};
+            try {
+                await update({...submitted, port: Number(form.port), user: submitted.user || undefined,
+                    password: submitted.password || undefined}).unwrap();
+                draft.accept({...submitted, password: ""});
+                setSuccess("Email settings saved.");
+            } catch (failure) {setError(getApiErrorMessage(failure));}
+        }}>
+            <Stack gap={4}>
+                <chakra.fieldset disabled={saving || sending} border="0" p={0} minW={0}>
+                    <Stack gap={4}>
+                        <TextField label="SMTP host" required value={form.host} onChange={event => change("host", event.target.value)}/>
+                        <TextField label="Port" required inputMode="numeric" value={form.port} error={!portValid}
+                            errorText="Enter a port between 1 and 65535." onChange={event => change("port", event.target.value)}/>
+                        <Switch.Root checked={form.secure} onCheckedChange={({checked}) => change("secure", checked)}>
+                            <Switch.HiddenInput/><Switch.Control><Switch.Thumb/></Switch.Control>
+                            <Switch.Label>Use implicit TLS (usually port 465)</Switch.Label>
                         </Switch.Root>
-                    </Flex>
-                    <TextField label="Username" value={form.user}
-                               onChange={e => setForm(prev => ({...prev, user: e.target.value}))}/>
-                    <PasswordTextField
-                        label="Password"
-                        tooltip="Leave blank to keep the saved password"
-                        placeholder={data?.smtp?.hasPassword ? "Saved" : ""}
-                        value={form.password}
-                        onChange={e => setForm(prev => ({...prev, password: e.target.value}))}
-                    />
-                    <TextField
-                        label="From address"
-                        tooltip="Users must approve this address in their Amazon account"
-                        placeholder="homebranch@example.com"
-                        value={form.from}
-                        onChange={e => setForm(prev => ({...prev, from: e.target.value}))}
-                    />
-                    <Separator/>
-                    <Flex gap={3} align="flex-end">
-                        <TextField label="Send test email to" placeholder="you@example.com" value={testRecipient}
-                                   onChange={e => setTestRecipient(e.target.value)}/>
-                        <Button variant="outline" onClick={handleTest} loading={isSendingTest}
-                                disabled={!data?.configured || !testRecipient.trim()}>
-                            Send test
-                        </Button>
-                    </Flex>
-                </Stack>
-            </Card.Body>
-            <Card.Footer justifyContent="flex-end">
-                <Button onClick={handleSave} loading={isSaving}
-                        disabled={!form.host.trim() || !form.from.trim() || !Number(form.port)}>
-                    Save Email Settings
-                </Button>
-            </Card.Footer>
-        </Card.Root>
-    );
+                        <TextField label="Username" autoComplete="off" value={form.user} onChange={event => change("user", event.target.value)}/>
+                        <PasswordTextField label="Password" autoComplete="new-password" value={form.password}
+                            tooltip="Leave blank to keep the saved password." placeholder={query.data?.smtp?.hasPassword ? "Saved password unchanged" : ""}
+                            onChange={event => change("password", event.target.value)}/>
+                        <Text color="fg.muted" fontSize="sm">{query.data?.smtp?.hasPassword ? "A password is saved. " : ""}Leaving this field blank keeps the saved password.</Text>
+                        <TextField label="From address" type="email" required value={form.from}
+                            tooltip="Users must approve this address in their Amazon account." onChange={event => change("from", event.target.value)}/>
+                    </Stack>
+                </chakra.fieldset>
+                {error && <Text role="alert" color="fg.error">{error}</Text>}
+                {success && <Text role="status">{success}</Text>}
+                <Button type="submit" minH="44px" colorPalette="orange" alignSelf="start" loading={saving}
+                    loadingText="Save email settings" disabled={!draft.dirty || !portValid || saving || sending}>Save email settings</Button>
+            </Stack>
+        </Box>
+        <Separator/>
+        <Box as="form" onSubmit={async event => {
+            event.preventDefault(); setTestError(""); setTestSuccess("");
+            try {await sendTest(recipient.trim()).unwrap(); setTestSuccess("Test email sent.");}
+            catch (failure) {setTestError(getApiErrorMessage(failure));}
+        }}>
+            <Stack gap={3}>
+                <Text color="fg.muted">Test uses the saved configuration. Save any changes first.</Text>
+                <Flex gap={3} align="end" wrap="wrap">
+                    <Box flex="1" minW="180px"><TextField label="Send test email to" type="email" required value={recipient}
+                        disabled={sending} onChange={event => setRecipient(event.target.value)}/></Box>
+                    <Button type="submit" minH="44px" variant="outline" loading={sending} loadingText="Send test email"
+                        disabled={!query.data?.configured || !recipient.trim() || draft.dirty || saving || sending}>Send test</Button>
+                </Flex>
+                {testError && <Text role="alert" color="fg.error">{testError}</Text>}
+                {testSuccess && <Text role="status">{testSuccess}</Text>}
+            </Stack>
+        </Box>
+    </PageSection>;
 }

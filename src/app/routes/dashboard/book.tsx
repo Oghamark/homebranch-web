@@ -2,40 +2,26 @@ import type {Route} from "./+types/book";
 
 import {BookDetailsPage} from "@/pages/bookDetails";
 import {useGetBookByIdQuery} from "@/entities/book";
-import {Loader} from "@chakra-ui/react";
-import ToastFactory from "@/shared/lib/toast/toast";
-import {Navigate} from "react-router";
-import {handleRtkError} from "@/shared/api/rtk-query";
-import {useEffect} from "react";
+import {Button, Stack} from "@chakra-ui/react";
+import {Link} from "react-router";
+import {isFetchBaseQueryError} from "@/shared/api/rtk-query";
+import {ErrorState, LoadingState, PageHeader} from "@/shared/ui/EditorialUI";
 
 export default function Book({params}: Route.ComponentProps) {
-    const {data, isLoading, error} = useGetBookByIdQuery(params.bookId);
+    const {data, isLoading, error, refetch} = useGetBookByIdQuery(params.bookId);
+    const unavailable = error && isFetchBaseQueryError(error) && (error.status === 404 || error.status === 403);
 
-    useEffect(() => {
-        if (error) {
-            handleRtkError(error);
-        }
-    }, [error]);
-
-    useEffect(() => {
-        if (!isLoading && !error && !data) {
-            ToastFactory({message: "Something went wrong", type: "error"});
-        }
-    }, [data, isLoading, error]);
-
-    if (error) {
-        return <Navigate to={"/"}/>;
+    if (error || (!isLoading && !data)) {
+        return <Stack maxW="960px" mx="auto" gap={6}>
+            <PageHeader title={unavailable ? "This book isn't available" : "We couldn't open this book"}/>
+            <ErrorState onRetry={() => refetch()}>
+                {unavailable ? "It may have been removed, or you may not have access." : "Your book couldn't be loaded. Please try again."}
+            </ErrorState>
+            <Button asChild alignSelf="start" minH="44px" variant="outline"><Link to="/">Back to library</Link></Button>
+        </Stack>;
     }
 
-    if (isLoading) {
-        return <Loader/>;
-    }
-
-    if (!data) {
-        return <Navigate to={"/"}/>
-    }
-
+    if (isLoading || !data) return <LoadingState label="Opening your book..."/>;
     return <BookDetailsPage book={data}/>;
 }
-
 

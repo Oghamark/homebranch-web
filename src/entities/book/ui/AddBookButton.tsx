@@ -21,6 +21,7 @@ import type { FileAcceptDetails } from "@zag-js/file-upload";
 import { useEffect, useRef } from "react";
 import { UploadProgressDialog } from "./UploadProgressDialog";
 import { useBookUpload } from "./useBookUpload";
+import {ErrorState} from "@/shared/ui/EditorialUI";
 export type { FileUploadStatus } from "./useBookUpload";
 
 type AudiobookReviewTrack = {
@@ -59,7 +60,8 @@ export function AddBookButton(buttonProps: ButtonProps) {
     isDialogOpen,
     isUploading,
     processFiles,
-    processAudiobooks,
+    processBatch,
+    retryFailed,
     previewAudiobook,
     closeDialog,
   } = useBookUpload();
@@ -68,6 +70,9 @@ export function AddBookButton(buttonProps: ButtonProps) {
   const [otherDirectoryFiles, setOtherDirectoryFiles] = useState<File[]>([]);
   const [isReviewOpen, setIsReviewOpen] = useState(false);
   const [isPreviewing, setIsPreviewing] = useState(false);
+  const [previewFailed, setPreviewFailed] = useState(false);
+  const [directoryFiles, setDirectoryFiles] = useState<File[]>([]);
+  const previewPending = useRef(false);
 
   const _handleMultiSelect = async ({ files }: FileAcceptDetails) => {
     await processFiles(files);
@@ -82,6 +87,7 @@ export function AddBookButton(buttonProps: ButtonProps) {
     const supportedFiles = Array.from(fileList).filter((f) =>
       /\.(epub|pdf|mp3|m4b)$/i.test(f.name)
     );
+    e.target.value = "";
 
     if (supportedFiles.length === 0) {
       toaster.create({
@@ -90,18 +96,25 @@ export function AddBookButton(buttonProps: ButtonProps) {
       });
       return;
     }
+    setDirectoryFiles(supportedFiles);
+    await inspectDirectory(supportedFiles);
+  };
 
+  const inspectDirectory = async (supportedFiles: File[]) => {
+    if (previewPending.current) return;
+    setPreviewFailed(false);
     const mp3Files = supportedFiles.filter((file) => /\.mp3$/i.test(file.name));
     const otherFiles = supportedFiles.filter(
       (file) => !/\.mp3$/i.test(file.name)
     );
     if (mp3Files.length < 2) {
       await processFiles(supportedFiles);
-      e.target.value = "";
+      setDirectoryFiles([]);
       return;
     }
 
     setIsPreviewing(true);
+    previewPending.current = true;
     try {
       const relativePaths = mp3Files.map(
         (file) =>
@@ -125,14 +138,16 @@ export function AddBookButton(buttonProps: ButtonProps) {
       );
       setOtherDirectoryFiles(otherFiles);
       setIsReviewOpen(true);
+      setDirectoryFiles([]);
     } catch (error) {
+      setPreviewFailed(true);
       toaster.create({
-        title: `Could not inspect audiobook tracks: ${String(error)}`,
+        title: "Could not inspect audiobook tracks. Your selected files are kept so you can try again.",
         type: "error",
       });
     } finally {
       setIsPreviewing(false);
-      e.target.value = "";
+      previewPending.current = false;
     }
   };
 
@@ -197,8 +212,7 @@ export function AddBookButton(buttonProps: ButtonProps) {
     const singleTrackFiles = singleTrackGroups.map(
       (group) => group.tracks[0].file
     );
-    if (otherDirectoryFiles.length || singleTrackFiles.length) {
-      await processFiles(
+    await processBatch(
         [...otherDirectoryFiles, ...singleTrackFiles],
         [
           ...otherDirectoryFiles.map(() => undefined),
@@ -206,10 +220,7 @@ export function AddBookButton(buttonProps: ButtonProps) {
             title: group.title.trim() || group.tracks[0].title,
             author: group.author.trim() || undefined,
           })),
-        ]
-      );
-    }
-    await processAudiobooks(
+        ],
       multiTrackGroups.map((group) => ({
         title: group.title.trim() || group.tracks[0].title,
         author: group.author.trim() || undefined,
@@ -236,6 +247,7 @@ export function AddBookButton(buttonProps: ButtonProps) {
         isOpen={isDialogOpen}
         isUploading={isUploading}
         onClose={closeDialog}
+        onRetryFailed={retryFailed}
       />
 
       <Dialog.Root
@@ -272,7 +284,7 @@ export function AddBookButton(buttonProps: ButtonProps) {
                           : "Custom group"}
                       </Text>
                       <Input
-                        aria-label="Audiobook title"
+                        aria-label={`Audiobook title for group ${reviewGroups.indexOf(group) + 1}`}
                         value={group.title}
                         onChange={(event) =>
                           setReviewGroups((groups) =>
@@ -285,7 +297,7 @@ export function AddBookButton(buttonProps: ButtonProps) {
                         }
                       />
                       <Input
-                        aria-label="Audiobook author"
+                        aria-label={`Audiobook author for group ${reviewGroups.indexOf(group) + 1}`}
                         placeholder="Author"
                         value={group.author}
                         onChange={(event) =>
@@ -308,7 +320,7 @@ export function AddBookButton(buttonProps: ButtonProps) {
                               {track.path}
                             </Text>
                           </Stack>
-                          <NativeSelect.Root size="sm" width="180px">
+                          <NativeSelect.Root size="sm" width={{base: "130px", sm: "180px"}} flexShrink={0}>
                             <NativeSelect.Field
                               aria-label={`Group for ${track.title}`}
                               value={group.id}
@@ -329,7 +341,7 @@ export function AddBookButton(buttonProps: ButtonProps) {
                       ))}
                       {group.tracks.length > 1 && (
                         <Button
-                          size="xs"
+                          minH="44px"
                           variant="outline"
                           alignSelf="flex-start"
                           onClick={() => splitGroup(group.id)}
@@ -366,14 +378,14 @@ export function AddBookButton(buttonProps: ButtonProps) {
               </Dialog.Body>
               <Dialog.Footer>
                 <Dialog.ActionTrigger asChild>
-                  <Button variant="ghost">Cancel</Button>
+                  <Button variant="ghost" minH="44px">Cancel</Button>
                 </Dialog.ActionTrigger>
-                <Button onClick={() => void confirmAudiobookGroups()}>
+                <Button minH="44px" disabled={!reviewGroups.some(group => group.tracks.length) && !otherDirectoryFiles.length} onClick={() => void confirmAudiobookGroups()}>
                   Upload books
                 </Button>
               </Dialog.Footer>
               <Dialog.CloseTrigger asChild>
-                <CloseButton />
+                <CloseButton aria-label="Close audiobook review" minH="44px" minW="44px" />
               </Dialog.CloseTrigger>
             </Dialog.Content>
           </Dialog.Positioner>
@@ -393,17 +405,19 @@ export function AddBookButton(buttonProps: ButtonProps) {
               variant={"outline"}
               size="sm"
               width={"100%"}
+              minH="44px"
               loading={isUploading || isPreviewing}
               {...buttonProps}
             >
-              <HiPlus /> Add Book
+              <HiPlus /> Add books
             </SubmitButton>
           </Menu.Trigger>
           <Menu.Positioner>
             <Menu.Content>
               <FileUpload.Trigger asChild>
-                <Menu.Item value="files">Select Files</Menu.Item>
+                <Menu.Item value="files">Select files</Menu.Item>
               </FileUpload.Trigger>
+              {reviewGroups.length > 0 && <Menu.Item value="review" onClick={() => setIsReviewOpen(true)}>Resume audiobook review</Menu.Item>}
               <Menu.Item
                 value="directory"
                 onClick={() => directoryInputRef.current?.click()}
@@ -414,6 +428,7 @@ export function AddBookButton(buttonProps: ButtonProps) {
           </Menu.Positioner>
         </Menu.Root>
       </FileUpload.Root>
+      {previewFailed && <ErrorState onRetry={() => inspectDirectory(directoryFiles)}>Audiobook tracks could not be inspected. Your selected files are kept.</ErrorState>}
     </>
   );
 }

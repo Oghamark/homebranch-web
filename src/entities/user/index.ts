@@ -1,10 +1,11 @@
 // Model
-export type {UserModel} from './model/UserModel';
+export type {UserModel, UserSearchResult} from './model/UserModel';
 
 // API
 export type {CreateUserRequest, UpdateUserRoleRequest} from './api/dtos';
 export {
     useGetUsersQuery,
+    useSearchUsersQuery,
     useGetUserByIdQuery,
     useUpdateUserRoleMutation,
     useCreateUserMutation,

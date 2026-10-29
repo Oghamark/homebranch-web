@@ -1,15 +1,14 @@
-import TextField from "@/shared/ui/TextField";
-import {useAppDispatch, useAppSelector} from "@/app/hooks";
-import React from "react";
-import {updateQuery} from "@/features/library/store/librarySlice";
+import {Button, Field, Flex, Input, Text} from "@chakra-ui/react";
+import {useCollectionSearch} from "../hooks/useLibrarySearch";
 
-export function SearchLibrary() {
-    const dispatch = useAppDispatch();
-    const query = useAppSelector(state => state.library.query);
-
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        dispatch(updateQuery(e.currentTarget.value));
-    }
-
-    return <TextField placeholder={"Search"} value={query} onChange={handleChange}/>
+export function SearchLibrary({label = "Search this collection"}: {label?: string}) {
+    const {query, setQuery} = useCollectionSearch();
+    return <Field.Root flex="1" minW={{base: "100%", sm: "240px"}}>
+        <Field.Label>{label}</Field.Label>
+        <Flex gap={2} width="100%">
+            <Input type="search" minH="44px" value={query} placeholder="Title, author, or keyword"
+                onChange={event => setQuery(event.currentTarget.value)}/>
+            {query && <Button variant="outline" minH="44px" onClick={() => setQuery("")}>Clear search</Button>}
+        </Flex>
+    </Field.Root>;
 }

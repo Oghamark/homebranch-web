@@ -14,9 +14,10 @@ import {
     setHyphens,
     setPageGutter,
 } from "../store/readerThemeSlice";
-import { type TextAlignPreference, type ThemeColorMode, getThemeColors } from "../types/ReaderTheme";
+import { type TextAlignPreference, type ThemeColorMode, type ThemeColors } from "../types/ReaderTheme";
 import { LuSettings, LuMinus, LuPlus } from "react-icons/lu";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import {ReaderDialog, readerSurface, getReaderControlColors} from "./ReaderUI";
 
 const FONT_OPTIONS = [
     { value: "System Default", label: "System Default" },
@@ -53,7 +54,7 @@ interface RangeRowProps {
     defaultValue: number;
     format: (v: number) => string;
     onChange: (value: number | null) => void;
-    colors: ReturnType<typeof getThemeColors>;
+    colors: ThemeColors;
 }
 
 function RangeRow({ label, value, min, max, step, defaultValue, format, onChange, colors }: RangeRowProps) {
@@ -74,7 +75,7 @@ function RangeRow({ label, value, min, max, step, defaultValue, format, onChange
     return (
         <Box>
             <Flex justify="space-between" align="center" mb={1}>
-                <Text fontSize="xs" fontWeight="semibold" textTransform="uppercase" letterSpacing="wide" opacity={0.7}>
+                <Text fontSize="xs" fontWeight="semibold" textTransform="uppercase" letterSpacing="wide" color={colors.muted}>
                     {label}
                 </Text>
                 {!isAtDefault && (
@@ -107,7 +108,7 @@ function RangeRow({ label, value, min, max, step, defaultValue, format, onChange
                 >
                     <LuMinus />
                 </IconButton>
-                <Text flex={1} textAlign="center" fontSize="sm" fontWeight="medium" opacity={isAtDefault ? 0.5 : 1}>
+                <Text flex={1} textAlign="center" fontSize="sm" fontWeight="medium">
                     {format(displayValue)}
                 </Text>
                 <IconButton
@@ -133,7 +134,6 @@ export function ReaderSettingsMenu() {
     const themeState = useAppSelector((state) => state.readerTheme);
     const { mode, fontFamily, fontSize, scroll, columnCount, textAlign, lineHeight, letterSpacing, wordSpacing, paragraphSpacing, hyphens, pageGutter } = themeState;
     const [isOpen, setIsOpen] = useState(false);
-    const menuRef = useRef<HTMLDivElement>(null);
     const [isMobile] = useMediaQuery(["(max-width: 768px)"]);
 
     // Scroll mode is not supported on mobile (no swipe navigation for chapters).
@@ -142,40 +142,23 @@ export function ReaderSettingsMenu() {
         if (isMobile && scroll) dispatch(setScroll(false));
     }, [isMobile, scroll, dispatch]);
 
-    const close = useCallback(() => setIsOpen(false), []);
-
-    useEffect(() => {
-        if (!isOpen) return;
-        function handleClick(e: MouseEvent) {
-            if (menuRef.current && !menuRef.current.contains(e.target as Node)) close();
-        }
-        document.addEventListener("pointerdown", handleClick);
-        return () => document.removeEventListener("pointerdown", handleClick);
-    }, [isOpen, close]);
-
-    useEffect(() => {
-        if (!isOpen) return;
-        function handleKey(e: KeyboardEvent) {
-            if (e.key === "Escape") close();
-        }
-        document.addEventListener("keydown", handleKey);
-        return () => document.removeEventListener("keydown", handleKey);
-    }, [isOpen, close]);
-
-    const colors = getThemeColors(mode);
+    const colors = getReaderControlColors(mode);
 
     const sectionLabel = (text: string) => (
-        <Text fontSize="xs" fontWeight="semibold" textTransform="uppercase" letterSpacing="wide" mb={2} opacity={0.7}>
+        <Text fontSize="xs" fontWeight="semibold" textTransform="uppercase" letterSpacing="wide" mb={2} color={colors.muted}>
             {text}
         </Text>
     );
 
     return (
-        <Box ref={menuRef} position="fixed" top={2} right={12} zIndex={1002}>
+        <Box position="fixed" top={2} right="60px" zIndex={1002} {...readerSurface(colors)} borderRadius="lg">
             <IconButton
                 aria-label="Reader Settings"
-                borderRadius="full"
-                size="sm"
+                aria-haspopup="dialog"
+                aria-expanded={isOpen}
+                borderRadius="lg"
+                minW="44px"
+                minH="44px"
                 bg={colors.btnBg}
                 color={colors.text}
                 boxShadow="md"
@@ -185,23 +168,8 @@ export function ReaderSettingsMenu() {
                 <LuSettings />
             </IconButton>
 
-            {isOpen && (
-                <Box
-                    position="absolute"
-                    top="100%"
-                    right={0}
-                    mt={2}
-                    p={4}
-                    bg={colors.uiBg}
-                    color={colors.text}
-                    boxShadow="lg"
-                    borderRadius="md"
-                    w="280px"
-                    border="1px solid"
-                    borderColor={colors.uiBorder}
-                    maxH="80vh"
-                    overflowY="auto"
-                >
+            <ReaderDialog open={isOpen} onClose={() => setIsOpen(false)} title="Reading settings" colors={colors}>
+                    <Text mb={4} fontSize="sm">These preferences apply to your reader, not the rest of Homebranch.</Text>
                     <Flex direction="column" gap={4}>
 
                         {/* Theme */}
@@ -211,6 +179,7 @@ export function ReaderSettingsMenu() {
                                 {THEME_OPTIONS.map(({ value, label }) => (
                                     <Button
                                         key={value}
+                                        aria-pressed={mode === value}
                                         size="sm"
                                         flex={1}
                                         onClick={() => dispatch(setThemeMode(value))}
@@ -236,6 +205,7 @@ export function ReaderSettingsMenu() {
                                 {FONT_OPTIONS.map(({ value, label }) => (
                                     <Button
                                         key={value}
+                                        aria-pressed={fontFamily === value}
                                         size="sm"
                                         variant="ghost"
                                         justifyContent="flex-start"
@@ -267,7 +237,9 @@ export function ReaderSettingsMenu() {
                             colors={colors}
                         />
 
-                        {/* Line height */}
+                        <Box as="details">
+                        <Box as="summary" cursor="pointer" py={3} fontWeight="semibold">Advanced typography and layout</Box>
+                        <Flex direction="column" gap={4} pt={3}>
                         <RangeRow
                             label="Line Height"
                             value={lineHeight}
@@ -328,6 +300,7 @@ export function ReaderSettingsMenu() {
                                 {TEXT_ALIGN_OPTIONS.map(({ value, label }) => (
                                     <Button
                                         key={label}
+                                        aria-pressed={textAlign === value}
                                         size="sm"
                                         flex={1}
                                         onClick={() => dispatch(setTextAlign(value))}
@@ -355,24 +328,27 @@ export function ReaderSettingsMenu() {
                                 <Flex justify="space-between" align="center">
                                     <Text fontSize="sm">Scroll Mode</Text>
                                     <Switch.Root
+                                        aria-label="Scroll mode"
+                                        minH="44px"
                                         checked={scroll}
                                         onCheckedChange={({ checked }) => dispatch(setScroll(checked))}
-                                        colorPalette="blue"
+                                        colorPalette="orange"
                                     >
-                                        <Switch.HiddenInput />
-                                        <Switch.Control>
-                                            <Switch.Thumb />
+                                        <Switch.HiddenInput aria-label="Scroll mode" />
+                                        <Switch.Control bg={colors.uiBorder} _checked={{bg: colors.text}}>
+                                            <Switch.Thumb bg={colors.uiBg} />
                                         </Switch.Control>
                                     </Switch.Root>
                                 </Flex>
                                 )}
                                 {!scroll && (
                                     <Box>
-                                        <Text fontSize="xs" opacity={0.7} mb={2}>Columns</Text>
+                                        <Text fontSize="xs" color={colors.muted} mb={2}>Columns</Text>
                                         <Flex gap={2}>
                                             {COLUMN_OPTIONS.map(({ value, label }) => (
                                                 <Button
                                                     key={label}
+                                                    aria-pressed={columnCount === value}
                                                     size="sm"
                                                     flex={1}
                                                     onClick={() => dispatch(setColumnCount(value))}
@@ -392,13 +368,15 @@ export function ReaderSettingsMenu() {
                                 <Flex justify="space-between" align="center">
                                     <Text fontSize="sm">Hyphens</Text>
                                     <Switch.Root
+                                        aria-label="Hyphens"
+                                        minH="44px"
                                         checked={hyphens ?? false}
                                         onCheckedChange={({ checked }) => dispatch(setHyphens(checked))}
-                                        colorPalette="blue"
+                                        colorPalette="orange"
                                     >
-                                        <Switch.HiddenInput />
-                                        <Switch.Control>
-                                            <Switch.Thumb />
+                                        <Switch.HiddenInput aria-label="Hyphens" />
+                                        <Switch.Control bg={colors.uiBorder} _checked={{bg: colors.text}}>
+                                            <Switch.Thumb bg={colors.uiBg} />
                                         </Switch.Control>
                                     </Switch.Root>
                                 </Flex>
@@ -419,10 +397,10 @@ export function ReaderSettingsMenu() {
                             onChange={(v) => dispatch(setPageGutter(v ?? 20))}
                             colors={colors}
                         />
-
+                        </Flex>
+                        </Box>
                     </Flex>
-                </Box>
-            )}
+            </ReaderDialog>
         </Box>
     );
 }

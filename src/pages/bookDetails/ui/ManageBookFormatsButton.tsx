@@ -1,7 +1,6 @@
 import {useMemo, useState} from "react";
-import {Badge, Box, Button, CloseButton, Dialog, Flex, IconButton, Portal, Separator, Spinner, Stack, Text} from "@chakra-ui/react";
-import {LuChevronRight, LuLink, LuUnlink} from "react-icons/lu";
-import {Tooltip} from "@/shared/ui/tooltip";
+import {Badge, Box, Button, CloseButton, Dialog, Flex, Portal, Separator, Stack, Text} from "@chakra-ui/react";
+import {LuChevronRight, LuLink} from "react-icons/lu";
 import {
     type BookModel,
     useLinkBooksMutation,
@@ -13,6 +12,7 @@ import TextField from "@/shared/ui/TextField";
 import {useDebounce} from "@uidotdev/usehooks";
 import ToastFactory from "@/shared/lib/toast/toast";
 import {handleRtkError} from "@/shared/api/rtk-query";
+import {ConfirmAction, ErrorState, LoadingState} from "@/shared/ui/EditorialUI";
 
 interface ManageBookFormatsButtonProps {
     book: BookModel;
@@ -28,7 +28,7 @@ export function ManageBookFormatsButton({book, canManage}: ManageBookFormatsButt
 
     const availableFormats = useMemo(() => getAvailableBookFormats(book), [book]);
 
-    const {data: searchResults = [], isFetching: isSearching} = useSearchBooksQuery(debouncedLinkQuery, {
+    const {data: searchResults = [], isFetching: isSearching, isError: searchFailed, refetch} = useSearchBooksQuery(debouncedLinkQuery, {
         skip: !isOpen || !canManage || debouncedLinkQuery.trim().length < 2,
     });
 
@@ -43,8 +43,6 @@ export function ManageBookFormatsButton({book, canManage}: ManageBookFormatsButt
 
     const handleClose = () => {
         setIsOpen(false);
-        setLinkQuery("");
-        setSelectedLinkBookId(null);
     };
 
     const handleLink = async () => {
@@ -56,6 +54,7 @@ export function ManageBookFormatsButton({book, canManage}: ManageBookFormatsButt
             setSelectedLinkBookId(null);
         } catch (error) {
             handleRtkError(error);
+            throw error;
         }
     };
 
@@ -66,6 +65,7 @@ export function ManageBookFormatsButton({book, canManage}: ManageBookFormatsButt
             ToastFactory({message: "Format unlinked", type: "success"});
         } catch (error) {
             handleRtkError(error);
+            throw error;
         } finally {
             setUnlinkingId(null);
         }
@@ -78,26 +78,23 @@ export function ManageBookFormatsButton({book, canManage}: ManageBookFormatsButt
 
     return (
         <>
-            <Tooltip content="Manage format links">
-                <IconButton variant="ghost" aria-label="Manage format links" onClick={() => setIsOpen(true)}>
-                    <LuLink/>
-                </IconButton>
-            </Tooltip>
+            <Button variant="outline" minH="44px" onClick={() => setIsOpen(true)}><LuLink/> Manage format links</Button>
 
-            <Dialog.Root open={isOpen} onOpenChange={(e) => !e.open && handleClose()}>
+            <Dialog.Root open={isOpen} closeOnEscape={!linkingBooks && !unlinkingId} closeOnInteractOutside={!linkingBooks && !unlinkingId}
+                onOpenChange={(e) => !e.open && !linkingBooks && !unlinkingId && handleClose()}>
                 <Portal>
                     <Dialog.Backdrop/>
                     <Dialog.Positioner>
                         <Dialog.Content>
                             <Dialog.Header>
-                                <Dialog.Title>Format Links</Dialog.Title>
+                                <Dialog.Title>Formats for {book.title}</Dialog.Title>
                             </Dialog.Header>
 
                             <Dialog.Body>
                                 <Stack gap={5}>
                                     {/* Current linked formats */}
                                     <Box>
-                                        <Text fontSize="xs" fontWeight="semibold" textTransform="uppercase" letterSpacing="wide" color="fg.subtle" mb={2}>
+                                        <Text fontSize="xs" fontWeight="semibold" textTransform="uppercase" letterSpacing="wide" color="fg.muted" mb={2}>
                                             Linked Formats
                                         </Text>
                                         <Stack gap={1}>
@@ -109,19 +106,11 @@ export function ManageBookFormatsButton({book, canManage}: ManageBookFormatsButt
                                                             {getBookFormatLabel(format.format)}
                                                         </Badge>
                                                         {isUnlinkable && (
-                                                            <Tooltip content={`Unlink ${getBookFormatLabel(format.format)}`}>
-                                                                <IconButton
-                                                                    size="sm"
-                                                                    variant="ghost"
-                                                                    aria-label={`Unlink ${getBookFormatLabel(format.format)}`}
-                                                                    color="fg.error"
-                                                                    _hover={{bg: "red.subtle"}}
-                                                                    loading={unlinkingId === format.id}
-                                                                    onClick={() => handleUnlink(format.id)}
-                                                                >
-                                                                    <LuUnlink/>
-                                                                </IconButton>
-                                                            </Tooltip>
+                                                            <ConfirmAction title={`Unlink ${getBookFormatLabel(format.format)} from ${book.title}?`}
+                                                                description="Separate this format into its own library entry. It will no longer be available as a format of this book."
+                                                                actionLabel={`Unlink ${getBookFormatLabel(format.format)}`} destructive
+                                                                disabled={Boolean(unlinkingId) || linkingBooks}
+                                                                onConfirm={() => handleUnlink(format.id)}/>
                                                         )}
                                                     </Flex>
                                                 );
@@ -135,7 +124,7 @@ export function ManageBookFormatsButton({book, canManage}: ManageBookFormatsButt
 
                                             {/* Link a new book */}
                                             <Box>
-                                                <Text fontSize="xs" fontWeight="semibold" textTransform="uppercase" letterSpacing="wide" color="fg.subtle" mb={1}>
+                                                <Text fontSize="xs" fontWeight="semibold" textTransform="uppercase" letterSpacing="wide" color="fg.muted" mb={1}>
                                                     Link another book
                                                 </Text>
                                                 <Text fontSize="sm" color="fg.muted" mb={3}>
@@ -146,6 +135,7 @@ export function ManageBookFormatsButton({book, canManage}: ManageBookFormatsButt
                                                         label="Search library"
                                                         placeholder="Type a title or author"
                                                         value={linkQuery}
+                                                        disabled={linkingBooks || Boolean(unlinkingId)}
                                                         onChange={(e) => {
                                                             setLinkQuery(e.currentTarget.value);
                                                             setSelectedLinkBookId(null);
@@ -154,9 +144,9 @@ export function ManageBookFormatsButton({book, canManage}: ManageBookFormatsButt
                                                     {debouncedLinkQuery.trim().length < 2 ? (
                                                         <Text fontSize="sm" color="fg.muted">Enter at least 2 characters to search.</Text>
                                                     ) : isSearching ? (
-                                                        <Flex justify="center" py={2}>
-                                                            <Spinner size="sm"/>
-                                                        </Flex>
+                                                        <LoadingState label="Searching your library..."/>
+                                                    ) : searchFailed ? (
+                                                        <ErrorState onRetry={refetch}>Books could not be searched. Your query has been kept.</ErrorState>
                                                     ) : linkCandidates.length === 0 ? (
                                                         <Text fontSize="sm" color="fg.muted">No matching books found.</Text>
                                                     ) : (
@@ -168,17 +158,19 @@ export function ManageBookFormatsButton({book, canManage}: ManageBookFormatsButt
                                                                     <Flex
                                                                         key={candidate.id}
                                                                         as="button"
+                                                                        aria-pressed={isSelected}
+                                                                        minH="44px"
                                                                         align="center"
                                                                         justify="space-between"
                                                                         px={3}
                                                                         py={2}
                                                                         borderRadius="md"
                                                                         border="1px solid"
-                                                                        borderColor={isSelected ? "blue.500" : "border"}
-                                                                        bg={isSelected ? "blue.subtle" : "transparent"}
+                                                                        borderColor={isSelected ? "orange.500" : "border"}
+                                                                        bg={isSelected ? "orange.subtle" : "transparent"}
                                                                         cursor="pointer"
                                                                         onClick={() => setSelectedLinkBookId(candidate.id)}
-                                                                        _hover={{bg: isSelected ? "blue.subtle" : "bg.subtle"}}
+                                                                        _hover={{bg: "bg.subtle"}}
                                                                         textAlign="left"
                                                                         w="full"
                                                                     >
@@ -187,7 +179,7 @@ export function ManageBookFormatsButton({book, canManage}: ManageBookFormatsButt
                                                                             <Text fontSize="sm" color="fg.muted">{candidate.author}</Text>
                                                                         </Box>
                                                                         <Flex align="center" gap={2} flexShrink={0} ml={2}>
-                                                                            <Text fontSize="xs" color="fg.subtle">
+                                                                            <Text fontSize="xs" color="fg.muted">
                                                                                 {candidateFormats.map((f) => getBookFormatLabel(f.format)).join(" / ")}
                                                                             </Text>
                                                                             <LuChevronRight size={14} opacity={0.4}/>
@@ -205,22 +197,19 @@ export function ManageBookFormatsButton({book, canManage}: ManageBookFormatsButt
                             </Dialog.Body>
 
                             <Dialog.Footer>
-                                <Button variant="ghost" onClick={handleClose}>
+                                <Button variant="ghost" minH="44px" disabled={linkingBooks || Boolean(unlinkingId)} onClick={handleClose}>
                                     {canManage ? "Cancel" : "Close"}
                                 </Button>
                                 {canManage && (
-                                    <Button
-                                        onClick={handleLink}
-                                        disabled={!selectedCandidate}
-                                        loading={linkingBooks}
-                                    >
-                                        <LuLink/> Link books
-                                    </Button>
+                                    <ConfirmAction title={`Link ${selectedCandidate?.title ?? "book"} to ${book.title}?`}
+                                        description={`Merge the formats of "${selectedCandidate?.title ?? ""}" into "${book.title}". The source entry is removed from the library; its formats become part of this book.`}
+                                        actionLabel="Link books" disabled={!selectedCandidate || isSearching || searchFailed || Boolean(unlinkingId)}
+                                        onConfirm={handleLink}/>
                                 )}
                             </Dialog.Footer>
 
                             <Dialog.CloseTrigger asChild>
-                                <CloseButton/>
+                                <CloseButton aria-label="Close format links" minH="44px" minW="44px" disabled={linkingBooks || Boolean(unlinkingId)}/>
                             </Dialog.CloseTrigger>
                         </Dialog.Content>
                     </Dialog.Positioner>

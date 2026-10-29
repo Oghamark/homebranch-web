@@ -1,48 +1,39 @@
-import {useState} from "react";
-import {Button} from "@chakra-ui/react";
+import {useRef, useState} from "react";
+import {Button, HStack, Stack} from "@chakra-ui/react";
 import {LuPlus} from "react-icons/lu";
 import TextField from "@/shared/ui/TextField";
-import {toaster} from "@/shared/ui/toaster";
 import {useCreateBookShelfMutation} from "@/entities/bookShelf";
-import {handleRtkError} from "@/shared/api/rtk-query";
+import {ErrorState} from "@/shared/ui/EditorialUI";
 
 export function AddBookShelfButton() {
-    const [createBookShelf] = useCreateBookShelfMutation();
+    const [createBookShelf, {isLoading}] = useCreateBookShelfMutation();
     const [isEditing, setIsEditing] = useState(false);
-    const [bookShelfName, setBookShelfName] = useState("");
+    const [name, setName] = useState("");
+    const [failed, setFailed] = useState(false);
+    const pending = useRef(false);
 
-    const onSubmit = async () => {
-        setIsEditing(false);
-        if (bookShelfName && bookShelfName.length > 0) {
-            try {
-                await createBookShelf({title: bookShelfName}).unwrap();
-                toaster.create({type: 'success', title: 'Successfully Added!', duration: 3000});
-                setBookShelfName("");
-            } catch (error) {
-                handleRtkError(error);
-            }
+    if (!isEditing) return <Button variant="outline" minH="44px" width="100%" onClick={() => setIsEditing(true)}><LuPlus/> Add shelf</Button>;
+
+    return <form onSubmit={async (event) => {
+        event.preventDefault();
+        if (!name.trim() || pending.current) return;
+        pending.current = true;
+        setFailed(false);
+        try {
+            await createBookShelf({title: name.trim()}).unwrap();
+            setName("");
+            setIsEditing(false);
+        } catch {
+            setFailed(true);
+        } finally {
+            pending.current = false;
         }
-    }
-
-    if (isEditing) {
-        return (
-            <TextField
-                label={''}
-                placeholder={"Enter Book Shelf Name"}
-                autoFocus={true}
-                onBlur={onSubmit}
-                value={bookShelfName}
-                onChange={(event) => setBookShelfName(event.target.value)}
-                onKeyDown={(event) => {
-                    if (event.key === "Enter") {
-                        onSubmit();
-                    }
-                }}
-            />
-        )
-    }
-
-    return (
-        <Button variant={"outline"} size={"sm"} width="100%" onClick={() => setIsEditing(true)}><LuPlus/> Add Book Shelf</Button>
-    )
+    }}><Stack gap={2}>
+        <TextField label="Shelf name" autoFocus value={name} disabled={isLoading} onChange={(event) => setName(event.target.value)}/>
+        {failed && <ErrorState>The shelf could not be created. Your name has been kept.</ErrorState>}
+        <HStack wrap="wrap">
+            <Button minH="44px" type="submit" loading={isLoading} disabled={!name.trim()}>Create shelf</Button>
+            <Button minH="44px" variant="ghost" disabled={isLoading} onClick={() => {setIsEditing(false); setFailed(false);}}>Cancel</Button>
+        </HStack>
+    </Stack></form>;
 }

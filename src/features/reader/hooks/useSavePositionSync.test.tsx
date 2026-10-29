@@ -1,0 +1,32 @@
+import {act, renderHook} from "@testing-library/react";
+import {afterEach, beforeEach, describe, expect, it, vi} from "vitest";
+import {Locator, LocatorLocations} from "@readium/shared";
+import {savePosition} from "../api/savedPositionApi";
+import {useSavePositionSync} from "./useSavePositionSync";
+import {installMemoryStorage} from "@/test/memoryStorage";
+vi.mock("../api/savedPositionApi", () => ({savePosition: vi.fn()}));
+vi.mock("@/shared/lib/toast/toast", () => ({default: vi.fn()}));
+const locator = new Locator({href: "http://localhost/epub/one.xhtml", type: "application/xhtml+xml", locations: new LocatorLocations({progression: 0.2})});
+beforeEach(() => { installMemoryStorage(); sessionStorage.setItem("user_id", "account"); vi.useFakeTimers(); vi.mocked(savePosition).mockReset().mockResolvedValue(); });
+afterEach(() => vi.useRealTimers());
+describe("startup save guard", () => {
+    it("does not replace local or remote progress until choice and cancels a paused debounce", async () => {
+        const enabled = {current: false};
+        const {result} = renderHook(() => useSavePositionSync("book", "EPUB", "Browser", {current: "http://localhost/epub/"}, enabled));
+        act(() => result.current.onLocationChange(locator, 0.2));
+        await act(async () => { await vi.advanceTimersByTimeAsync(1100); });
+        expect(savePosition).not.toHaveBeenCalled();
+        expect(localStorage.getItem("currentlyReading_account")).toBeNull();
+        enabled.current = true;
+        act(() => result.current.onLocationChange(locator, 0.2));
+        expect(localStorage.getItem("currentlyReading_account")).toContain("one.xhtml");
+        enabled.current = false;
+        await act(async () => { await vi.advanceTimersByTimeAsync(1100); });
+        expect(savePosition).not.toHaveBeenCalled();
+        enabled.current = true;
+        act(() => result.current.onLocationChange(locator, 0.2));
+        await act(async () => { await vi.advanceTimersByTimeAsync(1100); });
+        expect(savePosition).toHaveBeenCalledOnce();
+        expect(savePosition).toHaveBeenCalledWith("book", expect.objectContaining({percentage: 0.2}));
+    });
+});

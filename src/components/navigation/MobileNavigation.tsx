@@ -9,16 +9,23 @@ import {useColorMode, ColorModeButton} from "@/shared/ui/color-mode";
 
 const pathnameToTitle: Record<string, string> = {
     "/": "Library",
-    "/currently-reading": "Currently Reading",
+    "/currently-reading": "Continue reading",
     "/favorites": "Favorites",
     "/settings": "Account Settings",
     "/users": "User Management",
+    "/authors": "Authors",
+    "/library-management": "Library management",
+    "/book-clubs": "Book clubs",
+    "/friends": "Friends",
+    "/notifications": "Notifications",
 };
 
 function getDefaultTitle(pathname: string): string {
     if (pathnameToTitle[pathname]) return pathnameToTitle[pathname];
     if (pathname.startsWith("/books/") && !pathname.endsWith("/read")) return "Book Details";
-    if (pathname.startsWith("/create-book")) return "Create Book";
+    if (pathname.startsWith("/authors/")) return "Author";
+    if (pathname.startsWith("/book-shelves/")) return "Bookshelf";
+    if (pathname.startsWith("/book-clubs/")) return "Book clubs";
     return "HomeBranch";
 }
 
@@ -77,27 +84,31 @@ export function MobileNavigation() {
                 zIndex="sticky"
                 transform={headerVisible ? "translateY(0)" : "translateY(-100%)"}
                 transition="transform 0.2s ease"
+                css={{"@media (prefers-reduced-motion: reduce)": {transition: "none"}}}
             >
                 <Flex
                     align="center"
                     justify="space-between"
                     px={4}
                     py={2}
+                    pt="max(8px, env(safe-area-inset-top))"
                     bg="bg"
                     borderBottomWidth="1px"
                 >
-                    <Flex align="center" gap={2}>
+                    <Flex align="center" gap={2} minW={0} flex={1}>
                         <IconButton
                             variant="ghost"
                             size="sm"
+                            minH="44px"
+                            minW="44px"
                             aria-label="Open navigation"
                             onClick={() => setOpen(true)}
                         >
                             <LuMenu/>
                         </IconButton>
-                        <Heading size="md">{displayTitle}</Heading>
+                        <Heading as="p" size="md" lineClamp={1} minW={0}>{displayTitle}</Heading>
                     </Flex>
-                    <Flex align="center" gap={1}>
+                    <Flex align="center" gap={1} flexShrink={0}>
                             {rightAction}
                             {showUserToggle && <ShowAllUsersButton/>}
                             <ColorModeButton/>
@@ -105,7 +116,7 @@ export function MobileNavigation() {
                 </Flex>
             </Box>
             {/* Spacer to prevent content from hiding behind fixed header */}
-            <Box display={{base: "block", md: "none"}} h="48px"/>
+            <Box display={{base: "block", md: "none"}} h="calc(60px + env(safe-area-inset-top))"/>
 
             <Drawer.Root open={open} onOpenChange={(e) => setOpen(e.open)} placement="start">
                 <Portal>
@@ -113,9 +124,10 @@ export function MobileNavigation() {
                     <Drawer.Positioner>
                         <Drawer.Content>
                             <Drawer.Header>
+                                <Drawer.Title srOnly>Navigation</Drawer.Title>
                                 <img src={logoSrc} alt="HomeBranch" style={{height: "36px"}}/>
                                 <Drawer.CloseTrigger asChild>
-                                    <CloseButton size="sm"/>
+                                    <CloseButton size="sm" minH="44px" minW="44px" aria-label="Close navigation"/>
                                 </Drawer.CloseTrigger>
                             </Drawer.Header>
                             <Separator/>

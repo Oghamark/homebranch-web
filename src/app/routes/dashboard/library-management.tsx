@@ -1,808 +1,249 @@
 import type {Route} from "./+types/library-management";
-import {
-    Badge,
-    Box,
-    Button,
-    Card,
-    Checkbox,
-    Flex,
-    For,
-    Heading,
-    Input,
-    Loader,
-    NativeSelect,
-    Separator,
-    Stack,
-    Tabs,
-    Text,
-} from "@chakra-ui/react";
-import {
-    LuChevronLeft,
-    LuChevronRight,
-    LuCopy,
-    LuFolderSync,
-    LuPlay,
-    LuRefreshCw,
-    LuSettings,
-    LuUserCheck
-} from "react-icons/lu";
-import {
-    useBulkAssignBookOwnerMutation,
-    useGetAdminBooksQuery,
-    useGetJobsQuery,
-    useGetLibrarySettingQuery,
-    useGetOrphanedBooksMutation,
-    useGetUnownedBooksQuery,
-    useTriggerLibraryScanMutation,
-    useUpsertLibrarySettingMutation,
-} from "@/entities/job";
-import type {UserModel} from "@/entities/user";
-import {useGetUsersQuery} from "@/entities/user";
-import {JobRow} from "@/entities/job/ui/JobRow";
-import {useCallback, useEffect, useMemo, useState} from "react";
-import ToastFactory from "@/shared/lib/toast/toast";
-import {handleRtkError} from "@/shared/api/rtk-query";
-import type {BookDuplicateWithBooksModel, BookModel, ResolveDuplicateAction} from "@/entities/book";
-import {useListDuplicatesQuery, useResolveDuplicateMutation, useTriggerDuplicateScanMutation,} from "@/entities/book";
-import {useJobStream, config} from "@/shared";
+import {Button, Flex, Input, NativeSelect, Separator, Stack, Text} from "@chakra-ui/react";
+import {useEffect, useMemo, useState} from "react";
 import {redirect} from "react-router";
+import {
+    useBulkAssignBookOwnerMutation, useGetAdminBooksQuery, useGetJobsQuery, useGetLibrarySettingQuery,
+    useGetOrphanedBooksMutation, useGetUnownedBooksQuery, useTriggerLibraryScanMutation, useUpsertLibrarySettingMutation,
+} from "@/entities/job";
+import {useGetUsersQuery} from "@/entities/user";
+import type {BookModel, ResolveDuplicateAction} from "@/entities/book";
+import {useListDuplicatesQuery, useResolveDuplicateMutation, useTriggerDuplicateScanMutation} from "@/entities/book";
+import {JobRow} from "@/entities/job/ui/JobRow";
+import {BulkActionBar, DuplicatePairCard, OwnershipBooks, PaginationControls} from "@/entities/job/ui/AdministrationTools";
+import {ConfirmAction, EmptyState, ErrorState, LoadingState, PageHeader, PageSection} from "@/shared/ui/EditorialUI";
+import {config, useJobStream} from "@/shared";
+import ToastFactory from "@/shared/lib/toast/toast";
 
 export function clientLoader() {
-    if (config.cloudMode && sessionStorage.getItem('user_role') !== 'ADMIN') {
-        return redirect('/');
-    }
+    if (config.cloudMode && sessionStorage.getItem("user_role") !== "ADMIN") return redirect("/");
     return null;
 }
 
 export function meta({}: Route.MetaArgs) {
-    return [
-        {title: "Homebranch - Library Management"},
-    ];
+    return [{title: "Homebranch - Library Management"}];
 }
 
 const JOBS_PER_PAGE = 15;
 const BOOKS_PER_PAGE = 20;
-
-const statusFilters: { value: string; label: string }[] = [
-    {value: "all", label: "All"},
-    {value: "active", label: "Running"},
-    {value: "waiting", label: "Queued"},
-    {value: "completed", label: "Completed"},
-    {value: "failed", label: "Failed"},
+const statusFilters = [
+    {value: "all", label: "All jobs"}, {value: "active", label: "Running"},
+    {value: "waiting", label: "Queued"}, {value: "completed", label: "Completed"}, {value: "failed", label: "Failed"},
 ];
 
-// ---- Shared sub-components ----
-
-function BookTableHeader({
-                             allSelected,
-                             someSelected,
-                             onToggleAll,
-                             showOwner,
-                         }: {
-    allSelected: boolean;
-    someSelected: boolean;
-    onToggleAll: () => void;
-    showOwner?: boolean;
-}) {
-    return (
-        <Flex
-            gap={3}
-            align="center"
-            px={3}
-            py={2}
-            borderRadius="md"
-            bg="bg.subtle"
-            fontSize="xs"
-            fontWeight="semibold"
-            color="fg.muted"
-            textTransform="uppercase"
-        >
-            <Checkbox.Root
-                size="sm"
-                checked={allSelected ? true : someSelected ? "indeterminate" : false}
-                onCheckedChange={onToggleAll}
-            >
-                <Checkbox.HiddenInput/>
-                <Checkbox.Control/>
-            </Checkbox.Root>
-            <Text flex={2}>Title</Text>
-            <Text flex={1} display={{base: "none", md: "block"}}>Author</Text>
-            {showOwner && <Text flex={1} display={{base: "none", lg: "block"}}>Owner</Text>}
-            {!showOwner && <Text flex={1} display={{base: "none", lg: "block"}}>Filename</Text>}
-        </Flex>
-    );
-}
-
-function BookRow({
-                     book,
-                     selected,
-                     onToggle,
-                     ownerLabel,
-                 }: {
-    book: BookModel;
-    selected: boolean;
-    onToggle: () => void;
-    ownerLabel?: string;
-}) {
-    return (
-        <Flex
-            gap={3}
-            align="center"
-            px={3}
-            py={2.5}
-            borderRadius="md"
-            _hover={{bg: "bg.subtle"}}
-            cursor="pointer"
-            onClick={onToggle}
-        >
-            <Checkbox.Root
-                size="sm"
-                checked={selected}
-                onCheckedChange={onToggle}
-                onClick={(e) => e.stopPropagation()}
-            >
-                <Checkbox.HiddenInput/>
-                <Checkbox.Control/>
-            </Checkbox.Root>
-            <Text flex={2} fontSize="sm" fontWeight="medium" truncate>{book.title}</Text>
-            <Text flex={1} fontSize="sm" color="fg.muted" truncate
-                  display={{base: "none", md: "block"}}>{book.author}</Text>
-            {ownerLabel !== undefined ? (
-                <Text flex={1} fontSize="xs" color="fg.muted" truncate
-                      display={{base: "none", lg: "block"}}>{ownerLabel}</Text>
-            ) : (
-                <Text flex={1} fontSize="xs" color="fg.muted" truncate
-                      display={{base: "none", lg: "block"}}>{book.fileName}</Text>
-            )}
-        </Flex>
-    );
-}
-
-function BulkActionBar({
-                           selectedCount,
-                           users,
-                           assignToUserId,
-                           onAssignUserChange,
-                           onAssign,
-                           isAssigning,
-                       }: {
-    selectedCount: number;
-    users: UserModel[];
-    assignToUserId: string;
-    onAssignUserChange: (id: string) => void;
-    onAssign: () => void;
-    isAssigning: boolean;
-}) {
-    if (selectedCount === 0) return null;
-    return (
-        <Flex gap={3} align="center" p={3} bg="bg.subtle" borderRadius="md" wrap="wrap">
-            <Text fontSize="sm" fontWeight="medium">
-                {selectedCount} book{selectedCount !== 1 ? "s" : ""} selected
-            </Text>
-            <Flex gap={2} align="center" flex={1} wrap="wrap">
-                <NativeSelect.Root size="sm" w={{base: "full", sm: "xs"}}>
-                    <NativeSelect.Field
-                        value={assignToUserId}
-                        onChange={(e) => onAssignUserChange(e.target.value)}
-                    >
-                        <option value="">— Select user —</option>
-                        {users.map((u) => (
-                            <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
-                        ))}
-                    </NativeSelect.Field>
-                    <NativeSelect.Indicator/>
-                </NativeSelect.Root>
-                <Button size="sm" disabled={!assignToUserId} onClick={onAssign} loading={isAssigning}>
-                    Assign
-                </Button>
-            </Flex>
-        </Flex>
-    );
-}
-
-function PaginationControls({
-                                page,
-                                total,
-                                perPage,
-                                onPrev,
-                                onNext,
-                            }: {
-    page: number;
-    total: number;
-    perPage: number;
-    onPrev: () => void;
-    onNext: () => void;
-}) {
-    const totalPages = Math.max(1, Math.ceil(total / perPage));
-    return (
-        <Flex justify="space-between" align="center" pt={2}>
-            <Text fontSize="xs" color="fg.muted">
-                Page {page + 1} of {totalPages} ({total} total)
-            </Text>
-            <Flex gap={2}>
-                <Button size="xs" variant="outline" onClick={onPrev} disabled={page === 0}>
-                    <LuChevronLeft/>
-                </Button>
-                <Button size="xs" variant="outline" onClick={onNext} disabled={(page + 1) * perPage >= total}>
-                    <LuChevronRight/>
-                </Button>
-            </Flex>
-        </Flex>
-    );
-}
-
-// ---- Duplicate pair sub-component ----
-
-function DuplicatePairCard({
-                               item,
-                               onResolve,
-                               isResolving,
-                           }: {
-    item: BookDuplicateWithBooksModel;
-    onResolve: (action: ResolveDuplicateAction) => void;
-    isResolving: boolean;
-}) {
-    const {suspectBook, originalBook} = item;
-
-    return (
-        <Box borderWidth="1px" borderRadius="md" p={4}>
-            <Flex gap={4} direction={{base: "column", md: "row"}} align="flex-start">
-                {/* Suspect book */}
-                <Stack flex={1} gap={1}>
-                    <Text fontSize="xs" fontWeight="semibold" textTransform="uppercase" color="orange.500">
-                        New Upload
-                    </Text>
-                    <Text fontWeight="medium" fontSize="sm" truncate>{suspectBook.title}</Text>
-                    <Text fontSize="xs" color="fg.muted">{suspectBook.author}</Text>
-                    {suspectBook.isbn && (
-                        <Text fontSize="xs" color="fg.muted">ISBN: {suspectBook.isbn}</Text>
-                    )}
-                </Stack>
-
-                <Flex align="center" px={2} color="fg.muted" display={{base: "none", md: "flex"}}>
-                    <LuCopy size={14}/>
-                </Flex>
-
-                {/* Original book */}
-                <Stack flex={1} gap={1}>
-                    <Text fontSize="xs" fontWeight="semibold" textTransform="uppercase" color="blue.500">
-                        Existing Book
-                    </Text>
-                    <Text fontWeight="medium" fontSize="sm" truncate>{originalBook.title}</Text>
-                    <Text fontSize="xs" color="fg.muted">{originalBook.author}</Text>
-                    {originalBook.isbn && (
-                        <Text fontSize="xs" color="fg.muted">ISBN: {originalBook.isbn}</Text>
-                    )}
-                </Stack>
-
-                {/* Actions */}
-                <Flex gap={2} direction="column" align="stretch" minW="120px">
-                    <Button
-                        size="xs"
-                        colorPalette="blue"
-                        variant="outline"
-                        onClick={() => onResolve('merge')}
-                        loading={isResolving}
-                        title="Keep existing book, delete the new upload"
-                    >
-                        Keep Existing
-                    </Button>
-                    <Button
-                        size="xs"
-                        colorPalette="orange"
-                        variant="outline"
-                        onClick={() => onResolve('replace')}
-                        loading={isResolving}
-                        title="Keep the new upload, delete the existing book"
-                    >
-                        Use New
-                    </Button>
-                    <Button
-                        size="xs"
-                        variant="ghost"
-                        onClick={() => onResolve('keep_both')}
-                        loading={isResolving}
-                        title="Keep both books as separate entries"
-                    >
-                        Keep Both
-                    </Button>
-                </Flex>
-            </Flex>
-        </Box>
-    );
-}
-
-// ---- Main page ----
-
 export default function LibraryManagement() {
-    const userRole = sessionStorage.getItem("user_role") ?? "USER";
-    const isAdmin = userRole === "ADMIN";
+    const isAdmin = sessionStorage.getItem("user_role") === "ADMIN";
+    const usersQuery = useGetUsersQuery(undefined, {skip: !isAdmin});
+    const users = useMemo(() => usersQuery.data ?? [], [usersQuery.data]);
+    const userMap = useMemo(() => new Map(users.map(user => [user.id, user])), [users]);
+    const [scanFailure, setScanFailure] = useState("");
+    const [duplicateScanFailure, setDuplicateScanFailure] = useState("");
+    const [settingFailure, setSettingFailure] = useState("");
+    const [assignmentFailure, setAssignmentFailure] = useState("");
 
-    // Users list — needed by admin sections
-    const {data: users = []} = useGetUsersQuery(undefined, {skip: !isAdmin});
-    const userMap = useMemo(() => {
-        const map: Record<string, UserModel> = {};
-        for (const u of users) map[u.id] = u;
-        return map;
-    }, [users]);
-
-    // Jobs section
     const [statusFilter, setStatusFilter] = useState("all");
     const [jobPage, setJobPage] = useState(0);
-    const jobOffset = jobPage * JOBS_PER_PAGE;
-    const jobQueryParams = statusFilter === "all"
-        ? {limit: JOBS_PER_PAGE, offset: jobOffset}
-        : {status: statusFilter, limit: JOBS_PER_PAGE, offset: jobOffset};
-    const {data: jobsData, isLoading: isLoadingJobs, isFetching: isFetchingJobs} = useGetJobsQuery(jobQueryParams);
+    const jobsQuery = useGetJobsQuery({
+        ...(statusFilter === "all" ? {} : {status: statusFilter}), limit: JOBS_PER_PAGE, offset: jobPage * JOBS_PER_PAGE,
+    });
     useJobStream();
     const [triggerScan, {isLoading: isScanTriggering}] = useTriggerLibraryScanMutation();
-
-    const jobs = jobsData?.data ?? [];
-    const jobsTotal = jobsData?.total ?? 0;
-    const activeCount = jobs.filter((j) => j.status === "active" || j.status === "waiting").length;
-
-    // Reset job page when filter changes
-    useEffect(() => {
-        setJobPage(0);
-    }, [statusFilter]);
-
-    // Default scan user setting (admin only)
-    const {data: defaultScanUserSetting} = useGetLibrarySettingQuery("default_scan_user_id", {skip: !isAdmin});
-    const [upsertSetting, {isLoading: isSavingSetting}] = useUpsertLibrarySettingMutation();
-    const [selectedDefaultUser, setSelectedDefaultUser] = useState<string>("");
-    const defaultScanUserId = defaultScanUserSetting?.value ?? "";
-    const effectiveDefaultUser = selectedDefaultUser !== "" ? selectedDefaultUser : defaultScanUserId;
-
-    async function handleSaveDefaultUser() {
-        try {
-            await upsertSetting({key: "default_scan_user_id", value: effectiveDefaultUser}).unwrap();
-            ToastFactory({message: "Default scan user saved", type: "success"});
-        } catch (error) {
-            handleRtkError(error);
-        }
-    }
-
-    // Duplicates section (admin only)
-    const [duplicatesPage, setDuplicatesPage] = useState(0);
-    const {data: duplicatesData, isLoading: isLoadingDuplicates} = useListDuplicatesQuery(
-        {limit: BOOKS_PER_PAGE, offset: duplicatesPage * BOOKS_PER_PAGE},
-        {skip: !isAdmin},
-    );
     const [triggerDuplicateScan, {isLoading: isDuplicateScanTriggering}] = useTriggerDuplicateScanMutation();
-    const [resolveDuplicate, {isLoading: isResolvingAny}] = useResolveDuplicateMutation();
-    const [resolvingId, setResolvingId] = useState<string | null>(null);
-    const duplicates = duplicatesData?.data ?? [];
-    const duplicatesTotal = duplicatesData?.total ?? 0;
+    const defaultQuery = useGetLibrarySettingQuery("default_scan_user_id", {skip: !isAdmin});
+    const [upsertSetting, {isLoading: isSavingSetting}] = useUpsertLibrarySettingMutation();
+    // Undefined means untouched. An empty string is an intentional "no owner" draft.
+    const [defaultDraft, setDefaultDraft] = useState<string | undefined>();
+    const defaultOwner = defaultDraft ?? defaultQuery.data?.value ?? "";
 
-    async function handleTriggerDuplicateScan() {
-        try {
-            await triggerDuplicateScan().unwrap();
-            ToastFactory({message: "Duplicate scan enqueued", type: "success"});
-        } catch (error) {
-            handleRtkError(error);
-        }
-    }
-
-    async function handleResolveDuplicate(id: string, action: ResolveDuplicateAction) {
-        setResolvingId(id);
-        try {
-            await resolveDuplicate({id, action}).unwrap();
-            const label = action === 'merge' ? 'Kept existing book' : action === 'replace' ? 'Replaced with new upload' : 'Kept both books';
-            ToastFactory({message: label, type: "success"});
-        } catch (error) {
-            handleRtkError(error);
-        } finally {
-            setResolvingId(null);
-        }
-    }
-
-    // Book assignment tabs
+    const [duplicatesPage, setDuplicatesPage] = useState(0);
+    const duplicatesQuery = useListDuplicatesQuery(
+        {limit: BOOKS_PER_PAGE, offset: duplicatesPage * BOOKS_PER_PAGE}, {skip: !isAdmin});
+    const [resolveDuplicate, {isLoading: isResolving}] = useResolveDuplicateMutation();
     const [assignTab, setAssignTab] = useState("unowned");
-    const [unownedPage, setUnownedPage] = useState(0);
-    const [orphanedPage, setOrphanedPage] = useState(0);
-    const [allBooksPage, setAllBooksPage] = useState(0);
-    const [allBooksSearch, setAllBooksSearch] = useState("");
-    const [allBooksSearchDebounced, setAllBooksSearchDebounced] = useState("");
-
-    // Debounce search input
-    useEffect(() => {
-        const t = setTimeout(() => setAllBooksSearchDebounced(allBooksSearch), 400);
-        return () => clearTimeout(t);
-    }, [allBooksSearch]);
-
-    // Reset page when search changes
-    useEffect(() => {
-        setAllBooksPage(0);
-    }, [allBooksSearchDebounced]);
-
-    // Reset selections when tab changes
+    const [bookPage, setBookPage] = useState(0);
+    const [search, setSearch] = useState("");
+    const [debouncedSearch, setDebouncedSearch] = useState("");
     const [selectedBookIds, setSelectedBookIds] = useState<Set<string>>(new Set());
-    const [assignToUserId, setAssignToUserId] = useState<string>("");
-    useEffect(() => {
-        setSelectedBookIds(new Set());
-        setAssignToUserId("");
-    }, [assignTab, unownedPage, orphanedPage, allBooksPage]);
-
+    const [assignToUserId, setAssignToUserId] = useState("");
     const [bulkAssign, {isLoading: isAssigning}] = useBulkAssignBookOwnerMutation();
-
-    // Unowned books
-    const {data: unownedData, isLoading: isLoadingUnowned} = useGetUnownedBooksQuery(
-        {limit: BOOKS_PER_PAGE, offset: unownedPage * BOOKS_PER_PAGE},
-        {skip: !isAdmin || assignTab !== "unowned", pollingInterval: 15000},
-    );
-    const unownedBooks = unownedData?.data ?? [];
-    const unownedTotal = unownedData?.total ?? 0;
-
-    // Orphaned books
-    const knownUserIds = useMemo(() => users.map((u) => u.id), [users]);
-    const [fetchOrphaned, {data: orphanedData, isLoading: isLoadingOrphaned}] = useGetOrphanedBooksMutation();
+    const clearSelection = () => {setSelectedBookIds(new Set()); setAssignToUserId(""); setAssignmentFailure("");};
     useEffect(() => {
-        if (!isAdmin || assignTab !== "orphaned") return;
-        fetchOrphaned({knownUserIds, limit: BOOKS_PER_PAGE, offset: orphanedPage * BOOKS_PER_PAGE});
-    }, [isAdmin, assignTab, orphanedPage, knownUserIds, fetchOrphaned]);
-    const orphanedBooks = orphanedData?.data ?? [];
-    const orphanedTotal = orphanedData?.total ?? 0;
+        const timer = setTimeout(() => {setDebouncedSearch(search); setBookPage(0);}, 400);
+        return () => clearTimeout(timer);
+    }, [search]);
+    useEffect(() => {setSelectedBookIds(new Set()); setAssignToUserId(""); setAssignmentFailure("");},
+        [assignTab, bookPage, search]);
 
-    // All books
-    const {data: allBooksData, isLoading: isLoadingAllBooks} = useGetAdminBooksQuery(
-        {limit: BOOKS_PER_PAGE, offset: allBooksPage * BOOKS_PER_PAGE, query: allBooksSearchDebounced || undefined},
-        {skip: !isAdmin || assignTab !== "all"},
-    );
-    const allBooks = allBooksData?.data ?? [];
-    const allBooksTotal = allBooksData?.total ?? 0;
+    const params = {limit: BOOKS_PER_PAGE, offset: bookPage * BOOKS_PER_PAGE};
+    const unownedQuery = useGetUnownedBooksQuery(params, {skip: !isAdmin || assignTab !== "unowned", pollingInterval: 15000});
+    const allBooksQuery = useGetAdminBooksQuery({...params, query: debouncedSearch || undefined},
+        {skip: !isAdmin || assignTab !== "all"});
+    const knownUserIds = useMemo(() => users.map(user => user.id), [users]);
+    const [fetchOrphaned, orphanedQuery] = useGetOrphanedBooksMutation();
+    useEffect(() => {
+        if (isAdmin && assignTab === "orphaned" && usersQuery.isSuccess && !usersQuery.isError)
+            fetchOrphaned({knownUserIds, limit: BOOKS_PER_PAGE, offset: bookPage * BOOKS_PER_PAGE});
+    }, [isAdmin, assignTab, knownUserIds, bookPage, fetchOrphaned, usersQuery.isSuccess, usersQuery.isError]);
+    const currentQuery = assignTab === "unowned" ? unownedQuery : assignTab === "all" ? allBooksQuery : orphanedQuery;
+    // Query data must belong to the visible page/filter, not RTK Query's previous arguments.
+    const orphanedMatches = orphanedQuery.originalArgs?.offset === params.offset &&
+        JSON.stringify(orphanedQuery.originalArgs?.knownUserIds) === JSON.stringify(knownUserIds);
+    const currentData = assignTab === "unowned" ? unownedQuery.currentData
+        : assignTab === "all" ? allBooksQuery.currentData : orphanedMatches ? orphanedQuery.data : undefined;
+    const books = currentData?.data ?? [];
+    const visibleIds = books.map(book => book.id);
+    const scopedSelection = new Set([...selectedBookIds].filter(id => visibleIds.includes(id)));
+    const searchPending = assignTab === "all" && search !== debouncedSearch;
+    const loadingBooks = currentQuery.isLoading || searchPending || (!currentData && !currentQuery.isError);
+    const selectedUsersUnavailable = usersQuery.isLoading || usersQuery.isError;
+    const defaultUser = users.find(user => user.id === defaultOwner);
 
-    // Current tab's book list
-    const currentBooks: BookModel[] = assignTab === "unowned" ? unownedBooks : assignTab === "orphaned" ? orphanedBooks : allBooks;
-    const allSelected = currentBooks.length > 0 && selectedBookIds.size === currentBooks.length;
-    const someSelected = selectedBookIds.size > 0 && selectedBookIds.size < currentBooks.length;
-
-    const toggleBook = useCallback((id: string) => {
-        setSelectedBookIds((prev) => {
-            const next = new Set(prev);
-            if (next.has(id)) next.delete(id);
-            else next.add(id);
-            return next;
-        });
-    }, []);
-
-    function toggleAll() {
-        if (allSelected) {
-            setSelectedBookIds(new Set());
-        } else {
-            setSelectedBookIds(new Set(currentBooks.map((b) => b.id)));
-        }
-    }
-
-    function ownerLabel(book: BookModel): string {
-        if (!book.uploadedByUserId) return "—";
-        const u = userMap[book.uploadedByUserId];
-        if (u) return `${u.name} (${u.email})`;
-        return `Deleted user (${book.uploadedByUserId.slice(0, 8)}…)`;
+    function ownerLabel(book: BookModel) {
+        if (!book.uploadedByUserId) return "Unowned";
+        const user = userMap.get(book.uploadedByUserId);
+        return user ? `${user.name} (${user.email})` : `Deleted user (${book.uploadedByUserId.slice(0, 8)})`;
     }
 
     async function handleBulkAssign() {
-        if (selectedBookIds.size === 0 || !assignToUserId) return;
+        if (!scopedSelection.size || !userMap.has(assignToUserId)) return false;
+        setAssignmentFailure("");
+        const result = await bulkAssign({bookIds: [...scopedSelection], userId: assignToUserId}).unwrap();
+        if (result.failed > 0) {
+            setAssignmentFailure(`${result.assigned} assigned; ${result.failed} could not be assigned. Review this page before retrying. Your selection is kept where the books are still visible.`);
+            return false;
+        }
+        ToastFactory({message: `Assigned ${result.assigned} books`, type: "success"});
+        clearSelection();
+        if (assignTab === "orphaned") await fetchOrphaned({knownUserIds, ...params});
+    }
+
+    async function handleResolveDuplicate(id: string, action: ResolveDuplicateAction) {
+        await resolveDuplicate({id, action}).unwrap();
+        ToastFactory({message: "Duplicate resolved", type: "success"});
+    }
+
+    async function scan(duplicates = false) {
+        const setFailure = duplicates ? setDuplicateScanFailure : setScanFailure;
+        setFailure("");
         try {
-            const result = await bulkAssign({
-                bookIds: Array.from(selectedBookIds),
-                userId: assignToUserId,
-            }).unwrap();
-            ToastFactory({
-                message: `Assigned ${result.assigned} book${result.assigned !== 1 ? "s" : ""}${result.failed > 0 ? `, ${result.failed} failed` : ""}`,
-                type: result.failed > 0 ? "warning" : "success",
-            });
-            setSelectedBookIds(new Set());
-            setAssignToUserId("");
-        } catch (error) {
-            handleRtkError(error);
+            if (duplicates) await triggerDuplicateScan().unwrap();
+            else await triggerScan().unwrap();
+            ToastFactory({message: duplicates ? "Duplicate scan queued" : "Library scan queued", type: "success"});
+        } catch {
+            setFailure("The scan could not be started. Check your connection and permissions, then try again.");
         }
     }
 
-    const isLoadingCurrentTab =
-        (assignTab === "unowned" && isLoadingUnowned) ||
-        (assignTab === "orphaned" && isLoadingOrphaned) ||
-        (assignTab === "all" && isLoadingAllBooks);
-
-    const currentTotal = assignTab === "unowned" ? unownedTotal : assignTab === "orphaned" ? orphanedTotal : allBooksTotal;
-    const currentPage = assignTab === "unowned" ? unownedPage : assignTab === "orphaned" ? orphanedPage : allBooksPage;
-
-    function setCurrentPage(p: number) {
-        if (assignTab === "unowned") setUnownedPage(p);
-        else if (assignTab === "orphaned") setOrphanedPage(p);
-        else setAllBooksPage(p);
-    }
-
-    return (
-        <Stack gap={4}>
-            <Flex align="center" gap={3} display={{base: "none", md: "flex"}}>
-                <LuFolderSync size={24}/>
-                <Heading size="2xl">Library Management</Heading>
-            </Flex>
-
-            {/* File Sync card */}
-            <Card.Root>
-                <Card.Header>
-                    <Flex justify="space-between" align="center" wrap="wrap" gap={3}>
-                        <Stack gap={0}>
-                            <Card.Title>File Sync</Card.Title>
-                            <Text fontSize="sm" color="fg.muted">
-                                Drop EPUB files into your uploads directory to import them automatically
-                            </Text>
-                        </Stack>
-                        <Button size="sm" onClick={() => triggerScan()} loading={isScanTriggering}>
-                            <LuPlay size={14}/>
-                            Scan Now
-                        </Button>
-                    </Flex>
-                </Card.Header>
-                <Card.Body>
-                    <Flex align="center" gap={2}>
-                        <Text fontSize="sm" fontWeight="medium">
-                            {activeCount > 0 ? `${activeCount} job${activeCount > 1 ? "s" : ""} running` : "Idle"}
-                        </Text>
-                        {isFetchingJobs && <LuRefreshCw size={12} className="animate-spin"/>}
-                    </Flex>
-                </Card.Body>
-            </Card.Root>
-
-            {/* Admin: Library settings */}
-            {isAdmin && (
-                <Card.Root>
-                    <Card.Header>
-                        <Flex align="center" gap={2}>
-                            <LuSettings size={16}/>
-                            <Card.Title>Library Settings</Card.Title>
-                        </Flex>
-                    </Card.Header>
-                    <Card.Body>
-                        <Box>
-                            <Text fontSize="sm" fontWeight="medium" mb={1}>Default Owner for Detected Books</Text>
-                            <Text fontSize="xs" color="fg.muted" mb={3}>
-                                Books detected via file-drop will be assigned to this user automatically.
-                                Leave unset to create unowned books.
-                            </Text>
-                            <Flex gap={3} align="center" wrap="wrap">
-                                <NativeSelect.Root size="sm" w={{base: "full", md: "xs"}}>
-                                    <NativeSelect.Field
-                                        value={effectiveDefaultUser}
-                                        onChange={(e) => setSelectedDefaultUser(e.target.value)}
-                                    >
-                                        <option value="">— No default (unowned) —</option>
-                                        {users.map((u) => (
-                                            <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
-                                        ))}
-                                    </NativeSelect.Field>
-                                    <NativeSelect.Indicator/>
-                                </NativeSelect.Root>
-                                <Button size="sm" onClick={handleSaveDefaultUser} loading={isSavingSetting}>
-                                    Save
-                                </Button>
-                            </Flex>
-                        </Box>
-                    </Card.Body>
-                </Card.Root>
-            )}
-
-            {/* Admin: Book ownership management */}
-            {isAdmin && (
-                <Card.Root>
-                    <Card.Header>
-                        <Flex align="center" gap={2}>
-                            <LuUserCheck size={16}/>
-                            <Card.Title>Book Ownership</Card.Title>
-                        </Flex>
-                        <Text fontSize="sm" color="fg.muted" mt={1}>
-                            Manage book owners. Select books and assign them to a user.
-                        </Text>
-                    </Card.Header>
-                    <Card.Body>
-                        <Tabs.Root
-                            variant="subtle"
-                            value={assignTab}
-                            onValueChange={(e) => setAssignTab(e.value)}
-                        >
-                            <Tabs.List mb={3}>
-                                <Tabs.Trigger value="unowned">
-                                    Unowned
-                                    {unownedTotal > 0 && (
-                                        <Badge ml={2} colorPalette="orange" size="sm">{unownedTotal}</Badge>
-                                    )}
-                                </Tabs.Trigger>
-                                <Tabs.Trigger value="orphaned">
-                                    Orphaned
-                                    {orphanedTotal > 0 && (
-                                        <Badge ml={2} colorPalette="red" size="sm">{orphanedTotal}</Badge>
-                                    )}
-                                </Tabs.Trigger>
-                                <Tabs.Trigger value="all">All Books</Tabs.Trigger>
-                            </Tabs.List>
-
-                            <Tabs.Content value="unowned">
-                                <Text fontSize="xs" color="fg.muted" mb={3}>
-                                    Books with no assigned owner ({unownedTotal} total).
-                                </Text>
-                            </Tabs.Content>
-                            <Tabs.Content value="orphaned">
-                                <Text fontSize="xs" color="fg.muted" mb={3}>
-                                    Books whose owner no longer exists in the system ({orphanedTotal} total).
-                                </Text>
-                            </Tabs.Content>
-                            <Tabs.Content value="all">
-                                <Input
-                                    size="sm"
-                                    placeholder="Search by title or author…"
-                                    value={allBooksSearch}
-                                    onChange={(e) => setAllBooksSearch(e.target.value)}
-                                    mb={3}
-                                />
-                            </Tabs.Content>
-                        </Tabs.Root>
-
-                        {isLoadingCurrentTab ? (
-                            <Flex justify="center" py={6}><Loader/></Flex>
-                        ) : currentBooks.length === 0 ? (
-                            <Text color="fg.muted" textAlign="center" py={6} fontSize="sm">
-                                {assignTab === "unowned" ? "All books have an assigned owner" :
-                                    assignTab === "orphaned" ? "No orphaned books found" :
-                                        "No books found"}
-                            </Text>
-                        ) : (
-                            <Stack gap={3}>
-                                <BulkActionBar
-                                    selectedCount={selectedBookIds.size}
-                                    users={users}
-                                    assignToUserId={assignToUserId}
-                                    onAssignUserChange={setAssignToUserId}
-                                    onAssign={handleBulkAssign}
-                                    isAssigning={isAssigning}
-                                />
-                                <BookTableHeader
-                                    allSelected={allSelected}
-                                    someSelected={someSelected}
-                                    onToggleAll={toggleAll}
-                                    showOwner={assignTab === "orphaned" || assignTab === "all"}
-                                />
-                                <Stack gap={0} separator={<Separator/>}>
-                                    <For each={currentBooks}>
-                                        {(book) => (
-                                            <BookRow
-                                                key={book.id}
-                                                book={book}
-                                                selected={selectedBookIds.has(book.id)}
-                                                onToggle={() => toggleBook(book.id)}
-                                                ownerLabel={
-                                                    assignTab === "orphaned" || assignTab === "all"
-                                                        ? ownerLabel(book)
-                                                        : undefined
-                                                }
-                                            />
-                                        )}
-                                    </For>
-                                </Stack>
-                                <PaginationControls
-                                    page={currentPage}
-                                    total={currentTotal}
-                                    perPage={BOOKS_PER_PAGE}
-                                    onPrev={() => setCurrentPage(currentPage - 1)}
-                                    onNext={() => setCurrentPage(currentPage + 1)}
-                                />
-                            </Stack>
-                        )}
-                    </Card.Body>
-                </Card.Root>
-            )}
-
-            {/* Admin: Potential Duplicates */}
-            {isAdmin && (
-                <Card.Root>
-                    <Card.Header>
-                        <Flex justify="space-between" align="center" wrap="wrap" gap={3}>
-                            <Stack gap={0}>
-                                <Flex align="center" gap={2}>
-                                    <LuCopy size={16}/>
-                                    <Card.Title>
-                                        Potential Duplicates
-                                        {duplicatesTotal > 0 && (
-                                            <Badge ml={2} colorPalette="orange" size="sm">{duplicatesTotal}</Badge>
-                                        )}
-                                    </Card.Title>
-                                </Flex>
-                                <Text fontSize="sm" color="fg.muted" mt={1}>
-                                    Books with the same file content but different metadata. Review and resolve each
-                                    pair.
-                                </Text>
-                            </Stack>
-                            <Button
-                                size="sm"
-                                onClick={handleTriggerDuplicateScan}
-                                loading={isDuplicateScanTriggering}
-                            >
-                                <LuPlay size={14}/>
-                                Scan Now
-                            </Button>
-                        </Flex>
-                    </Card.Header>
-                    <Card.Body>
-                        {isLoadingDuplicates ? (
-                            <Flex justify="center" py={6}><Loader/></Flex>
-                        ) : duplicates.length === 0 ? (
-                            <Text color="fg.muted" textAlign="center" py={6} fontSize="sm">
-                                No potential duplicates found
-                            </Text>
-                        ) : (
-                            <Stack gap={3}>
-                                <Stack gap={2}>
-                                    <For each={duplicates}>
-                                        {(item) => (
-                                            <DuplicatePairCard
-                                                key={item.duplicate.id}
-                                                item={item}
-                                                onResolve={(action) => handleResolveDuplicate(item.duplicate.id, action)}
-                                                isResolving={resolvingId === item.duplicate.id && isResolvingAny}
-                                            />
-                                        )}
-                                    </For>
-                                </Stack>
-                                <PaginationControls
-                                    page={duplicatesPage}
-                                    total={duplicatesTotal}
-                                    perPage={BOOKS_PER_PAGE}
-                                    onPrev={() => setDuplicatesPage((p) => p - 1)}
-                                    onNext={() => setDuplicatesPage((p) => p + 1)}
-                                />
-                            </Stack>
-                        )}
-                    </Card.Body>
-                </Card.Root>
-            )}
-
-            {/* Job History */}
-            <Card.Root>
-                <Card.Header>
-                    <Card.Title>Job History</Card.Title>
-                </Card.Header>
-                <Card.Body>
-                    <Tabs.Root
-                        variant="subtle"
-                        value={statusFilter}
-                        onValueChange={(e) => setStatusFilter(e.value)}
-                        mb={3}
-                    >
-                        <Tabs.List>
-                            <For each={statusFilters}>
-                                {(filter) => (
-                                    <Tabs.Trigger key={filter.value} value={filter.value}>
-                                        {filter.label}
-                                    </Tabs.Trigger>
-                                )}
-                            </For>
-                        </Tabs.List>
-                    </Tabs.Root>
-
-                    {isLoadingJobs ? (
-                        <Flex justify="center" py={8}><Loader/></Flex>
-                    ) : jobs.length === 0 ? (
-                        <Text color="fg.muted" textAlign="center" py={8}>No jobs found</Text>
-                    ) : (
-                        <Stack gap={3}>
-                            <Box overflowY="auto" maxH="480px">
-                                <Stack gap={0} separator={<Separator/>}>
-                                    <For each={jobs}>
-                                        {(job) => <JobRow key={job.id} job={job}/>}
-                                    </For>
-                                </Stack>
-                            </Box>
-                            <PaginationControls
-                                page={jobPage}
-                                total={jobsTotal}
-                                perPage={JOBS_PER_PAGE}
-                                onPrev={() => setJobPage((p) => p - 1)}
-                                onNext={() => setJobPage((p) => p + 1)}
-                            />
-                        </Stack>
-                    )}
-                </Card.Body>
-            </Card.Root>
-        </Stack>
-    );
+    return <Stack gap={8} minW={0}>
+        <PageHeader title="Library management" description="Import files, manage book ownership, and follow background work."/>
+        <Flex as="nav" aria-label="Library management sections" gap={2} wrap="wrap">
+            {[["sync", "File sync"], ...(isAdmin ? [["ownership", "Book ownership"], ["duplicates", "Duplicates"]] : []),
+                ["jobs", "Job history"]].map(([id, label]) =>
+                <Button key={id} asChild variant="outline" minH="44px"><a href={`#${id}`}>{label}</a></Button>)}
+        </Flex>
+        <PageSection id="sync" title="File sync and defaults"
+            description="Drop EPUB files into your uploads directory to import them automatically."
+            actions={<Button colorPalette="orange" minH="44px" onClick={() => scan()} loading={isScanTriggering} loadingText="Scan files now">Scan files now</Button>}>
+            {scanFailure && <ErrorState onRetry={() => scan()}>{scanFailure}</ErrorState>}
+            <Text color="fg.muted">Scans run in the background. Follow queued, running, and finished work in Job history below.</Text>
+            {isAdmin && <Stack gap={3} p={4} borderWidth="1px" borderRadius="xl">
+                <Text fontWeight="semibold">Default owner for detected books</Text>
+                <Text color="fg.muted" fontSize="sm">New file imports use this owner. Choose no default to create unowned books. Existing ownership is unchanged.</Text>
+                {defaultQuery.isLoading ? <LoadingState label="Loading the default owner..."/> : defaultQuery.isError ?
+                    <ErrorState onRetry={defaultQuery.refetch}>The saved default owner could not be loaded. Try again before changing it.</ErrorState> :
+                    <Flex gap={3} wrap="wrap">
+                        <NativeSelect.Root w={{base: "full", md: "sm"}} disabled={selectedUsersUnavailable || isSavingSetting}>
+                            <NativeSelect.Field aria-label="Default owner for detected books" minH="44px" value={defaultOwner}
+                                onChange={event => setDefaultDraft(event.target.value)}>
+                                <option value="">No default owner (unowned)</option>
+                                {defaultOwner && !defaultUser && <option value={defaultOwner}>Previously selected owner (unavailable)</option>}
+                                {users.map(user => <option key={user.id} value={user.id}>{user.name} ({user.email})</option>)}
+                            </NativeSelect.Field><NativeSelect.Indicator/>
+                        </NativeSelect.Root>
+                        <ConfirmAction title="Change the default import owner?"
+                            description={`Future detected books will be ${defaultUser ? `owned by ${defaultUser.name} (${defaultUser.email})` : "unowned"}. Existing books are unchanged.`}
+                            actionLabel="Save default owner" disabled={isSavingSetting || selectedUsersUnavailable || defaultDraft === undefined || (!!defaultOwner && !defaultUser)}
+                            errorText={settingFailure || "The default owner could not be saved. Your draft is kept. Please try again."}
+                            onConfirm={async () => {
+                                try {
+                                    await upsertSetting({key: "default_scan_user_id", value: defaultOwner}).unwrap();
+                                    setDefaultDraft(undefined); setSettingFailure("");
+                                    ToastFactory({message: "Default owner saved", type: "success"});
+                                } catch {
+                                    setSettingFailure("The default owner could not be saved. Your draft is kept. Please try again.");
+                                    return false;
+                                }
+                            }}/>
+                    </Flex>}
+            </Stack>}
+        </PageSection>
+        {isAdmin && usersQuery.isError && <ErrorState onRetry={usersQuery.refetch}>
+            User accounts could not be loaded. Owner selection and deleted-owner detection are unavailable until you retry.
+        </ErrorState>}
+        {isAdmin && <>
+            <Separator/>
+            <PageSection id="ownership" title="Book ownership" description="Assign unowned books or replace an existing owner. Select only the books you intend to change.">
+                <NativeSelect.Root maxW="sm" disabled={isAssigning}>
+                    <NativeSelect.Field aria-label="Ownership filter" minH="44px" value={assignTab}
+                        onChange={event => {setAssignTab(event.target.value); setBookPage(0); clearSelection();}}>
+                        <option value="unowned">Unowned books</option><option value="orphaned">Books with deleted owners</option>
+                        <option value="all">All books</option>
+                    </NativeSelect.Field><NativeSelect.Indicator/>
+                </NativeSelect.Root>
+                {assignTab === "all" && <Input minH="44px" aria-label="Search books for ownership" placeholder="Search by title or author"
+                    disabled={isAssigning} value={search} onChange={event => {setSearch(event.target.value); clearSelection();}}/>}
+                {assignTab === "orphaned" && selectedUsersUnavailable ? usersQuery.isLoading ?
+                    <LoadingState label="Loading accounts before checking book owners..."/> :
+                    <ErrorState onRetry={usersQuery.refetch}>Load user accounts before checking for deleted owners.</ErrorState> :
+                    currentQuery.isError ? <ErrorState onRetry={() => assignTab === "orphaned"
+                        ? fetchOrphaned({knownUserIds, ...params}) : assignTab === "all" ? allBooksQuery.refetch() : unownedQuery.refetch()}>
+                        Books could not be loaded. Your filters are kept. Please try again.
+                    </ErrorState> : loadingBooks ? <LoadingState label="Loading books..."/> : <>
+                        <BulkActionBar selectedCount={scopedSelection.size} users={users} userId={assignToUserId}
+                            onUserChange={setAssignToUserId} onAssign={handleBulkAssign}
+                            disabled={isAssigning || selectedUsersUnavailable} errorText={assignmentFailure || undefined}/>
+                        {books.length === 0 ? <EmptyState title={search ? "No matching books" : "No books in this ownership group"}>
+                            {search ? "Try another title or author." : "Choose another ownership filter to review other books."}
+                        </EmptyState> : <OwnershipBooks books={books} selectedIds={scopedSelection} ownerLabel={ownerLabel}
+                            disabled={isAssigning} onToggle={id => setSelectedBookIds(previous => {
+                                const next = new Set(previous); if (next.has(id)) next.delete(id); else next.add(id); return next;
+                            })}
+                            onToggleAll={() => setSelectedBookIds(scopedSelection.size === books.length ? new Set() : new Set(visibleIds))}/>}
+                        <PaginationControls page={bookPage} total={currentData?.total ?? 0} perPage={BOOKS_PER_PAGE}
+                            onPage={page => {if (!isAssigning) {setBookPage(page); clearSelection();}}}/>
+                    </>}
+            </PageSection>
+            <Separator/>
+            <PageSection id="duplicates" title="Potential duplicates" description="Compare matching file content and choose which book to retain."
+                actions={<Button colorPalette="orange" minH="44px" onClick={() => scan(true)} loading={isDuplicateScanTriggering} loadingText="Scan for duplicates">Scan for duplicates</Button>}>
+                {duplicateScanFailure && <ErrorState onRetry={() => scan(true)}>{duplicateScanFailure}</ErrorState>}
+                {duplicatesQuery.isError ? <ErrorState onRetry={duplicatesQuery.refetch}>Potential duplicates could not be loaded.</ErrorState> :
+                    duplicatesQuery.isLoading || !duplicatesQuery.currentData ? <LoadingState label="Loading potential duplicates..."/> : <>
+                        {duplicatesQuery.currentData.data.length === 0 ? <EmptyState title="No potential duplicates found">
+                            Run a scan after importing books to check for matching files.
+                        </EmptyState> : duplicatesQuery.currentData.data.map(item => <DuplicatePairCard key={item.duplicate.id}
+                            item={item} disabled={isResolving} onResolve={action => handleResolveDuplicate(item.duplicate.id, action)}/>)}
+                        <PaginationControls page={duplicatesPage} total={duplicatesQuery.currentData.total ?? 0} perPage={BOOKS_PER_PAGE} onPage={setDuplicatesPage}/>
+                    </>}
+            </PageSection>
+        </>}
+        <Separator/>
+        <PageSection id="jobs" title="Job history" description="Background work updates automatically while this page is open. Filters apply to the history, not the scan itself.">
+            <NativeSelect.Root maxW="sm">
+                <NativeSelect.Field aria-label="Job status" minH="44px" value={statusFilter}
+                    onChange={event => {setStatusFilter(event.target.value); setJobPage(0);}}>
+                    {statusFilters.map(filter => <option key={filter.value} value={filter.value}>{filter.label}</option>)}
+                </NativeSelect.Field><NativeSelect.Indicator/>
+            </NativeSelect.Root>
+            {jobsQuery.isError ? <ErrorState onRetry={jobsQuery.refetch}>Job history could not be loaded. Automatic updates may be interrupted.</ErrorState> :
+                jobsQuery.isLoading || !jobsQuery.currentData ? <LoadingState label="Loading job history..."/> : <>
+                    {jobsQuery.currentData.data.length === 0 ? <EmptyState title="No jobs in this view">
+                        Choose another status or start a file scan.
+                    </EmptyState> : <Stack gap={0} separator={<Separator/>}>
+                        {jobsQuery.currentData.data.map(job => <JobRow key={job.id} job={job}/>)}
+                    </Stack>}
+                    <PaginationControls page={jobPage} total={jobsQuery.currentData.total} perPage={JOBS_PER_PAGE} onPage={setJobPage}/>
+                </>}
+        </PageSection>
+    </Stack>;
 }
