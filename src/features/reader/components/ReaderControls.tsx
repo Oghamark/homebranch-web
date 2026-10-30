@@ -206,30 +206,6 @@ export function ReaderControls({
                     }}
                     onDismiss={() => onSetJumpBackLocator(null)}
                     colors={colors}
-                    thumbnailContent={
-                        /* Styled placeholder that mirrors the reader's colour theme.
-                           Actual EPUB content cannot be captured as a static thumbnail. */
-                        <Box
-                            w="80px"
-                            h="104px"
-                            bg={colors.contentBg}
-                            p="8px"
-                            display="flex"
-                            flexDirection="column"
-                            gap="4px"
-                        >
-                            {Array.from({ length: 10 }).map((_, i) => (
-                                <Box
-                                    key={i}
-                                    h="5px"
-                                    bg={colors.contentText}
-                                    opacity={0.15}
-                                    borderRadius="1px"
-                                    w={i === 9 ? "55%" : "100%"}
-                                />
-                            ))}
-                        </Box>
-                    }
                 />
             )}
         </>

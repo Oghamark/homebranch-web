@@ -20,6 +20,7 @@ interface Props {
     refresh: () => Promise<void>;
     clearSelection: () => void;
     jump: (item: Annotation) => void;
+    buttonVisible?: boolean;
 }
 function AnnotationEditor({item, mutate, close, removed}: {item: Annotation; mutate: Props["mutate"]; close: () => void; removed: boolean}) {
     const [note, setNote] = useState(item.note);
@@ -41,7 +42,7 @@ export function AnnotationsPanel(props: Props) {
     const [note, setNote] = useState("");
     const label = `Private annotations${props.pending > 0 ? ` (${props.pending} pending)` : ""}${props.selection ? " + selection" : ""}`;
     return <>
-        <Box position="fixed" top={2} right="112px" zIndex={1002} {...readerSurface(props.colors)} borderRadius="lg">
+        {props.buttonVisible !== false && <Box position="fixed" top={2} right="112px" zIndex={1002} {...readerSurface(props.colors)} borderRadius="lg">
             <IconButton aria-label={label} title={label} aria-haspopup="dialog" aria-expanded={open}
                 onClick={() => setOpen(true)} position="relative" borderRadius="lg" minW="44px" minH="44px"
                 bg={props.colors.btnBg} color={props.colors.text} boxShadow="md" _hover={{bg: props.colors.btnHoverBg}}>
@@ -49,7 +50,7 @@ export function AnnotationsPanel(props: Props) {
                 {(props.pending > 0 || !!props.selection || !!props.error) && <Box as="span" aria-hidden="true"
                     position="absolute" top="4px" right="4px" boxSize="6px" borderRadius="full" bg={props.colors.text}/>}
             </IconButton>
-        </Box>
+        </Box>}
         <ReaderDialog open={open} onClose={() => setOpen(false)} title="Private EPUB annotations" colors={props.colors}>
         <Stack gap={3}>
             {props.epubFormatId && <Box>

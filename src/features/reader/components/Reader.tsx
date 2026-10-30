@@ -274,7 +274,7 @@ export function Reader({ book, format }: ReaderProps) {
             <Text position="fixed" bottom="6px" left="12px" right="52px" fontSize="xs" color={colors.text}
                 bg={colors.uiBg} px={2} py={1} borderRadius="md" textAlign="center" pointerEvents="none" zIndex={1001}
                 lineClamp={2} aria-live="polite">{progressLabel}</Text>
-            {format === "EPUB" && <AnnotationsPanel {...annotations} colors={colors} items={resolvedAnnotations.items}
+            {format === "EPUB" && <AnnotationsPanel {...annotations} colors={colors} buttonVisible={!isMobile || controlsVisible} items={resolvedAnnotations.items}
                 epubFormatId={book.formats?.find(item => item.format === "EPUB")?.id}
                 selection={annotationFrames.selection} clearSelection={annotationFrames.clearSelection}
                 resolution={{...annotationFrames.resolution, ...resolvedAnnotations.unresolved}} jump={jumpToAnnotation}

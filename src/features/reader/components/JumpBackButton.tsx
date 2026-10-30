@@ -7,17 +7,16 @@ interface JumpBackButtonProps {
     onDismiss: () => void;
     colors: ThemeColors;
     pageLabel?: string;
-    thumbnailContent?: React.ReactNode;
 }
 
-export function JumpBackButton({ onJumpBack, onDismiss, colors, pageLabel, thumbnailContent }: JumpBackButtonProps) {
+export function JumpBackButton({ onJumpBack, onDismiss, colors, pageLabel }: JumpBackButtonProps) {
     return (
         <Box
             position="fixed"
             bottom={6}
             left={4}
             zIndex={1002}
-            w="160px"
+            w="auto"
             borderRadius="md"
             boxShadow="lg"
             border="1px solid"
@@ -26,45 +25,10 @@ export function JumpBackButton({ onJumpBack, onDismiss, colors, pageLabel, thumb
             bg={colors.uiBg}
             color={colors.text}
         >
-            <Button variant="ghost" h="auto" p={0} pt={3} w="full" display="flex" flexDirection="column" gap={2}
+            <Button variant="ghost" h="44px" px={4} pr="52px" w="full"
                 color={colors.text} _hover={{bg: colors.hoverBg}}
                 aria-label={pageLabel ? `Jump back to ${pageLabel}` : "Jump back to previous position"} onClick={onJumpBack}>
-            {/* Page thumbnail */}
-            <Box aria-hidden="true" w="80px" bg={colors.contentBg} overflow="hidden" position="relative" lineHeight={0}>
-                {thumbnailContent ?? (
-                    /* Fallback placeholder styled to match reader theme */
-                    <Box w="80px" h="104px" bg={colors.contentBg} p="8px" display="flex" flexDirection="column" gap="4px">
-                        {Array.from({ length: 10 }).map((_, i) => (
-                            <Box
-                                key={i}
-                                h="5px"
-                                bg={colors.contentText}
-                                opacity={0.15}
-                                borderRadius="1px"
-                                w={i === 9 ? "55%" : "100%"}
-                            />
-                        ))}
-                    </Box>
-                )}
-            </Box>
-
-            {/* Label strip */}
-            {pageLabel && (
-                <Box
-                    bg={colors.btnBg}
-                    color={colors.text}
-                    fontSize="xs"
-                    textAlign="center"
-                    py={3}
-                    px={1}
-                    userSelect="none"
-                    overflow="hidden"
-                    whiteSpace="nowrap"
-                    textOverflow="ellipsis"
-                >
-                    Back to {pageLabel}
-                </Box>
-            )}
+            Jump back
             </Button>
 
             {/* Dismiss button, overlaid at top-right corner */}
