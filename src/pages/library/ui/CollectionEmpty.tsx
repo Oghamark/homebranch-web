@@ -10,7 +10,7 @@ export function CollectionEmpty({title, children, libraryLink = false}: {title: 
         action={<Button variant="outline" minH="44px" onClick={() => setQuery("")}>Clear search</Button>}>
         Try a different title, author, or keyword search.
     </EmptyState>;
-    return <EmptyState title={title} action={libraryLink ? <Button asChild minH="44px"><Link to="/">Browse library</Link></Button> : undefined}>
+    return <EmptyState title={title} action={libraryLink ? <Button asChild minH="44px"><Link to="/library">Browse library</Link></Button> : undefined}>
         {children}
     </EmptyState>;
 }

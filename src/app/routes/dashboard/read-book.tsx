@@ -37,7 +37,7 @@ export default function ReadBook({params}: Route.ComponentProps) {
 
     if (error || !book) {
         ToastFactory({message: "Failed to open book", type: "error"});
-        return <Navigate to={"/"}/>;
+        return <Navigate to={"/library"}/>;
     }
 
     const availableFormats = getAvailableBookFormats(book);

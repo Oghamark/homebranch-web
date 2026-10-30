@@ -1,6 +1,6 @@
 import {AddBookButton} from "@/entities/book";
 import {Badge, Box, Button, Separator, Spinner, Stack, Text} from "@chakra-ui/react";
-import {LuBell, LuBookOpen, LuFolderSync, LuHeart, LuLibrary, LuLogOut, LuMessagesSquare, LuSettings, LuUser, LuUsers} from "react-icons/lu";
+import {LuBell, LuBookOpen, LuFolderSync, LuHeart, LuHouse, LuLibrary, LuLogOut, LuMessagesSquare, LuSettings, LuUser, LuUsers} from "react-icons/lu";
 import {NavLink, useFetcher} from "react-router";
 import {BookShelfNavigationSection} from "@/entities/bookShelf";
 import type {IconType} from "react-icons";
@@ -10,7 +10,8 @@ import {useGetUnreadNotificationCountQuery} from "@/entities/social/api";
 import {useVisibleRefresh} from "@/shared/hooks/useVisibleRefresh";
 
 const links: {to: string; label: string; icon: IconType}[] = [
-    {to: "/", label: "Library", icon: LuLibrary},
+    {to: "/", label: "Dashboard", icon: LuHouse},
+    {to: "/library", label: "Library", icon: LuLibrary},
     {to: "/currently-reading", label: "Continue reading", icon: LuBookOpen},
     {to: "/favorites", label: "Favorites", icon: LuHeart},
     {to: "/authors", label: "Authors", icon: LuUser},
