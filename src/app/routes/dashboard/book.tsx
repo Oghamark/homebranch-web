@@ -17,11 +17,10 @@ export default function Book({params}: Route.ComponentProps) {
             <ErrorState onRetry={() => refetch()}>
                 {unavailable ? "It may have been removed, or you may not have access." : "Your book couldn't be loaded. Please try again."}
             </ErrorState>
-            <Button asChild alignSelf="start" minH="44px" variant="outline"><Link to="/">Back to library</Link></Button>
+            <Button asChild alignSelf="start" minH="44px" variant="outline"><Link to="/library">Back to library</Link></Button>
         </Stack>;
     }
 
     if (isLoading || !data) return <LoadingState label="Opening your book..."/>;
     return <BookDetailsPage book={data}/>;
 }
-

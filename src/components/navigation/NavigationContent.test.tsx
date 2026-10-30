@@ -36,6 +36,8 @@ beforeEach(() => {
 describe("reading navigation", () => {
     it("uses named route links with a current destination, not tabs or sidebar search", () => {
         renderNavigation("/book-clubs/club-1");
+        expect(screen.getByRole("link", {name: "Dashboard"})).toHaveAttribute("href", "/");
+        expect(screen.getByRole("link", {name: "Library"})).toHaveAttribute("href", "/library");
         expect(screen.getByRole("link", {name: "Book clubs"})).toHaveAttribute("aria-current", "page");
         expect(screen.getByRole("link", {name: "Continue reading"})).toHaveAttribute("href", "/currently-reading");
         expect(screen.queryByRole("tab")).not.toBeInTheDocument();

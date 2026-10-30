@@ -100,7 +100,7 @@ export function ErrorBoundary({error}: Route.ErrorBoundaryProps) {
             <Text fontSize="sm" fontWeight="semibold" color="fg.muted">Homebranch</Text>
             <PageHeader title={message} description={details}/>
             <HStack gap={3} flexWrap="wrap">
-                <Button asChild colorPalette="orange" minH="44px"><a href="/">Back to library</a></Button>
+                <Button asChild colorPalette="orange" minH="44px"><a href="/library">Back to library</a></Button>
                 <Button variant="outline" minH="44px" onClick={() => window.location.reload()}>Reload page</Button>
             </HStack>
             {stack && (
