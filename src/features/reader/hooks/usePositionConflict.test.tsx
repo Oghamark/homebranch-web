@@ -17,7 +17,7 @@ beforeEach(() => {
     installMemoryStorage(); sessionStorage.setItem("user_id", "account");
     saved.mockReset(); cross.mockReset(); saved.mockResolvedValue(null); cross.mockResolvedValue(remote);
 });
-function setup(options?: {portable?: (location: any) => Promise<{locator: Locator; label: string} | null>; hold?: {current: boolean}; failJump?: boolean}) {
+function setup(options?: {portable?: (location: any) => Promise<{locator: Locator; label: string; precision?: "passage"} | null>; hold?: {current: boolean}; failJump?: boolean}) {
     const enabled = {current: false};
     const go = vi.fn((_loc, _animated, callback) => callback(!options?.failJump));
     const nav = {current: {go, currentLocator: locator} as unknown as EpubNavigator};
@@ -28,6 +28,16 @@ function setup(options?: {portable?: (location: any) => Promise<{locator: Locato
     return {...hook, enabled, go, change, percentage};
 }
 describe("startup cross-reader position choice", () => {
+    it("offers a verified passage without describing placement as a percentage estimate", async () => {
+        cross.mockResolvedValue({...remote, location: {version: 1, formatId: "format", contentHash: "hash",
+            mapFingerprint: "map", href: "two.xhtml", resourceProgression: 0.1, basis: "rendered",
+            passage: {version: 1, exact: "the verified passage"}}});
+        const hook = setup({portable: async () => ({locator, label: "Verified saved passage", precision: "passage"})});
+        await waitFor(() => expect(hook.result.current.modalCase?.type).toBe("passage"));
+        expect(hook.percentage).not.toHaveBeenCalled();
+        await act(async () => {await hook.result.current.handleJump(locator);});
+        expect(hook.go).toHaveBeenCalledWith(locator, true, expect.any(Function));
+    });
     it("pauses saves until explicitly accepting the approximate jump", async () => {
         const hook = setup();
         expect(hook.enabled.current).toBe(false);

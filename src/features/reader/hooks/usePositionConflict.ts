@@ -69,7 +69,7 @@ export function usePositionConflict(
     resourceBaseRef?: RefObject<string | undefined>,
     savesEnabledRef?: RefObject<boolean>,
     resolvePercentage?: (percentage: number) => Locator | null,
-    resolvePortable?: (location: PortableLocation) => Promise<{locator: Locator; label: string} | null>,
+    resolvePortable?: (location: PortableLocation) => Promise<{locator: Locator; label: string; precision?: "passage"} | null>,
     restoreHoldRef?: RefObject<boolean>,
     validateStoredLocator?: (stored: Locator) => Promise<Locator | null>,
 ) {
@@ -118,7 +118,7 @@ export function usePositionConflict(
                 }
                 const serverEligible = serverPos && (webRevision === null || localRevision === null || webRevision > localRevision || localState.pending);
                 const mc: ModalCase | null = target && cross
-                    ? {type: portable ? "portable" : "approximate", deviceName: cross.device, serverPosition: target,
+                    ? {type: portable?.precision === "passage" ? "passage" : portable ? "portable" : "approximate", deviceName: cross.device, serverPosition: target,
                         serverLabel: portable?.label ?? `${cross.location ? "Chapter map unavailable or changed. " : ""}Approximately ${Math.round(cross.percentage * 100)}% of the whole book`,
                         ...(localState.pending ? {localWork: true} : {})}
                     : serverEligible ? buildConflictModal(serverPos, localLocator, deviceName, resourceBaseRef?.current, webPortable) : null;

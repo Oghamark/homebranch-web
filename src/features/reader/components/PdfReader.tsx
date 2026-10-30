@@ -713,16 +713,6 @@ export function PdfReader({book, format}: PdfReaderProps) {
                     }}
                     onDismiss={() => setJumpBackPage(null)}
                     colors={colors}
-                    thumbnailContent={
-                        <Document file={pdfUrl} loading={null} error={null}>
-                            <Page
-                                pageNumber={jumpBackPage}
-                                width={80}
-                                renderAnnotationLayer={false}
-                                renderTextLayer={false}
-                            />
-                        </Document>
-                    }
                 />
             )}
         </>

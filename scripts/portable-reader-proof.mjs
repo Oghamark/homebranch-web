@@ -9,6 +9,8 @@ const {chromium} = require(process.env.PLAYWRIGHT_MODULE ?? "playwright");
 const root = path.resolve(".portable-reader-proof");
 await fs.mkdir(root, {recursive: true});
 await fs.cp("scripts/fixtures/chapter-locations", root, {recursive:true});
+const inlineFile = path.join(root, "OPS/one.xhtml");
+await fs.writeFile(inlineFile, (await fs.readFile(inlineFile, "utf8")).replace("<p>The fictional", "<p><b>The</b> fictional"));
 await fs.writeFile(path.join(root, "index.html"), `<!doctype html><html><head><style>html,body{margin:0;height:100%}#reader{width:100%;height:100vh;position:relative}.readium-navigator-iframe{inset:0;width:100%;height:100%;border:none}</style></head><body><div id="reader"></div><script type="module">
 import {EpubNavigator,EpubPreferences} from '@readium/navigator';
 import {Manifest,Publication,HttpFetcher,Locator,LocatorLocations,LocatorText} from '@readium/shared';
@@ -21,6 +23,7 @@ import {configureStore} from '@reduxjs/toolkit';
 import {ChakraProvider,defaultSystem} from '@chakra-ui/react';
 import {JumpToSavedPositionModal} from '${"/@fs/" + path.resolve("src/features/reader/components/JumpToSavedPositionModal.tsx")}';
 const map=await (await fetch('/map.json')).json(),base=location.origin+'/';
+map.capabilities={passageAnchor:1};
 const manifest=Manifest.deserialize({metadata:{title:'Original shared fixture',language:'en'},links:[],readingOrder:map.resources.map(r=>({href:base+r.href.split('/').map(encodeURIComponent).join('/'),type:'application/xhtml+xml'}))});
 const positions=manifest.readingOrder.items.map((item,i)=>new Locator({href:item.href,type:item.type,locations:new LocatorLocations({position:i+1,totalProgression:map.resources[i].start/1679})}));
 const nav=new EpubNavigator(document.querySelector('#reader'),new Publication({manifest,fetcher:new HttpFetcher((...args)=>fetch(...args),base)}),{frameLoaded:()=>{},positionChanged:l=>window.current=l.serialize()},positions,positions[0],{preferences:new EpubPreferences({fontSize:Number(new URLSearchParams(location.search).get('font')),columnCount:1}),defaults:{}});
@@ -44,7 +47,21 @@ window.capture=()=>{
  const actualFirstVisible=codec.firstVisibleOffset(w,index);
  const offset=focus.locator?focus.capture(w,index,map,href):actualFirstVisible;
  if(offset===null)throw new Error('Logical point is not physically visible');
- return {location:codec.capturePortableLocation(map,href,offset),offset,logicalFocus:!!focus.locator,readingLocator:(focus.locator??nav.currentLocator).serialize(),actualFirstVisible:codec.capturePortableLocation(map,href,actualFirstVisible),text:index.text.slice(offset,offset+70),font:w.getComputedStyle(w.document.querySelector('p')).fontSize,fontZoom:w.getComputedStyle(w.document.body).zoom,viewport:[w.innerWidth,w.innerHeight],chapterPage:codec.approximateChapterPage(w,index,map,href,offset,false)};
+ return {location:codec.capturePortableLocation(map,href,offset,index),offset,logicalFocus:!!focus.locator,readingLocator:(focus.locator??nav.currentLocator).serialize(),actualFirstVisible:codec.capturePortableLocation(map,href,actualFirstVisible,index),text:index.text.slice(offset,offset+70),font:w.getComputedStyle(w.document.querySelector('p')).fontSize,fontZoom:w.getComputedStyle(w.document.body).zoom,viewport:[w.innerWidth,w.innerHeight],chapterPage:codec.approximateChapterPage(w,index,map,href,offset,false)};
+};
+window.passageGo=async(saved)=>{
+ const resource=map.resources.find(r=>r.href===(saved?.href??map.resources[0].href));
+ const position=positions[map.resources.indexOf(resource)];
+ const index=codec.canonicalText(new DOMParser().parseFromString(await(await fetch(position.href)).text(),'text/html'));
+ const source=saved??codec.capturePortableLocation(map,resource.href,index.text.indexOf('The fictional'),index);
+ const chapter=map.chapters.find(ch=>ch.id===source.chapterId);
+ const start=Math.max(0,(chapter?.start??resource.start)-resource.start),end=Math.min(index.text.length,(chapter?.end??resource.end)-resource.start);
+ const offset=codec.passageOffset(index.text,source.passage,start,end);
+ if(offset===null)throw new Error('Native passage was not verified in the original shared text');
+ const target=codec.passageLocator(position,index,offset);
+ if(!target)throw new Error('Verified passage has no precise locator');
+ const ok=await new Promise(resolve=>nav.go(codec.withPublicationIdentity(target,map),false,resolve));
+ return {ok,offset,href:resource.href,source,captured:window.capture(),selector:target.locations.getCssSelector()};
 };
 window.resolve=async(chapter,progression)=>{
  const resource=map.resources.find(r=>r.href===chapter.href);
@@ -109,7 +126,9 @@ try {
     await server.listen();
     assert((await fetch("http://127.0.0.1:15474/")).ok);
     browser = await chromium.launch({executablePath:process.env.CHROMIUM_PATH ?? "/usr/bin/chromium",headless:true});
-    const results=[];
+    const results=[], passageResults=[];
+    const nativePassages = process.env.NATIVE_PASSAGE_SAMPLES
+        ? JSON.parse(await fs.readFile(process.env.NATIVE_PASSAGE_SAMPLES, "utf8")) : [];
     const anchorChecks=[], absentResults=[];
     for (const [width,font] of [[390,1],[1024,1.6]]) {
         const page=await browser.newPage({viewport:{width,height:520}});
@@ -117,6 +136,16 @@ try {
         page.on("pageerror",error=>errors.push(error.message));
         await page.goto(`http://127.0.0.1:15474/?font=${font}`);
         await page.waitForFunction(()=>window.ready);
+        for (const source of [null, ...nativePassages]) {
+            const result=await page.evaluate(source=>window.passageGo(source),source);
+            assert(result.ok,"Readium did not visibly restore the literal passage");
+            assert.equal(result.captured.offset,result.offset);
+            assert.equal(result.captured.location.href,result.href);
+            assert.equal(result.captured.location.chapterId,result.source.chapterId);
+            assert(result.captured.text.startsWith(result.source.passage.exact.slice(0,40)));
+            if(!source)assert(result.selector.endsWith("b:nth-child(1)"),"Short inline passage did not use its verified structural selector");
+            passageResults.push({width,font,...result});
+        }
         const chapters=await page.evaluate(()=>window.map.chapters);
         for(const chapter of chapters) for (const progression of [0,0.5,1]) {
             const resolved=await page.evaluate(([ch,p])=>window.resolve(ch,p),[chapter,progression]);
@@ -193,7 +222,8 @@ try {
     await fs.writeFile("scripts/evidence/portable-reader-proof.json",JSON.stringify(results,null,2)+"\n");
     await fs.writeFile("scripts/evidence/portable-reader-anchors.json",JSON.stringify({executedAt:new Date().toISOString(),browser:browser.version(),anchorChecks,absentResults},null,2)+"\n");
     await fs.writeFile("scripts/evidence/portable-reader-mobile.json",JSON.stringify({executedAt:new Date().toISOString(),browser:browser.version(),viewport:{width:320,height:640},noHorizontalOverflow:true,controls:mobileControls},null,2)+"\n");
-    console.log(`Verified ${results.length}/30 applied text jumps and ${anchorChecks.length}/20 fragment/selector jumps retain the exact verified logical section. Text targets survive font/viewport repagination; intentional page turns resume measured DOM capture. Absent targets fail despite renderer ACK; source stays separate. Two layouts and 320px dialog passed.`);
+    if(process.env.WEB_PASSAGE_SAMPLES)await fs.writeFile(process.env.WEB_PASSAGE_SAMPLES,JSON.stringify(passageResults.map(result=>result.captured.location)));
+    console.log(`Verified ${passageResults.length} literal passage jumps, ${results.length}/30 applied text jumps and ${anchorChecks.length}/20 fragment/selector jumps retain the exact verified logical section. Text targets survive font/viewport repagination; intentional page turns resume measured DOM capture. Absent targets fail despite renderer ACK; source stays separate. Two layouts and 320px dialog passed.`);
 } finally {
     await browser?.close();
     await server.close();

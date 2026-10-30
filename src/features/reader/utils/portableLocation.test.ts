@@ -3,7 +3,7 @@ import {resolve} from "node:path";
 import {describe, expect, it} from "vitest";
 import {Locator, LocatorLocations} from "@readium/shared";
 import type {LocationMap, PortableLocation} from "../types/PortableLocation";
-import {canonicalHref, canonicalText, capturePortableLocation, chapterAt, compatibleLocation, preciseLocatorMatches, precisePublicationMatches, resolvePortableTarget, textLocator, uniqueAnchorOffset, verifiedResource, withPublicationIdentity} from "./portableLocation";
+import {canonicalHref, canonicalText, capturePortableLocation, chapterAt, compatibleLocation, passageLocator, passageOffset, preciseLocatorMatches, preciseLocatorOffset, precisePublicationMatches, resolvePortableTarget, textLocator, uniqueAnchorOffset, verifiedResource, withPublicationIdentity} from "./portableLocation";
 import {deserializeLocatorFromCloud, serializeLocatorForCloud} from "./locatorUtils";
 
 const root = resolve("scripts/fixtures/chapter-locations");
@@ -16,6 +16,50 @@ function location(chapterId = "OPS/one.xhtml#long", chapterProgression = 0.5): P
         href: "OPS/one.xhtml", resourceProgression: 0.1, chapterId, chapterProgression, basis: "rendered"};
 }
 describe("portable EPUB coordinates using the original shared fixture", () => {
+    it("captures bounded excerpts only with advertised support and restores the passage rather than its percentage", () => {
+        const href = "OPS/one.xhtml", text = index(href);
+        const currentMap: LocationMap = {...map, capabilities: {passageAnchor: 1}};
+        const captured = capturePortableLocation(currentMap, href, 200, text)!;
+        expect(captured.passage?.exact.length).toBeLessThanOrEqual(256);
+        expect(capturePortableLocation(map, href, 200, text)?.passage).toBeUndefined();
+        const chapter = map.chapters.find(ch => ch.id === captured.chapterId)!;
+        const at = passageOffset(text.text, captured.passage!, chapter.start, Math.min(chapter.end, text.text.length));
+        expect(at).toBe(200);
+        const locator = passageLocator(new Locator({href, type: "application/xhtml+xml"}), text, at!)!;
+        expect(preciseLocatorOffset(text.points.find(Boolean)!.node.ownerDocument, locator, text)).toBe(200);
+    });
+    it("rejects ambiguous, missing, oversized or out-of-section passages but uses context to distinguish repeats", () => {
+        const exact = "the same passage";
+        const text = `before ${exact} after. other ${exact} ending`;
+        expect(passageOffset(text, {version: 1, exact})).toBeNull();
+        expect(passageOffset(text, {version: 1, exact, prefix: "other"})).toBe(text.lastIndexOf(exact));
+        expect(passageOffset(text, {version: 1, exact: "missing passage"})).toBeNull();
+        expect(passageOffset(text, {version: 1, exact}, 0, 7)).toBeNull();
+        expect(passageOffset("x".repeat(65_537), {version: 1, exact})).toBeNull();
+    });
+    it("builds verified text locators for passages beginning in short inline elements", () => {
+        const doc = new DOMParser().parseFromString("<body><p>The old road.</p><p><b>The</b> orchard gate opens.</p></body>", "text/html");
+        const text = canonicalText(doc), at = text.text.indexOf("The orchard");
+        const target = passageLocator(new Locator({href: "one.xhtml", type: "application/xhtml+xml"}), text, at)!;
+        expect(target).not.toBeNull();
+        expect(preciseLocatorOffset(doc, target, text)).toBe(at);
+    });
+    it("keeps Unicode excerpts and contexts within contract bounds without splitting surrogate pairs", () => {
+        const doc = new DOMParser().parseFromString(`<body><p>${"😀".repeat(200)}</p></body>`, "text/html");
+        const text = canonicalText(doc);
+        const unicodeMap: LocationMap = {...map, capabilities: {passageAnchor: 1}, chapters: [],
+            resources: [{href: "unicode.xhtml", start: 0, end: text.text.length}]};
+        const anchor = capturePortableLocation(unicodeMap, "unicode.xhtml", 101, text)!.passage!;
+        for (const [value, limit] of [[anchor.exact, 256], [anchor.prefix!, 64], [anchor.suffix!, 64]] as const) {
+            expect(value.length).toBeLessThanOrEqual(limit);
+            expect(value).toBe("😀".repeat(value.length / 2));
+        }
+        const varied = canonicalText(new DOMParser().parseFromString(`<body><p>${"x".repeat(95)}😀suffix text here</p></body>`, "text/html"));
+        const variedMap = {...unicodeMap, resources: [{href: "unicode.xhtml", start: 0, end: varied.text.length}]};
+        const clipped = capturePortableLocation(variedMap, "unicode.xhtml", 0, varied)!.passage!;
+        expect(clipped.exact).toBe("x".repeat(95));
+        expect(clipped.suffix).toBe("😀suffix text here");
+    });
     it("matches exact API canonical UTF16 text and unique anchors including external context", () => {
         for (const resource of map.resources) expect(verifiedResource(map, resource, index(resource.href))).toBe(true);
         const doc = new DOMParser().parseFromString("<body><p>A😀<b>B</b></p><p>C</p><p hidden>hidden</p><script>no</script><div style='display:none'>no</div></body>", "text/html");

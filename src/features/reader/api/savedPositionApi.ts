@@ -13,6 +13,12 @@ export async function getAllSavedPositions(): Promise<SavedPosition[]> {
     return response.data as SavedPosition[];
 }
 
+export async function getReadingBookIds(): Promise<string[]> {
+    const userId = getUserId();
+    const response = await axiosInstance.get<string[]>(`/users/${userId}/saved-positions/book-ids`);
+    return response.data;
+}
+
 export async function getSavedPosition(bookId: string): Promise<SavedPosition | null> {
     const userId = getUserId();
     try {

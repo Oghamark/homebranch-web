@@ -1,17 +1,17 @@
 import {act, renderHook, waitFor} from "@testing-library/react";
 import {beforeEach, describe, expect, it, vi} from "vitest";
 import {useStorageLocations} from "./useStorageLocations";
-import {getAllSavedPositions} from "../api/savedPositionApi";
+import {getReadingBookIds} from "../api/savedPositionApi";
 
-vi.mock("../api/savedPositionApi", () => ({getAllSavedPositions: vi.fn()}));
-const discover = vi.mocked(getAllSavedPositions);
+vi.mock("../api/savedPositionApi", () => ({getReadingBookIds: vi.fn()}));
+const discover = vi.mocked(getReadingBookIds);
 
 beforeEach(() => {discover.mockReset();});
 
 describe("reading progress discovery", () => {
     it("reports failure without dropping local books and retries the unchanged local/cloud merge", async () => {
         discover.mockRejectedValueOnce(new Error("Unavailable"));
-        discover.mockResolvedValueOnce([{bookId: "local-book"}, {bookId: "cloud-book"}] as Awaited<ReturnType<typeof getAllSavedPositions>>);
+        discover.mockResolvedValueOnce(["local-book", "cloud-book"]);
         const {result} = renderHook(() => useStorageLocations(["local-book"]));
         expect(result.current.isLoading).toBe(true);
         await waitFor(() => expect(result.current.discoveryError).toBe(true));
@@ -33,5 +33,14 @@ describe("reading progress discovery", () => {
         await waitFor(() => expect(result.current.discoveryError).toBe(true));
         expect(result.current.allBookIds).toEqual([]);
         expect(result.current.isLoading).toBe(false);
+    });
+
+    it("discovers plugin-only progress without any local browser position", async () => {
+        discover.mockResolvedValue(["plugin-book", "plugin-book"]);
+        const {result} = renderHook(() => useStorageLocations([]));
+        await waitFor(() => expect(result.current.isLoading).toBe(false));
+        expect(result.current.discoveryError).toBe(false);
+        expect(result.current.allBookIds).toEqual(["plugin-book"]);
+        expect(result.current.locations).toEqual({"plugin-book": "cloud"});
     });
 });
