@@ -178,14 +178,54 @@ Frame registration also observes the reader container's standard iframe lifecycl
 because cached Readium frames can activate without another `frameLoaded` callback.
 Quote jumps use a verified DOM range and the current layout's geometry.
 
-Newer KOReader progress offers an explicitly approximate percentage jump.
-Existing exact web-position prompts remain separate. Automatic startup saves
-pause until the position check finishes and any offered position is accepted or
-declined. A failed check stays paused with retry and an explicit stay-here action.
-Server acceptance timestamps are compared conservatively with locally recorded
-web-save timestamps; device clock differences can suppress an approximate offer.
-Older local saves without that timestamp rely on the server's latest-source
-ordering. PDF and audio readers do not use the KOReader bridge or annotations.
+When the API supplies a versioned EPUB `locationMap`, private positions include
+the verified resource and TOC section, including fragments and chapters spanning
+resources. Capture uses the actual first-visible DOM character and the API's
+normalized UTF-16 text boundaries, never rendered progression multiplied by text
+length. An explicitly selected, visibly resolved passage is retained as a logical
+reading point instead of substituting the beginning of its physical page.
+The footer shows the chapter and approximate percentage through it.
+An approximate chapter page is shown only when the current device can measure
+both boundaries in the open resource; cross-resource chapter pages are omitted.
+
+Supported, uniquely verified Readium text/selector anchors are retained separately
+in the opaque web position, with engine/publication provenance. They are not CFIs
+or converted KOReader XPointers. Cross-engine restoration first resolves a verified
+chapter, then an explicitly labeled resource fallback. Missing/stale maps and
+legacy records offer an explicitly approximate whole-book jump. Resource weights
+come from the map, or measured resource text for legacy manifests, not resource
+count. Malformed coordinates and ambiguous text never become successful guesses.
+
+Readium pagination can place several sections on the same physical page. A
+successful supported text/selector/fragment jump must resolve uniquely in the
+live DOM and actually show its target before the reader accepts a logical point.
+The retained point is reanchored and reverified after font or viewport changes;
+an ACK, percentage, or requested chapter name alone is never sufficient.
+Intentional page turns, scrolling or new navigation release this focus and
+resume actual measured DOM capture. Physically absent targets fail visibly.
+After a restore, automatic cloud saves remain held until intentional reading
+navigation, so repagination cannot overwrite the separate source coordinate.
+
+Startup saves pause until the position check finishes and any offered position
+is accepted or declined. Failed checks/restores show retry and stay-here actions.
+Shared server revisions determine ordering when available; legacy timestamps
+remain a conservative fallback. Unsent local work is preserved and disclosed
+before accepting a newer remote position. Old local locator records remain
+readable. PDF, audio, public club progress and annotations keep their existing
+behavior.
+
+Run `node scripts/portable-reader-proof.mjs` for a real Chromium/Readium integration
+check using the original shared EPUB fixture under `scripts/fixtures/`.
+Set `PLAYWRIGHT_MODULE` to an installed Playwright module and `CHROMIUM_PATH` to
+your Chromium executable when they differ from the script's local defaults.
+The helper binds only `127.0.0.1`, uses no account/server data, closes its services,
+and records actual layout/capture results in `scripts/evidence/portable-reader-proof.json`.
+It applies all five fixture sections at 0/50/100% under two layouts, checks the
+returned logical section, repeats after font/viewport changes, rejects an absent
+target, and verifies that intentional page turns resume first-visible capture.
+It also applies each section's fragment and CSS selector under both layouts;
+`scripts/evidence/portable-reader-anchors.json` records those 20 checks and
+the renderer's acknowledgment versus physical verification of absent targets.
 
 ---
 

@@ -1,4 +1,5 @@
 import {Locator} from "@readium/shared";
+import type {PortableLocation} from "../types/PortableLocation";
 
 function getCurrentUserId(): string | null {
     if (typeof window === "undefined") return null;
@@ -57,4 +58,19 @@ export function getStoredLocator(bookId: string): Locator | null {
     } catch {
         return null;
     }
+
+}
+
+export interface PositionSyncState {
+    revision?: string;
+    pending?: boolean;
+    location?: PortableLocation;
+    restored?: boolean;
+}
+function syncKey(bookId: string) { return `reader_position_sync_${getCurrentUserId()}_${bookId}`; }
+export function getPositionSyncState(bookId: string): PositionSyncState {
+    try { return JSON.parse(localStorage.getItem(syncKey(bookId)) ?? "{}") ?? {}; } catch { return {}; }
+}
+export function storePositionSyncState(bookId: string, state: PositionSyncState) {
+    if (getCurrentUserId()) localStorage.setItem(syncKey(bookId), JSON.stringify(state));
 }

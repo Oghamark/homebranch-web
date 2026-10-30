@@ -1,3 +1,5 @@
+import type {PortableLocation} from "./PortableLocation";
+
 export interface SavedPosition {
     bookId: string;
     userId: string;
@@ -6,10 +8,13 @@ export interface SavedPosition {
     percentage?: number | null;
     createdAt: string;
     updatedAt: string;
+    location?: PortableLocation | null;
+    revision?: string | null;
 }
 
 export interface SavePositionRequest {
     position: string;
     deviceName: string;
     percentage?: number;
+    location?: PortableLocation;
 }

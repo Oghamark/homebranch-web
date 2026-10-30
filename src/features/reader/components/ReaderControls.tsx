@@ -24,6 +24,7 @@ interface ReaderControlsProps {
     navigatorRef: React.RefObject<EpubNavigator | null>;
     jumpBackLocator: Locator | null;
     onSetJumpBackLocator: (loc: Locator | null) => void;
+    getReadingLocator?: () => Locator | undefined;
 }
 
 export function ReaderControls({
@@ -36,6 +37,7 @@ export function ReaderControls({
     navigatorRef,
     jumpBackLocator,
     onSetJumpBackLocator,
+    getReadingLocator,
 }: ReaderControlsProps) {
     const navigate = useNavigate();
     const [isTocOpen, setIsTocOpen] = useState(false);
@@ -89,7 +91,7 @@ export function ReaderControls({
                 getChildren={(item) => item.children}
                 onNavigate={(item) => {
                     if (item.link.href) {
-                        const currentLocator = navigatorRef.current?.currentLocator;
+                        const currentLocator = getReadingLocator?.() ?? navigatorRef.current?.currentLocator;
                         if (currentLocator) onSetJumpBackLocator(currentLocator);
                         navigatorRef.current?.goLink(item.link, false, () => {});
                     }
