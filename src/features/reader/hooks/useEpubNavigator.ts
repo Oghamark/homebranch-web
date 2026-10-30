@@ -637,7 +637,7 @@ export function useEpubNavigator(
                         const onCenter = onCenterTapRef.current;
                         if (!onCenter || e.interactiveElement != null) return e.interactiveElement == null;
                         const width = container?.clientWidth || window.innerWidth;
-                        const ratio = e.x / width;
+                        const ratio = e.x / window.devicePixelRatio / width;
                         if (ratio < 0.3) nav?.goBackward(false, () => {});
                         else if (ratio > 0.7) nav?.goForward(false, () => {});
                         else onCenter();
