@@ -15,7 +15,7 @@ import {LuBookOpen, LuDownload, LuHeart, LuImagePlus, LuLibrary, LuRefreshCw, Lu
 import {Link, useNavigate} from "react-router";
 import {ManageBookShelvesButton} from "@/entities/bookShelf";
 import {BookJacket, ConfirmAction, EmptyState, ErrorState, PageHeader, PageSection} from "@/shared/ui/EditorialUI";
-import {deleteSavedPosition, getSavedPosition} from "@/features/reader/api/savedPositionApi";
+import {deleteSavedPosition, getReadingBookIds} from "@/features/reader/api/savedPositionApi";
 import ToastFactory from "@/shared/lib/toast/toast";
 import {handleRtkError} from "@/shared/api/rtk-query";
 import {getStoredProgress, removeStoredProgress} from "@/features/reader";
@@ -146,11 +146,13 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
     useEffect(() => {
         if (isCurrentlyReading) return;
         let cancelled = false;
-        getSavedPosition(book.id)
-            .then((pos) => {
-                if (!cancelled && pos) setIsCurrentlyReading(true);
+        getReadingBookIds()
+            .then((ids) => {
+                if (!cancelled && ids.includes(book.id)) setIsCurrentlyReading(true);
             })
-            .catch(() => {});
+            .catch(() => {
+                if (!cancelled) setActionError("Reading status could not be checked. Reload to try again.");
+            });
         return () => { cancelled = true; };
     }, [book.id, isCurrentlyReading]);
 

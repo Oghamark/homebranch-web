@@ -1,5 +1,5 @@
 import {useCallback, useEffect, useState} from "react";
-import {getAllSavedPositions} from "../api/savedPositionApi";
+import {getReadingBookIds} from "../api/savedPositionApi";
 import type {StorageLocation} from "../components/StorageIndicator";
 
 interface StorageLocationsResult {
@@ -31,17 +31,17 @@ export function useStorageLocations(localBookIds: string[]): StorageLocationsRes
             let discoveryError = false;
 
             try {
-                const cloudPositions = await getAllSavedPositions();
-                const cloudSet = new Set(cloudPositions.map((p) => p.bookId));
+                const cloudBookIds = await getReadingBookIds();
+                const cloudSet = new Set(cloudBookIds);
 
                 for (const id of localBookIds) {
                     locations[id] = cloudSet.has(id) ? "both" : "local";
                 }
 
-                for (const pos of cloudPositions) {
-                    if (!localSet.has(pos.bookId)) {
-                        locations[pos.bookId] = "cloud";
-                        allIds.add(pos.bookId);
+                for (const id of cloudBookIds) {
+                    if (!localSet.has(id)) {
+                        locations[id] = "cloud";
+                        allIds.add(id);
                     }
                 }
             } catch {

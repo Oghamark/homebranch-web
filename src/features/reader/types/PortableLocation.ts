@@ -21,6 +21,7 @@ export interface LocationChapter extends LocationResource {
 
 export interface LocationMap {
     version: 1;
+    capabilities?: {passageAnchor: 1};
     formatId: string;
     contentHash: string;
     fingerprint: string;
@@ -39,4 +40,5 @@ export interface PortableLocation {
     chapterProgression?: number;
     basis: "text" | "rendered";
     native?: {engine: "crengine"; domVersion: number};
+    passage?: QuoteAnchor;
 }

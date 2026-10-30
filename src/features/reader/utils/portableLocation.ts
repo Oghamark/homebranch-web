@@ -115,15 +115,70 @@ export function firstVisibleOffset(wnd: Window, index: CanonicalText): number | 
     return null;
 }
 
-export function capturePortableLocation(map: LocationMap, href: string, offset: number): PortableLocation | null {
+function safeSlice(text: string, start: number, end: number): string {
+    if (start > 0 && /[\uDC00-\uDFFF]/.test(text[start] ?? "") && /[\uD800-\uDBFF]/.test(text[start - 1])) start++;
+    if (/[\uD800-\uDBFF]/.test(text[end - 1] ?? "") && /[\uDC00-\uDFFF]/.test(text[end] ?? "")) end--;
+    return text.slice(start, end);
+}
+
+export function passageOffset(text: string, anchor: QuoteAnchor, start = 0, end = text.length): number | null {
+    if (anchor.version !== 1 || typeof anchor.exact !== "string" || anchor.exact.length > 256
+        || anchor.exact.trim().length < 8 || (anchor.prefix?.length ?? 0) > 64 || (anchor.suffix?.length ?? 0) > 64
+        || !Number.isInteger(start) || !Number.isInteger(end) || start < 0 || end <= start
+        || end > text.length || end - start > 65_536) return null;
+    const exact = anchor.exact.replace(/\s+/g, " ").trim();
+    const scope = text.slice(start, end);
+    const matches: number[] = [];
+    for (let at = scope.indexOf(exact); at >= 0; at = scope.indexOf(exact, at + 1)) {
+        if (at + exact.length > scope.length || matches.length >= 256) return null;
+        matches.push(at);
+    }
+    if (matches.length === 1) return start + matches[0];
+    const contextual = matches.filter(at =>
+        (!anchor.prefix || scope.slice(Math.max(0, at - 65), at).trimEnd().endsWith(anchor.prefix.trim()))
+        && (!anchor.suffix || scope.slice(at + exact.length, at + exact.length + 65).trimStart().startsWith(anchor.suffix.trim())));
+    return contextual.length === 1 ? start + contextual[0] : null;
+}
+
+export function capturePortableLocation(map: LocationMap, href: string, offset: number, index?: CanonicalText): PortableLocation | null {
     const resource = map.resources.find(r => r.href === href);
     if (!resource || !Number.isFinite(offset) || offset < 0 || offset > resource.end - resource.start) return null;
     const global = resource.start + offset;
     const chapter = chapterAt(map, global);
+    const start = Math.max(0, (chapter?.start ?? resource.start) - resource.start);
+    const end = Math.min(resource.end, chapter?.end ?? resource.end) - resource.start;
+    let exactEnd = Math.min(end, offset + 96);
+    if (index && /[\uD800-\uDBFF]/.test(index.text[exactEnd - 1] ?? "") && /[\uDC00-\uDFFF]/.test(index.text[exactEnd] ?? "")) exactEnd--;
+    const exact = index && safeSlice(index.text, offset, exactEnd).trim();
+    const prefix = index && safeSlice(index.text, Math.max(start, offset - 64), offset).trim();
+    const suffix = index && safeSlice(index.text, exactEnd, Math.min(end, exactEnd + 64)).trim();
+    const passage: QuoteAnchor | undefined = map.capabilities?.passageAnchor === 1 && exact && exact.length >= 8
+        ? {version: 1, exact, ...(prefix ? {prefix} : {}), ...(suffix ? {suffix} : {})} : undefined;
     return {version: 1, formatId: map.formatId, contentHash: map.contentHash, mapFingerprint: map.fingerprint,
         href, resourceProgression: resource.end > resource.start ? offset / (resource.end - resource.start) : 0,
         ...(chapter ? {chapterId: chapter.id, chapterProgression: (global - chapter.start) / (chapter.end - chapter.start)} : {}),
-        basis: "text"};
+        basis: "text", ...(passage ? {passage} : {})};
+}
+
+export function passageLocator(position: Locator, index: CanonicalText, offset: number): Locator | null {
+    const point = index.points[offset];
+    if (!point) return null;
+    let element = point.node.parentElement;
+    const parts: string[] = [];
+    while (element && element !== element.ownerDocument.body && parts.length < 64) {
+        if (!/^[a-z][a-z0-9-]*$/.test(element.localName) || !element.parentElement) return null;
+        parts.unshift(`${element.localName}:nth-child(${Array.from(element.parentElement.children).indexOf(element) + 1})`);
+        element = element.parentElement;
+    }
+    if (!element || parts.length >= 64) return null;
+    const selector = ["body", ...parts].join(" > ");
+    const raw = point.node.data;
+    const highlight = safeSlice(raw, point.offset, Math.min(raw.length, point.offset + 96));
+    const locator = new Locator({href: position.href, type: position.type, title: position.title,
+        text: new LocatorText({highlight, before: safeSlice(raw, Math.max(0, point.offset - 64), point.offset),
+            after: safeSlice(raw, point.offset + highlight.length, Math.min(raw.length, point.offset + highlight.length + 64))}),
+        locations: new LocatorLocations({otherLocations: new Map([["cssSelector", selector]])})});
+    return preciseLocatorOffset(point.node.ownerDocument, locator, index) === offset ? locator : null;
 }
 
 export interface PortableTarget {href: string; offset: number; label: string; quality: "chapter" | "resource"}

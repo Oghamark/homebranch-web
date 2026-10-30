@@ -17,7 +17,7 @@ import {resourceHref} from "../utils/annotationCodec";
 import {frameResourceHref} from "../utils/annotationCodec";
 import type {LocationMap, PortableLocation} from "../types/PortableLocation";
 import type {CanonicalText} from "../utils/portableLocation";
-import {approximateChapterPage, canonicalHref, canonicalText, capturePortableLocation, compatibleLocation, firstVisibleOffset, portableLabel, preciseLocatorMatches, precisePublicationMatches, resolvePortableTarget, textLocator, verifiedResource, withPublicationIdentity} from "../utils/portableLocation";
+import {approximateChapterPage, canonicalHref, canonicalText, capturePortableLocation, compatibleLocation, firstVisibleOffset, passageLocator, passageOffset, portableLabel, preciseLocatorMatches, precisePublicationMatches, resolvePortableTarget, textLocator, verifiedResource, withPublicationIdentity} from "../utils/portableLocation";
 import ToastFactory from "@/shared/lib/toast/toast";
 import {hasPreciseTarget, LogicalReadingFocus} from "../utils/logicalReadingFocus";
 
@@ -40,7 +40,7 @@ export interface UseEpubNavigatorResult {
     resolveResource: (href: string) => Locator | null;
     locationRef: React.RefObject<PortableLocation | undefined>;
     progressLabel: string;
-    resolvePortable: (location: PortableLocation) => Promise<{locator: Locator; label: string} | null>;
+    resolvePortable: (location: PortableLocation) => Promise<{locator: Locator; label: string; precision?: "passage"} | null>;
     validateStoredLocator: (stored: Locator) => Promise<Locator | null>;
 }
 
@@ -601,7 +601,7 @@ export function useEpubNavigator(
                                     : firstVisibleOffset(wnd, index);
                                 if (offset === null) continue;
                                 capturedPoint = true;
-                                locationRef.current = capturePortableLocation(map, resource.href, offset) ?? undefined;
+                                locationRef.current = capturePortableLocation(map, resource.href, offset, index) ?? undefined;
                                 const sectionVerified = verifiedResource(map, resource, index);
                                 if (!sectionVerified && locationRef.current) {
                                     delete locationRef.current.chapterId;
@@ -906,7 +906,21 @@ export function useEpubNavigator(
                 if (!verifiedResource(map, resource, index, false)) throw new Error("Saved resource boundaries cannot be verified");
                 return {position, resource, index};
             };
-            let loaded = await loadTarget(target.href);
+            const passageSource = location.passage ? await loadTarget(location.href) : undefined;
+            if (location.passage && passageSource) {
+                const source = passageSource;
+                const section = map.chapters.find(ch => ch.id === location.chapterId);
+                const boundary = section && (section.href === source.resource.href ? source : await loadTarget(section.href));
+                const start = Math.max(0, (section?.start ?? source.resource.start) - source.resource.start);
+                const end = Math.min(source.index.text.length, (section?.end ?? source.resource.end) - source.resource.start);
+                const verified = verifiedResource(map, source.resource, source.index)
+                    && (!boundary || verifiedResource(map, boundary.resource, boundary.index));
+                const offset = verified ? passageOffset(source.index.text, location.passage, start, end) : null;
+                const precise = offset === null ? null : passageLocator(source.position, source.index, offset);
+                if (precise) return {locator: withPublicationIdentity(precise, map),
+                    label: "Verified saved passage", precision: "passage" as const};
+            }
+            let loaded = passageSource?.resource.href === target.href ? passageSource : await loadTarget(target.href);
             let chapter = map.chapters.find(ch => ch.id === location.chapterId);
             if (chapter) {
                 const boundary = chapter.href === loaded.resource.href ? loaded : await loadTarget(chapter.href);
@@ -923,7 +937,8 @@ export function useEpubNavigator(
                 ? {start: Math.max(0, chapter.start - resource.start), end: Math.min(index.text.length, chapter.end - resource.start)}
                 : undefined);
             if (!locator) throw new Error("Saved chapter text is ambiguous");
-            return {locator: withPublicationIdentity(locator, map), label: target.label};
+            return {locator: withPublicationIdentity(locator, map),
+                label: `${location.passage ? "Passage could not be verified. " : ""}${target.label}`};
         },
         resolvePercentage: (value: number) => approximateProgressLocator(positionsRef.current, value),
         resolveResource: (href: string) => {

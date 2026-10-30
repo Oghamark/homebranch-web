@@ -7,7 +7,7 @@ import BookDetailsPage from "./BookDetailsPage";
 
 const api = vi.hoisted(() => ({
     deleteBook: vi.fn(), favorite: vi.fn(), summary: vi.fn(), metadata: vi.fn(),
-    covers: vi.fn(), selectCover: vi.fn(), deletePosition: vi.fn(), savedPosition: vi.fn(),
+    covers: vi.fn(), selectCover: vi.fn(), deletePosition: vi.fn(), readingBooks: vi.fn(),
     send: vi.fn(), mail: {configured: true}, kindle: {kindleEmail: ""},
 }));
 vi.mock("@/entities/book", () => ({
@@ -22,7 +22,7 @@ vi.mock("@/entities/bookShelf", () => ({ManageBookShelvesButton: () => <button>M
 vi.mock("./ManageBookFormatsButton", () => ({ManageBookFormatsButton: ({canManage}: {canManage: boolean}) => <span>Format maintenance {canManage ? "allowed" : "read only"}</span>}));
 vi.mock("@/features/reader/api/savedPositionApi", () => ({
     deleteSavedPosition: (...args: unknown[]) => api.deletePosition(...args),
-    getSavedPosition: (...args: unknown[]) => api.savedPosition(...args),
+    getReadingBookIds: (...args: unknown[]) => api.readingBooks(...args),
 }));
 vi.mock("@/features/reader", () => ({getStoredProgress: () => 0.3, removeStoredProgress: vi.fn()}));
 vi.mock("@/entities/kindle", () => ({
@@ -61,7 +61,7 @@ beforeEach(() => {
     sessionStorage.clear();
     sessionStorage.setItem("user_id", "owner");
     sessionStorage.setItem("user_role", "USER");
-    api.savedPosition.mockResolvedValue(null);
+    api.readingBooks.mockResolvedValue([]);
     api.kindle.kindleEmail = "";
 });
 afterEach(() => vi.unstubAllGlobals());
@@ -90,6 +90,21 @@ describe("book detail actions", () => {
         fireEvent.click(within(dialog).getByRole("button", {name: "Reset reading position"}));
         expect(await within(dialog).findByRole("alert")).toBeVisible();
         expect(JSON.parse(localStorage.getItem("currentlyReading_owner")!)).toEqual({orchard: true});
+    });
+
+    it("recognizes and resets plugin-only reading progress without inventing a browser position", async () => {
+        api.readingBooks.mockResolvedValueOnce(["orchard"]).mockResolvedValue([]);
+        api.deletePosition.mockResolvedValue(undefined);
+        renderBook();
+        expect(await screen.findByRole("link", {name: "Continue reading"})).toBeVisible();
+        expect(localStorage.getItem("currentlyReading_owner")).toBeNull();
+        fireEvent.click(screen.getByText("Book tools and maintenance"));
+        fireEvent.click(screen.getByRole("button", {name: "Reset reading position"}));
+        const dialog = await screen.findByRole("alertdialog", {name: "Reset reading position for The Orchard?"});
+        fireEvent.click(within(dialog).getByRole("button", {name: "Reset reading position"}));
+        expect(await screen.findByRole("link", {name: "Read"})).toBeVisible();
+        expect(api.deletePosition).toHaveBeenCalledWith("orchard");
+        expect(JSON.parse(localStorage.getItem("currentlyReading_owner")!)).toEqual({});
     });
 
     it("does not offer deletion or format changes to a non-owner", () => {
