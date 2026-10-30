@@ -14,7 +14,7 @@ export default function Statistics() {
     return <Stack maxW="960px" mx="auto" gap={8}>
         <PageHeader title="Reading statistics" description="A space to reflect on your reading."/>
         <EmptyState title="Statistics aren't available yet" action={
-            <Button asChild minH="44px" colorPalette="orange"><Link to="/">Explore your library</Link></Button>
+            <Button asChild minH="44px" colorPalette="orange"><Link to="/library">Explore your library</Link></Button>
         }>Your books and reading progress are still available in your library.</EmptyState>
     </Stack>;
 }

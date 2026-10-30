@@ -110,8 +110,11 @@ export function Reader({ book, format }: ReaderProps) {
     }, [saveImmediate]);
     const getReadingLocator = useCallback(() => latestReadingRef.current?.locator, []);
 
+    const [controlsVisible, setControlsVisible] = useState(true);
+    const toggleControls = useCallback(() => setControlsVisible((visible) => !visible), []);
+
     const { containerRef, navigatorRef, isLoading, isLoaded, loadError, isChapterTransitioning, mobileSwipeOverlay, percentage, tocItems, resolveStoredLocator, resolvePercentage, resolveResource, resolvePortable, progressLabel, validateStoredLocator } =
-        useEpubNavigator(book, format, themeState, handleLocationChange, isMobile && !themeState.scroll, resourceBaseRef, registerFrame, captureSelection, portableLocationRef, savesEnabledRef, restoreHoldRef);
+        useEpubNavigator(book, format, themeState, handleLocationChange, isMobile && !themeState.scroll, resourceBaseRef, registerFrame, captureSelection, portableLocationRef, savesEnabledRef, restoreHoldRef, isMobile ? toggleControls : undefined);
     const resolvedAnnotations = useResolvedAnnotations(annotations.items, navigatorRef, isLoaded, book.id);
     const annotationFrames = useAnnotationFrames(resolvedAnnotations.items, resourceBaseRef, themeState, containerRef);
     frameCallbacks.current = annotationFrames;
@@ -258,6 +261,7 @@ export function Reader({ book, format }: ReaderProps) {
                 colors={colors}
                 showKeyboardHint={showKeyboardHint}
                 isMobile={isMobile}
+                controlsVisible={!isMobile || controlsVisible}
                 isChapterTransitioning={isChapterTransitioning}
                 tocItems={tocItems}
                 navigatorRef={navigatorRef}
@@ -270,7 +274,7 @@ export function Reader({ book, format }: ReaderProps) {
             <Text position="fixed" bottom="6px" left="12px" right="52px" fontSize="xs" color={colors.text}
                 bg={colors.uiBg} px={2} py={1} borderRadius="md" textAlign="center" pointerEvents="none" zIndex={1001}
                 lineClamp={2} aria-live="polite">{progressLabel}</Text>
-            {format === "EPUB" && <AnnotationsPanel {...annotations} colors={colors} items={resolvedAnnotations.items}
+            {format === "EPUB" && <AnnotationsPanel {...annotations} colors={colors} buttonVisible={!isMobile || controlsVisible} items={resolvedAnnotations.items}
                 epubFormatId={book.formats?.find(item => item.format === "EPUB")?.id}
                 selection={annotationFrames.selection} clearSelection={annotationFrames.clearSelection}
                 resolution={{...annotationFrames.resolution, ...resolvedAnnotations.unresolved}} jump={jumpToAnnotation}

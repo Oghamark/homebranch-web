@@ -65,6 +65,7 @@ export function useEpubNavigator(
     portableLocationRef?: React.RefObject<PortableLocation | undefined>,
     savesEnabledRef?: React.RefObject<boolean>,
     restoreHoldRef?: React.RefObject<boolean>,
+    onCenterTap?: () => void,
 ): UseEpubNavigatorResult {
     function deserializeLinks(raw: unknown): Link[] {
         if (!Array.isArray(raw)) return [];
@@ -110,6 +111,8 @@ export function useEpubNavigator(
     onFrameLoadedRef.current = onFrameLoaded;
     const onTextSelectedRef = useRef(onTextSelected);
     onTextSelectedRef.current = onTextSelected;
+    const onCenterTapRef = useRef(onCenterTap);
+    onCenterTapRef.current = onCenterTap;
     const selectionWindowsRef = useRef(new Set<Window>());
     const hasSelection = () => {
         const windows = new Set(selectionWindowsRef.current);
@@ -629,7 +632,17 @@ export function useEpubNavigator(
                         }
                         onLocationChangeRef.current(normalizedLocator, progress);
                     },
-                    tap: (e) => hasSelection() || e.interactiveElement == null,
+                    tap: (e) => {
+                        if (hasSelection()) return true;
+                        const onCenter = onCenterTapRef.current;
+                        if (!onCenter || e.interactiveElement != null) return e.interactiveElement == null;
+                        const width = container?.clientWidth || window.innerWidth;
+                        const ratio = e.x / window.devicePixelRatio / width;
+                        if (ratio < 0.3) nav?.goBackward(false, () => {});
+                        else if (ratio > 0.7) nav?.goForward(false, () => {});
+                        else onCenter();
+                        return true;
+                    },
                     click: (e) => hasSelection() || e.interactiveElement == null,
                     zoom: () => {},
                     miscPointer: () => {},
