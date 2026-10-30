@@ -1,0 +1,114 @@
+{
+  "version": 1,
+  "formatId": "631ed280-34cc-440f-b00c-53205e75ca9a",
+  "contentHash": "107b36505b52865d357f25a512577a9a8d4a6d5c045b9a49bf60e2a88242716d",
+  "fingerprint": "0d1a2456720caa423cc5cd6d726dccdb76062c61bd04526fd3cc9402351c3e4c",
+  "resources": [
+    {
+      "href": "OPS/one.xhtml",
+      "start": 0,
+      "end": 970,
+      "anchor": {
+        "version": 1,
+        "exact": "Part one A scene Opening lanterns line a quiet path. This short section starts and ends inside a single EPUB resource. Long chapter Long journeys begin with a distinct marker. This chapter con",
+        "suffix": "tinues into the next resource rather than ending at a file bound"
+      }
+    },
+    {
+      "href": "OPS/continued chapter.xhtml",
+      "start": 971,
+      "end": 1533,
+      "anchor": {
+        "version": 1,
+        "exact": "Continuing across a resource boundary, the surveyor reaches the orchard gate. This paragraph still belongs to the long chapter from the previous file. More measurements fill the notebook. A re",
+        "prefix": " though the next paragraph is stored in another XHTML resource. ",
+        "suffix": "ader opening this paragraph should report the same chapter in ei"
+      }
+    },
+    {
+      "href": "OPS/last.xhtml",
+      "start": 1534,
+      "end": 1679,
+      "anchor": {
+        "version": 1,
+        "exact": "Final chapter Final markers close the original fixture. The last chapter includes the publication endpoint without inventing a following section.",
+        "prefix": "s the completed map. The next chapter is shorter than this one. "
+      }
+    }
+  ],
+  "chapters": [
+    {
+      "id": "OPS/one.xhtml#part",
+      "title": "Part one",
+      "href": "OPS/one.xhtml",
+      "fragment": "part",
+      "kind": "chapter",
+      "start": 0,
+      "end": 9,
+      "anchor": {
+        "version": 1,
+        "exact": "Part one ",
+        "suffix": "A scene Opening lanterns line a quiet path. This short section s"
+      }
+    },
+    {
+      "id": "OPS/one.xhtml#opening",
+      "title": "A scene",
+      "href": "OPS/one.xhtml",
+      "fragment": "opening",
+      "kind": "chapter",
+      "start": 9,
+      "end": 119,
+      "anchor": {
+        "version": 1,
+        "exact": "A scene Opening lanterns line a quiet path. This short section starts and ends inside a single EPUB resource. ",
+        "prefix": "Part one ",
+        "suffix": "Long chapter Long journeys begin with a distinct marker. This ch"
+      }
+    },
+    {
+      "id": "OPS/one.xhtml#long",
+      "title": "Long chapter",
+      "href": "OPS/one.xhtml",
+      "fragment": "long",
+      "kind": "chapter",
+      "start": 119,
+      "end": 1250,
+      "anchor": {
+        "version": 1,
+        "exact": "Long chapter Long journeys begin with a distinct marker. This chapter continues into the next resource rather than ending at a file boundary. The fictional surveyor measures a field with a len",
+        "prefix": "is short section starts and ends inside a single EPUB resource. ",
+        "suffix": "gth of blue ribbon. Each wooden stake records an original observ"
+      }
+    },
+    {
+      "id": "OPS/continued chapter.xhtml#closing",
+      "title": "A scene",
+      "href": "OPS/continued chapter.xhtml",
+      "fragment": "closing",
+      "kind": "chapter",
+      "start": 1250,
+      "end": 1534,
+      "anchor": {
+        "version": 1,
+        "exact": "A scene Closing lanterns mark a different path. Its repeated heading must not confuse it with the earlier scene, because their resource and fragment identities differ. The surveyor returns the",
+        "prefix": "raph should report the same chapter in either rendering engine. ",
+        "suffix": " ribbon to its box and labels the completed map. The next chapte"
+      }
+    },
+    {
+      "id": "OPS/last.xhtml#last",
+      "title": "Final chapter",
+      "href": "OPS/last.xhtml",
+      "fragment": "last",
+      "kind": "chapter",
+      "start": 1534,
+      "end": 1679,
+      "anchor": {
+        "version": 1,
+        "exact": "Final chapter Final markers close the original fixture. The last chapter includes the publication endpoint without inventing a following section.",
+        "prefix": "s the completed map. The next chapter is shorter than this one. "
+      }
+    }
+  ]
+}

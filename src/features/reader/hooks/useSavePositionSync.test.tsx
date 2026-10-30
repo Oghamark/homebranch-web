@@ -4,10 +4,11 @@ import {Locator, LocatorLocations} from "@readium/shared";
 import {savePosition} from "../api/savedPositionApi";
 import {useSavePositionSync} from "./useSavePositionSync";
 import {installMemoryStorage} from "@/test/memoryStorage";
+import {getPositionSyncState} from "../utils/savedPositionState";
 vi.mock("../api/savedPositionApi", () => ({savePosition: vi.fn()}));
 vi.mock("@/shared/lib/toast/toast", () => ({default: vi.fn()}));
 const locator = new Locator({href: "http://localhost/epub/one.xhtml", type: "application/xhtml+xml", locations: new LocatorLocations({progression: 0.2})});
-beforeEach(() => { installMemoryStorage(); sessionStorage.setItem("user_id", "account"); vi.useFakeTimers(); vi.mocked(savePosition).mockReset().mockResolvedValue(); });
+beforeEach(() => { installMemoryStorage(); sessionStorage.setItem("user_id", "account"); vi.useFakeTimers(); vi.mocked(savePosition).mockReset().mockResolvedValue(undefined); });
 afterEach(() => vi.useRealTimers());
 describe("startup save guard", () => {
     it("does not replace local or remote progress until choice and cancels a paused debounce", async () => {
@@ -28,5 +29,24 @@ describe("startup save guard", () => {
         await act(async () => { await vi.advanceTimersByTimeAsync(1100); });
         expect(savePosition).toHaveBeenCalledOnce();
         expect(savePosition).toHaveBeenCalledWith("book", expect.objectContaining({percentage: 0.2}));
+    });
+    it("snapshots portable coordinates with the same debounced raw locator and leaves legacy requests additive", async () => {
+        const location = {version: 1 as const, formatId: "format", contentHash: "hash", mapFingerprint: "map", href: "one.xhtml", resourceProgression: 0.2, basis: "text" as const};
+        const current = {current: location};
+        const {result} = renderHook(() => useSavePositionSync("book", "EPUB", "Browser", {current: "http://localhost/epub/"}, {current: true}, current));
+        act(() => result.current.onLocationChange(locator, 0.2));
+        current.current = {...location, resourceProgression: 0.9};
+        expect(getPositionSyncState("book").pending).toBe(true);
+        await act(async () => { await vi.advanceTimersByTimeAsync(1100); });
+        expect(savePosition).toHaveBeenCalledWith("book", expect.objectContaining({location, percentage: 0.2}));
+        expect(getPositionSyncState("book").pending).toBe(false);
+    });
+    it("preserves unsent local work when a request fails", async () => {
+        vi.mocked(savePosition).mockRejectedValueOnce(new Error("offline"));
+        const {result} = renderHook(() => useSavePositionSync("book", "EPUB", "Browser"));
+        act(() => result.current.onLocationChange(locator, 0.2));
+        await act(async () => { await vi.advanceTimersByTimeAsync(1100); });
+        expect(getPositionSyncState("book").pending).toBe(true);
+        expect(localStorage.getItem("currentlyReading_account")).toContain("one.xhtml");
     });
 });

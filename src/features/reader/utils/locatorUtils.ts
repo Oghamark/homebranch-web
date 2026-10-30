@@ -1,4 +1,4 @@
-import { Locator } from "@readium/shared";
+import { Locator, LocatorLocations } from "@readium/shared";
 import { config } from "@/shared";
 
 /**
@@ -6,18 +6,24 @@ import { config } from "@/shared";
  * EPUB-internal path (e.g. "OEBPS/Text/chapter.html"). Falls back to stripping
  * just config.apiUrl if resourceBase is not available.
  *
- * Also produces a minimal locator by retaining only cross-device-stable fields:
- * href, type, title, and within-chapter/book progression. Device-specific fields
- * like `position` (pagination index) and `fragments` (CFI / CSS selectors) are
- * dropped so they don't cause Readium to jump to the wrong spot on a different layout.
+ * Pagination indexes and unverified native fragments are never portable.
+ * Supported Readium quote/selector evidence is retained separately from the
+ * portable location, with engine provenance, for validated same-engine restores.
  */
 export function serializeLocatorForCloud(locator: Locator, resourceBase?: string): string {
-    const minimal = locator.copyWithLocations({
-        progression: locator.locations.progression,
-        totalProgression: locator.locations.totalProgression,
-    });
+    const minimal = locator.type === "application/pdf"
+        ? locator.copyWithLocations({progression: locator.locations.progression, totalProgression: locator.locations.totalProgression})
+        : new Locator({href: locator.href, type: locator.type, title: locator.title,
+            locations: new LocatorLocations({progression: locator.locations.progression, totalProgression: locator.locations.totalProgression})});
     const json = minimal.serialize() as Record<string, unknown>;
-    delete json.text;
+    if (locator.type !== "application/pdf" && locator.text?.highlight) {
+        json.text = locator.text.serialize();
+        json.readiumEngine = "readium-2";
+        const selector = locator.locations.otherLocations?.get("cssSelector");
+        if (typeof selector === "string") (json.locations as Record<string, unknown>).cssSelector = selector;
+        const identity = locator.locations.otherLocations?.get("homebranchPublication");
+        if (identity) json.readiumPublication = identity;
+    } else delete json.text;
     if (typeof json.href === "string") {
         if (resourceBase && json.href.startsWith(resourceBase)) {
             json.href = json.href.slice(resourceBase.length);
@@ -33,8 +39,8 @@ export function serializeLocatorForCloud(locator: Locator, resourceBase?: string
  * resource base URL (or config.apiUrl as fallback) to any relative href so the
  * locator works with the Readium navigator.
  *
- * Also strips device-specific fields (position, fragments, text) so that positions
- * saved by older clients don't cause Readium to jump to the wrong spot.
+ * Old unmarked native fragments/text remain unsupported. Readium quote evidence
+ * is preserved, but its uniqueness must still be verified against destination text.
  */
 export function deserializeLocatorFromCloud(position: string, resourceBase?: string): Locator | undefined {
     try {
@@ -44,10 +50,21 @@ export function deserializeLocatorFromCloud(position: string, resourceBase?: str
         }
         const locator = Locator.deserialize(json);
         if (!locator) return undefined;
-        return locator.copyWithLocations({
-            progression: locator.locations.progression,
-            totalProgression: locator.locations.totalProgression,
+        if (locator.type === "application/pdf") return locator.copyWithLocations({
+            progression: locator.locations.progression, totalProgression: locator.locations.totalProgression,
         });
+        if (json.readiumEngine === "readium-2" && locator.text?.highlight) return new Locator({
+            href: locator.href, type: locator.type, title: locator.title, text: locator.text,
+            locations: new LocatorLocations({
+                progression: locator.locations.progression, totalProgression: locator.locations.totalProgression,
+                otherLocations: new Map<string, unknown>([
+                    ...(typeof locator.locations.getCssSelector() === "string" ? [["cssSelector", locator.locations.getCssSelector()] as [string, unknown]] : []),
+                    ...(json.readiumPublication ? [["homebranchPublication", json.readiumPublication] as [string, unknown]] : []),
+                ]),
+            }),
+        });
+        return new Locator({href: locator.href, type: locator.type, title: locator.title,
+            locations: new LocatorLocations({progression: locator.locations.progression, totalProgression: locator.locations.totalProgression})});
     } catch {
         return undefined;
     }
@@ -74,7 +91,10 @@ export function isSamePosition(a: Locator, b: Locator, resourceBase?: string, to
 
     const normalA = normalize(a.href);
     const normalB = normalize(b.href);
+    if (normalA !== normalB && (a.text?.highlight || b.text?.highlight)) return false;
     if (normalA !== normalB && filename(a.href) !== filename(b.href)) return false;
+    if (!!a.text?.highlight !== !!b.text?.highlight) return false;
+    if (a.text?.highlight && b.text?.highlight && (a.text.highlight !== b.text.highlight || a.text.before !== b.text.before)) return false;
 
     const progA = a.locations.progression;
     const progB = b.locations.progression;

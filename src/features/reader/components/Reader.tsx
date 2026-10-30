@@ -20,6 +20,7 @@ import {useAnnotationFrames} from "../hooks/useAnnotationFrames";
 import {useResolvedAnnotations} from "../hooks/useResolvedAnnotations";
 import {AnnotationsPanel} from "./AnnotationsPanel";
 import type {Annotation} from "@/features/koreader/api";
+import type {PortableLocation} from "../types/PortableLocation";
 
 const KEYBOARD_HINT_KEY = "reader-keyboard-hint-shown";
 
@@ -49,6 +50,9 @@ export function Reader({ book, format }: ReaderProps) {
        as EPUB-internal paths rather than full server URLs. */
     const resourceBaseRef = useRef<string | undefined>(undefined);
     const savesEnabledRef = useRef(false);
+    const restoreHoldRef = useRef(false);
+    const portableLocationRef = useRef<PortableLocation | undefined>(undefined);
+    const latestReadingRef = useRef<{locator: Locator; percentage?: number} | null>(null);
     const annotations = useAnnotations(book.id, format === "EPUB");
     const frameCallbacks = useRef<{register: (wnd: Window) => void; capture: () => void} | null>(null);
     const registerFrame = useCallback((wnd: Window) => frameCallbacks.current?.register(wnd), []);
@@ -59,16 +63,16 @@ export function Reader({ book, format }: ReaderProps) {
     /* Rapid-swipe detection for EPUB: tracks consecutive positionChanged events.
        Three or more page turns within 800 ms → save origin for jump-back immediately. */
     const prevLocatorJsonRef = useRef<string | null>(null);
-    const navigatorRefForRapidNav = useRef<typeof navigatorRef.current>(null);
     const rapidNavStateRef = useRef<{
         startLocatorJson: string | null;
         lastChangeTime: number;
         changeCount: number;
     }>({ startLocatorJson: null, lastChangeTime: 0, changeCount: 0 });
 
-    const { onLocationChange, saveImmediate } = useSavePositionSync(book.id, format, deviceName, resourceBaseRef, savesEnabledRef);
+    const { onLocationChange, saveImmediate } = useSavePositionSync(book.id, format, deviceName, resourceBaseRef, savesEnabledRef, portableLocationRef);
 
     const handleLocationChange = useCallback((locator: Locator, percentage?: number) => {
+        latestReadingRef.current = {locator, percentage};
         const prevLocatorJson = prevLocatorJsonRef.current;
         onLocationChange(locator, percentage);
 
@@ -98,21 +102,19 @@ export function Reader({ book, format }: ReaderProps) {
             state.lastChangeTime = now;
         }
 
-        // Store the current position so the NEXT call can detect a rapid-nav burst.
-        // We read currentLocator from the navigator (already updated to new position)
-        // and fall back to the raw JSON string if the navigator isn't ready yet.
-        const navLocator = navigatorRefForRapidNav.current?.currentLocator;
-        prevLocatorJsonRef.current = navLocator ? JSON.stringify(navLocator.serialize()) : JSON.stringify(locator.serialize());
+        prevLocatorJsonRef.current = JSON.stringify(locator.serialize());
     }, [onLocationChange]);
+    const saveCurrentImmediate = useCallback(async (locator: Locator, percentage?: number) => {
+        const current = latestReadingRef.current;
+        await saveImmediate(current?.locator ?? locator, current?.percentage ?? percentage);
+    }, [saveImmediate]);
+    const getReadingLocator = useCallback(() => latestReadingRef.current?.locator, []);
 
-    const { containerRef, navigatorRef, isLoading, isLoaded, loadError, isChapterTransitioning, mobileSwipeOverlay, percentage, tocItems, resolveStoredLocator, resolvePercentage, resolveResource } =
-        useEpubNavigator(book, format, themeState, handleLocationChange, isMobile && !themeState.scroll, resourceBaseRef, registerFrame, captureSelection);
+    const { containerRef, navigatorRef, isLoading, isLoaded, loadError, isChapterTransitioning, mobileSwipeOverlay, percentage, tocItems, resolveStoredLocator, resolvePercentage, resolveResource, resolvePortable, progressLabel, validateStoredLocator } =
+        useEpubNavigator(book, format, themeState, handleLocationChange, isMobile && !themeState.scroll, resourceBaseRef, registerFrame, captureSelection, portableLocationRef, savesEnabledRef, restoreHoldRef);
     const resolvedAnnotations = useResolvedAnnotations(annotations.items, navigatorRef, isLoaded, book.id);
     const annotationFrames = useAnnotationFrames(resolvedAnnotations.items, resourceBaseRef, themeState, containerRef);
     frameCallbacks.current = annotationFrames;
-
-    // Keep the proxy ref in sync so handleLocationChange can read currentLocator
-    navigatorRefForRapidNav.current = navigatorRef.current;
 
     const { modalCase, handleJump, handleKeepLocal, closePositionPrompt, positionError, retryPosition } = usePositionConflict(
         book.id,
@@ -120,11 +122,14 @@ export function Reader({ book, format }: ReaderProps) {
         deviceName,
         isLoaded,
         onLocationChange,
-        saveImmediate,
+        saveCurrentImmediate,
         resolveStoredLocator,
         resourceBaseRef,
         savesEnabledRef,
         resolvePercentage,
+        resolvePortable,
+        restoreHoldRef,
+        validateStoredLocator,
     );
     useEffect(() => {
         const item = pendingAnnotationJump.current;
@@ -199,7 +204,7 @@ export function Reader({ book, format }: ReaderProps) {
                 display="flex"
                 justifyContent="center"
                 pt="60px"
-                pb="28px"
+                pb="54px"
             >
                 <ReaderLoadingState isLoading={isLoading} error={loadError} colors={colors} />
                 {showMobileSwipeOverlay && mobileSwipeOverlay && (
@@ -258,9 +263,13 @@ export function Reader({ book, format }: ReaderProps) {
                 navigatorRef={navigatorRef}
                 jumpBackLocator={jumpBackLocator}
                 onSetJumpBackLocator={setJumpBackLocator}
+                getReadingLocator={getReadingLocator}
             />
 
             <ReaderProgressBar percentage={percentage} colors={colors} />
+            <Text position="fixed" bottom="6px" left="12px" right="52px" fontSize="xs" color={colors.text}
+                bg={colors.uiBg} px={2} py={1} borderRadius="md" textAlign="center" pointerEvents="none" zIndex={1001}
+                lineClamp={2} aria-live="polite">{progressLabel}</Text>
             {format === "EPUB" && <AnnotationsPanel {...annotations} colors={colors} items={resolvedAnnotations.items}
                 epubFormatId={book.formats?.find(item => item.format === "EPUB")?.id}
                 selection={annotationFrames.selection} clearSelection={annotationFrames.clearSelection}

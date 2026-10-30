@@ -10,9 +10,16 @@ import type { BookModel } from "@/entities/book/model/BookModel";
 import type {BookFormatType} from "@/entities/book/model/bookFormats";
 import { getSavedPosition } from "../api/savedPositionApi";
 import { getStoredLocator } from "@/features/reader";
+import {getPositionSyncState, storePositionSyncState} from "../utils/savedPositionState";
 import { deserializeLocatorFromCloud } from "@/features/reader";
 import {approximateProgressLocator} from "../utils/approximateProgress";
 import {resourceHref} from "../utils/annotationCodec";
+import {frameResourceHref} from "../utils/annotationCodec";
+import type {LocationMap, PortableLocation} from "../types/PortableLocation";
+import type {CanonicalText} from "../utils/portableLocation";
+import {approximateChapterPage, canonicalHref, canonicalText, capturePortableLocation, compatibleLocation, firstVisibleOffset, portableLabel, preciseLocatorMatches, precisePublicationMatches, resolvePortableTarget, textLocator, verifiedResource, withPublicationIdentity} from "../utils/portableLocation";
+import ToastFactory from "@/shared/lib/toast/toast";
+import {hasPreciseTarget, LogicalReadingFocus} from "../utils/logicalReadingFocus";
 
 const CHAPTER_TRANSITION_TIMEOUT_MS = 8000;
 const MOBILE_BOUNDARY_SWIPE_TRIGGER_RATIO = 0.12;
@@ -31,6 +38,10 @@ export interface UseEpubNavigatorResult {
     resolveStoredLocator: (stored: Locator) => Locator;
     resolvePercentage: (percentage: number) => Locator | null;
     resolveResource: (href: string) => Locator | null;
+    locationRef: React.RefObject<PortableLocation | undefined>;
+    progressLabel: string;
+    resolvePortable: (location: PortableLocation) => Promise<{locator: Locator; label: string} | null>;
+    validateStoredLocator: (stored: Locator) => Promise<Locator | null>;
 }
 
 export type MobileSwipeDirection = "forward" | "backward";
@@ -46,11 +57,14 @@ export function useEpubNavigator(
     book: BookModel,
     format: BookFormatType,
     themeState: ReaderThemeState,
-    onLocationChange: (locator: Locator) => void,
+    onLocationChange: (locator: Locator, percentage?: number) => void,
     enableMobileSwipeOverlay: boolean,
     resourceBaseRef: React.RefObject<string | undefined>,
     onFrameLoaded?: (wnd: Window) => void,
     onTextSelected?: () => void,
+    portableLocationRef?: React.RefObject<PortableLocation | undefined>,
+    savesEnabledRef?: React.RefObject<boolean>,
+    restoreHoldRef?: React.RefObject<boolean>,
 ): UseEpubNavigatorResult {
     function deserializeLinks(raw: unknown): Link[] {
         if (!Array.isArray(raw)) return [];
@@ -106,6 +120,14 @@ export function useEpubNavigator(
     };
     const readingOrderItemsRef = useRef<Link[]>([]);
     const positionsRef = useRef<Locator[]>([]);
+    const mapRef = useRef<LocationMap | null>(null);
+    const ownLocationRef = useRef<PortableLocation | undefined>(undefined);
+    const locationRef = portableLocationRef ?? ownLocationRef;
+    const publicationRef = useRef<Publication | null>(null);
+    const canonicalIndexesRef = useRef(new WeakMap<Document, CanonicalText>());
+    const logicalFocusRef = useRef(new LogicalReadingFocus());
+    const reanchorFocusRef = useRef<(() => Promise<void>) | null>(null);
+    const [progressLabel, setProgressLabel] = useState("Approximate whole-book progress");
     const prefetchedHrefSetRef = useRef(new Set<string>());
     const activePrefetchControllerRef = useRef<AbortController | null>(null);
     const transitionTimeoutRef = useRef<number | null>(null);
@@ -276,10 +298,30 @@ export function useEpubNavigator(
                     manifest,
                     fetcher: new HttpFetcher(fetchWithCredentials, manifest.baseURL ?? ""),
                 });
+                publicationRef.current = publication;
+                const candidate = manifestJson.locationMap as LocationMap | undefined;
+                const map = candidate?.version === 1 && Array.isArray(candidate.resources) && Array.isArray(candidate.chapters) ? candidate : null;
+                mapRef.current = map;
 
                 const readingOrderItems = manifest.readingOrder?.items ?? [];
                 readingOrderItemsRef.current = readingOrderItems;
                 prefetchedHrefSetRef.current.clear();
+                const weights = readingOrderItems.map(item => map?.resources.find(r => canonicalHref(item.href, manifest.baseURL ?? "") === r.href));
+                let starts: number[];
+                if (map && weights.every(Boolean)) {
+                    const total = map.resources.at(-1)?.end || 1;
+                    starts = weights.map(resource => resource!.start / total);
+                } else {
+                    // Legacy manifests have no text map. Measure text weights, never index/(n-1).
+                    const lengths: number[] = [];
+                    for (const item of readingOrderItems) {
+                        const html = await publication.get(item).readAsString();
+                        lengths.push(html ? canonicalText(new DOMParser().parseFromString(html, "text/html")).text.length : 0);
+                    }
+                    const total = lengths.reduce((sum, length) => sum + length + 1, -1) || 1;
+                    let start = 0;
+                    starts = lengths.map(length => { const result = start / total; start += length + 1; return result; });
+                }
                 const positions = readingOrderItems.map((item, index) =>
                     new Locator({
                         href: item.href,
@@ -287,9 +329,7 @@ export function useEpubNavigator(
                         type: item.type ?? "application/xhtml+xml",
                         locations: new LocatorLocations({
                             position: index + 1,
-                            totalProgression: readingOrderItems.length > 1
-                                ? index / (readingOrderItems.length - 1)
-                                : 0,
+                            totalProgression: starts[index],
                         }),
                     }),
                 );
@@ -310,16 +350,32 @@ export function useEpubNavigator(
                 const resolveStoredLocator = (stored: Locator): Locator => {
                     const filename = (href: string) => normalizeHref(href)?.split("/").pop();
                     const match =
-                        positions.find(p => normalizeHref(p.href) === normalizeHref(stored.href)) ??
-                        positions.find(p => filename(p.href) === filename(stored.href));
-                    if (!match) return positions[0];
+                        positions.find(p => normalizeHref(p.href) === normalizeHref(stored.href)
+                            || (!!manifest.baseURL && canonicalHref(p.href, manifest.baseURL) !== null && canonicalHref(p.href, manifest.baseURL) === canonicalHref(stored.href, manifest.baseURL))) ??
+                        (!stored.text?.highlight ? positions.find(p => filename(p.href) === filename(stored.href)) : undefined);
+                    if (!match) {
+                        if (stored.text?.highlight) throw new Error("The saved EPUB resource cannot be verified. No guessed restoration was applied.");
+                        return positions[0];
+                    }
+                    if (stored.text?.highlight) return new Locator({href: match.href, type: match.type, title: stored.title ?? match.title, text: stored.text, locations: stored.locations});
                     return match.copyWithLocations({
                         progression: stored.locations.progression,
                         totalProgression: stored.locations.totalProgression ?? match.locations.totalProgression,
                     });
                 };
 
-                const storedLocator = localLocator ?? cloudLocator;
+                let storedLocator = localLocator ?? cloudLocator;
+                if (storedLocator?.text?.highlight) {
+                    const href = canonicalHref(storedLocator.href, manifest.baseURL ?? "");
+                    const link = readingOrderItems.find(item => canonicalHref(item.href, manifest.baseURL ?? "") === href);
+                    const html = link ? await publication.get(link).readAsString() : undefined;
+                    if (!html || !precisePublicationMatches(storedLocator, map) || !preciseLocatorMatches(new DOMParser().parseFromString(html, "text/html"), storedLocator)
+                        || (!localLocator && savedPosition?.location && (!map || !compatibleLocation(map, savedPosition.location)))) {
+                        ToastFactory({message: "Saved passage could not be verified. Only approximate resource progress is available.", type: "warning"});
+                        storedLocator = new Locator({href: storedLocator.href, type: storedLocator.type, title: storedLocator.title,
+                            locations: new LocatorLocations({progression: storedLocator.locations.progression, totalProgression: storedLocator.locations.totalProgression})});
+                    }
+                }
                 const initialLocator: Locator = storedLocator
                     ? resolveStoredLocator(storedLocator)
                     : positions[0];
@@ -467,10 +523,25 @@ export function useEpubNavigator(
                     });
                 }
 
+                const restoreInputWindows = new WeakSet<Window>();
+                const attachRestoreInput = (wnd: Window) => {
+                    if (restoreInputWindows.has(wnd)) return;
+                    restoreInputWindows.add(wnd);
+                    const resumeForInput = (event: Event) => {
+                        if (!event.isTrusted || wnd.getSelection()?.toString()) return;
+                        if (event.type === "keydown" && !["ArrowDown", "ArrowUp", "ArrowLeft", "ArrowRight", "PageDown", "PageUp", " "].includes((event as KeyboardEvent).key)) return;
+                        resumeAfterRestore();
+                    };
+                    for (const name of ["wheel", "touchmove", "keydown"]) wnd.addEventListener(name, resumeForInput, {passive: true});
+                    frameSwipeCleanupRef.current.push(() => {
+                        for (const name of ["wheel", "touchmove", "keydown"]) wnd.removeEventListener(name, resumeForInput);
+                    });
+                };
                 const listeners: EpubNavigatorListeners = {
                     frameLoaded: (wnd: Window) => {
                         if (cancelled) return;
                         selectionWindowsRef.current.add(wnd);
+                        attachRestoreInput(wnd);
                         const unload = () => selectionWindowsRef.current.delete(wnd);
                         wnd.addEventListener("unload", unload, {once: true});
                         frameSwipeCleanupRef.current.push(() => wnd.removeEventListener("unload", unload));
@@ -483,7 +554,7 @@ export function useEpubNavigator(
                         clearChapterTransition();
                         void prefetchNextSpineItem(locator.href);
                         const title = locator.title?.trim() || findTitleForHref(locator.href);
-                        const normalizedLocator = title
+                        let normalizedLocator = title
                             ? new Locator({
                                 href: locator.href,
                                 title,
@@ -492,13 +563,71 @@ export function useEpubNavigator(
                                 type: locator.type,
                             })
                             : locator;
+                        const resourceIndex = positions.findIndex(p => normalizeHref(p.href) === normalizeHref(locator.href));
+                        if (resourceIndex >= 0) {
+                            const start = starts[resourceIndex] ?? 0;
+                            const end = starts[resourceIndex + 1] ?? 1;
+                            normalizedLocator = new Locator({href: normalizedLocator.href, type: normalizedLocator.type, title: normalizedLocator.title,
+                                text: normalizedLocator.text, locations: new LocatorLocations({
+                                    progression: locator.locations.progression,
+                                    totalProgression: start + (end - start) * (locator.locations.progression ?? 0),
+                                    otherLocations: locator.locations.otherLocations,
+                                })});
+                        }
+                        if (!logicalFocusRef.current.locator) locationRef.current = undefined;
+                        const base = resourceBaseRef.current;
+                        const map = mapRef.current;
+                        let chapterPage: string | null = null;
+                        let capturedPoint = false;
+                        containerRef.current?.querySelectorAll<HTMLIFrameElement>("iframe.readium-navigator-iframe").forEach(frame => {
+                            if (frame.contentWindow?.document.body) attachRestoreInput(frame.contentWindow);
+                        });
+                        if (base && map) {
+                            const href = canonicalHref(locator.href, base);
+                            const resource = map.resources.find(r => r.href === href);
+                            const frames = containerRef.current?.querySelectorAll<HTMLIFrameElement>("iframe.readium-navigator-iframe") ?? [];
+                            for (const frame of frames) {
+                                const wnd = frame.contentWindow;
+                                if (!wnd || !resource || !frame.getBoundingClientRect().width
+                                    || decodeURIComponent(frameResourceHref(wnd, base) ?? "") !== href) continue;
+                                let index = canonicalIndexesRef.current.get(wnd.document);
+                                if (!index) {
+                                    index = canonicalText(wnd.document);
+                                    canonicalIndexesRef.current.set(wnd.document, index);
+                                }
+                                if (!verifiedResource(map, resource, index, false)) continue;
+                                const offset = logicalFocusRef.current.locator
+                                    ? logicalFocusRef.current.capture(wnd, index, map, resource.href)
+                                    : firstVisibleOffset(wnd, index);
+                                if (offset === null) continue;
+                                capturedPoint = true;
+                                locationRef.current = capturePortableLocation(map, resource.href, offset) ?? undefined;
+                                const sectionVerified = verifiedResource(map, resource, index);
+                                if (!sectionVerified && locationRef.current) {
+                                    delete locationRef.current.chapterId;
+                                    delete locationRef.current.chapterProgression;
+                                }
+                                if (logicalFocusRef.current.locator && !capturedPoint) return;
+                                if (sectionVerified) chapterPage = approximateChapterPage(wnd, index, map, resource.href, offset, themeStateRef.current.scroll);
+                                const precise = textLocator(normalizedLocator, index, offset);
+                                if (precise) normalizedLocator = withPublicationIdentity(new Locator({href: precise.href, type: precise.type, title: precise.title,
+                                    text: precise.text, locations: new LocatorLocations({
+                                        progression: locator.locations.progression,
+                                        totalProgression: (resource.start + offset) / (map.resources.at(-1)?.end || 1),
+                                        otherLocations: precise.locations.otherLocations,
+                                    })}), map);
+                                break;
+                            }
+                        }
+                        const label = portableLabel(map, locationRef.current) ?? "Approximate whole-book progress";
+                        setProgressLabel(chapterPage ? `${label} · ${chapterPage}` : label);
                         const progress = normalizedLocator.locations?.totalProgression;
                         if (progress !== undefined) {
                             setPercentage(progress);
                             const userId = sessionStorage.getItem("user_id");
                             if (userId) storeProgress(userId, book.id, progress);
                         }
-                        onLocationChangeRef.current(normalizedLocator);
+                        onLocationChangeRef.current(normalizedLocator, progress);
                     },
                     tap: (e) => hasSelection() || e.interactiveElement == null,
                     click: (e) => hasSelection() || e.interactiveElement == null,
@@ -538,6 +667,20 @@ export function useEpubNavigator(
                 const originalGo = guardedNav.go.bind(nav);
                 const originalGoForward = nav.goForward.bind(nav);
                 const originalGoBackward = nav.goBackward.bind(nav);
+                let navigationVersion = 0;
+                const resumeAfterRestore = () => {
+                    navigationVersion++;
+                    logicalFocusRef.current.clear();
+                    if (!restoreHoldRef?.current) return;
+                    restoreHoldRef.current = false;
+                    if (savesEnabledRef) savesEnabledRef.current = true;
+                    storePositionSyncState(book.id, {...getPositionSyncState(book.id), restored: false});
+                };
+                const pauseForUnresolvedTarget = () => {
+                    if (savesEnabledRef) savesEnabledRef.current = false;
+                    if (restoreHoldRef) restoreHoldRef.current = true;
+                    storePositionSyncState(book.id, {...getPositionSyncState(book.id), restored: true});
+                };
 
                 if (originalChangeResource) {
                     guardedNav.changeResource = async (relative: number) => {
@@ -561,9 +704,14 @@ export function useEpubNavigator(
                     const isCrossChapterNavigation = !!targetHref && targetHref !== currentHref;
 
                     if (pendingChapterTransitionRef.current) {
-                        cb(true);
+                        cb(false);
                         return;
                     }
+                    resumeAfterRestore();
+                    const precise = hasPreciseTarget(locator) && !!mapRef.current && !!resourceBaseRef.current;
+                    const navigation = navigationVersion;
+                    const previousSaves = savesEnabledRef?.current;
+                    if (precise && savesEnabledRef) savesEnabledRef.current = false;
 
                     if (isCrossChapterNavigation && !beginChapterTransition()) {
                         cb(true);
@@ -571,11 +719,25 @@ export function useEpubNavigator(
                     }
 
                     try {
-                        originalGo(locator, animated, (ok: boolean) => {
+                        originalGo(locator, animated, async (ok: boolean) => {
+                            if (cancelled) return;
+                            if (navigation !== navigationVersion) { cb(false); return; }
+                            const map = mapRef.current, base = resourceBaseRef.current;
+                            if (ok && precise) ok = !!map && !!base && await logicalFocusRef.current.select(locator, container!, map, base,
+                                () => new Promise(resolve => originalGo(locator, false, resolve)));
+                            if (cancelled) return;
+                            if (navigation !== navigationVersion) { cb(false); return; }
+                            if (precise && ok && savesEnabledRef && previousSaves !== undefined) savesEnabledRef.current = previousSaves;
+                            if (ok) listeners.positionChanged(nav!.currentLocator);
+                            else if (precise) {
+                                pauseForUnresolvedTarget();
+                                ToastFactory({message: "The selected passage is not visibly resolved. No logical position was accepted; automatic saves remain paused.", type: "warning"});
+                            }
                             if (!ok && isCrossChapterNavigation) clearChapterTransition();
                             cb(ok);
                         });
                     } catch (error) {
+                        if (precise) pauseForUnresolvedTarget();
                         if (isCrossChapterNavigation) clearChapterTransition();
                         throw error;
                     }
@@ -586,6 +748,7 @@ export function useEpubNavigator(
                         cb(true);
                         return;
                     }
+                    resumeAfterRestore();
                     originalGoForward(animated, cb);
                 };
 
@@ -594,11 +757,65 @@ export function useEpubNavigator(
                         cb(true);
                         return;
                     }
+                    resumeAfterRestore();
                     originalGoBackward(animated, cb);
                 };
 
                 navigatorRef.current = nav;
                 await nav.load();
+                let reanchoring = false;
+                let reanchorAgain = false;
+                const reanchor = async () => {
+                    const selected = logicalFocusRef.current.locator;
+                    if (!selected || cancelled) return;
+                    if (reanchoring) { reanchorAgain = true; return; }
+                    reanchoring = true;
+                    const previousSaves = savesEnabledRef?.current;
+                    const navigation = navigationVersion;
+                    if (savesEnabledRef) savesEnabledRef.current = false;
+                    try {
+                        const ok = await new Promise<boolean>(resolve => originalGo(selected, false, resolve));
+                        if (cancelled || navigation !== navigationVersion || logicalFocusRef.current.locator !== selected) return;
+                        const visible = ok && !!mapRef.current && !!resourceBaseRef.current
+                            && await logicalFocusRef.current.select(selected, container!, mapRef.current, resourceBaseRef.current,
+                                () => new Promise(resolve => originalGo(selected, false, resolve)));
+                        if (cancelled || navigation !== navigationVersion) return;
+                        if (!visible) {
+                            pauseForUnresolvedTarget();
+                            ToastFactory({message: "The selected passage could not be restored after the layout changed. Automatic saves remain paused until you choose another reading point.", type: "warning"});
+                            return;
+                        }
+                        if (savesEnabledRef && previousSaves !== undefined) savesEnabledRef.current = previousSaves;
+                        listeners.positionChanged(nav!.currentLocator);
+                    } catch {
+                        pauseForUnresolvedTarget();
+                        ToastFactory({message: "Unable to visibly restore the selected passage after the layout changed. Automatic saves remain paused.", type: "warning"});
+                    } finally {
+                        reanchoring = false;
+                        if (reanchorAgain) { reanchorAgain = false; void reanchor(); }
+                    }
+                };
+                reanchorFocusRef.current = reanchor;
+                if (map && manifest.baseURL && hasPreciseTarget(initialLocator)) {
+                    const ok = await new Promise<boolean>(resolve => originalGo(initialLocator, false, resolve));
+                    if (ok && await logicalFocusRef.current.select(initialLocator, container!, map, manifest.baseURL ?? "",
+                        () => new Promise(resolve => originalGo(initialLocator, false, resolve)))) {
+                        listeners.positionChanged(nav.currentLocator);
+                    } else {
+                        pauseForUnresolvedTarget();
+                        ToastFactory({message: "The saved passage is not visibly resolved. Automatic saves remain paused until you choose another reading point.", type: "warning"});
+                    }
+                }
+                let resizeTimer: ReturnType<typeof setTimeout> | null = null;
+                const resizeObserver = new ResizeObserver(() => {
+                    if (resizeTimer) clearTimeout(resizeTimer);
+                    resizeTimer = setTimeout(() => { void reanchor(); }, 120);
+                });
+                resizeObserver.observe(container!);
+                frameSwipeCleanupRef.current.push(() => {
+                    resizeObserver.disconnect();
+                    if (resizeTimer) clearTimeout(resizeTimer);
+                });
 
                 if (cancelled) return;
                 const nextTocItems = getTocItems(manifest, manifestJson);
@@ -625,6 +842,12 @@ export function useEpubNavigator(
             frameSwipeCleanupRef.current.forEach((cleanup) => cleanup());
             frameSwipeCleanupRef.current = [];
             readingOrderItemsRef.current = [];
+            mapRef.current = null;
+            publicationRef.current = null;
+            locationRef.current = undefined;
+            canonicalIndexesRef.current = new WeakMap();
+            logicalFocusRef.current.clear();
+            reanchorFocusRef.current = null;
             tocItemsRef.current = [];
             clearPendingSwipeDirectionTimeout();
             pendingSwipeDirectionRef.current = null;
@@ -639,9 +862,10 @@ export function useEpubNavigator(
 
     // Sync theme preferences to a live navigator
     useEffect(() => {
-        navigatorRef.current?.submitPreferences(
+        const preferences = navigatorRef.current?.submitPreferences(
             new EpubPreferences(buildEpubPreferences(themeState)),
         );
+        if (preferences) void Promise.resolve(preferences).then(() => reanchorFocusRef.current?.());
     }, [themeState]);
 
     return {
@@ -654,6 +878,53 @@ export function useEpubNavigator(
         mobileSwipeOverlay,
         percentage,
         tocItems,
+        locationRef,
+        progressLabel,
+        validateStoredLocator: async (stored: Locator) => {
+            if (!stored.text?.highlight) return stored;
+            const base = resourceBaseRef.current, publication = publicationRef.current;
+            if (!base || !publication || !precisePublicationMatches(stored, mapRef.current)) return null;
+            const href = canonicalHref(stored.href, base);
+            const link = readingOrderItemsRef.current.find(item => canonicalHref(item.href, base) === href);
+            if (!link) return null;
+            const html = await publication.get(link).readAsString();
+            return html && preciseLocatorMatches(new DOMParser().parseFromString(html, "text/html"), stored) ? stored : null;
+        },
+        resolvePortable: async (location: PortableLocation) => {
+            const map = mapRef.current, base = resourceBaseRef.current, publication = publicationRef.current;
+            if (!map || !base || !publication || !compatibleLocation(map, location)) return null;
+            let target = resolvePortableTarget(map, location);
+            if (!target) throw new Error("Invalid saved chapter coordinates");
+            const loadTarget = async (href: string) => {
+                const position = positionsRef.current.find(p => canonicalHref(p.href, base) === href);
+                const link = readingOrderItemsRef.current.find(p => canonicalHref(p.href, base) === href);
+                const resource = map.resources.find(r => r.href === href);
+                if (!position || !link || !resource) throw new Error("Saved resource is not in this publication");
+                const html = await publication.get(link).readAsString();
+                if (!html) throw new Error("Saved resource text is unavailable");
+                const index = canonicalText(new DOMParser().parseFromString(html, "text/html"));
+                if (!verifiedResource(map, resource, index, false)) throw new Error("Saved resource boundaries cannot be verified");
+                return {position, resource, index};
+            };
+            let loaded = await loadTarget(target.href);
+            let chapter = map.chapters.find(ch => ch.id === location.chapterId);
+            if (chapter) {
+                const boundary = chapter.href === loaded.resource.href ? loaded : await loadTarget(chapter.href);
+                if (!verifiedResource(map, boundary.resource, boundary.index)) {
+                    target = resolvePortableTarget(map, {...location, chapterId: undefined, chapterProgression: undefined});
+                    if (!target) throw new Error("Saved resource fallback is invalid");
+                    target.label = `Chapter boundary unresolved. ${target.label}`;
+                    loaded = await loadTarget(target.href);
+                    chapter = undefined;
+                }
+            }
+            const {position, resource, index} = loaded;
+            const locator = textLocator(position, index, target.offset, chapter
+                ? {start: Math.max(0, chapter.start - resource.start), end: Math.min(index.text.length, chapter.end - resource.start)}
+                : undefined);
+            if (!locator) throw new Error("Saved chapter text is ambiguous");
+            return {locator: withPublicationIdentity(locator, map), label: target.label};
+        },
         resolvePercentage: (value: number) => approximateProgressLocator(positionsRef.current, value),
         resolveResource: (href: string) => {
             const base = resourceBaseRef.current;
@@ -665,10 +936,13 @@ export function useEpubNavigator(
             const positions = positionsRef.current;
             if (!positions.length) return stored;
             const filename = (href: string) => normalizeHref(href)?.split("/").pop();
+            const base = resourceBaseRef.current;
             const match =
-                positions.find(p => normalizeHref(p.href) === normalizeHref(stored.href)) ??
-                positions.find(p => filename(p.href) === filename(stored.href));
+                positions.find(p => normalizeHref(p.href) === normalizeHref(stored.href)
+                    || (!!base && canonicalHref(p.href, base) !== null && canonicalHref(p.href, base) === canonicalHref(stored.href, base))) ??
+                (!stored.text?.highlight ? positions.find(p => filename(p.href) === filename(stored.href)) : undefined);
             if (!match) return stored;
+            if (stored.text?.highlight) return new Locator({href: match.href, type: match.type, title: stored.title ?? match.title, text: stored.text, locations: stored.locations});
             return match.copyWithLocations({
                 progression: stored.locations.progression,
                 totalProgression: stored.locations.totalProgression ?? match.locations.totalProgression,

@@ -104,8 +104,11 @@ beforeEach(() => {
     sessionStorage.setItem("user_id", "test");
     engine.getSaved.mockResolvedValue(null);
     engine.saved.mockResolvedValue(undefined);
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("<html><body><h1>First chapter</h1><p>Original fixture text for measured legacy text weights.</p></body></html>", {
+        status: 200, headers: {"Content-Type": "application/xhtml+xml"},
+    })));
 });
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe("reader control preservation", () => {
     it("consumes EPUB selection taps and never turns pages while editing an annotation", async () => {

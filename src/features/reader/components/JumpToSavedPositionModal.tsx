@@ -4,7 +4,8 @@ import {useAppSelector} from "@/app/hooks";
 import {getReaderControlColors, ReaderDialog} from "./ReaderUI";
 
 export type ModalCase =
-    | {type: "approximate"; deviceName: string; serverPosition: Locator; serverLabel: string}
+    | {type: "approximate"; deviceName: string; serverPosition: Locator; serverLabel: string; localWork?: boolean}
+    | {type: "portable"; deviceName: string; serverPosition: Locator; serverLabel: string; localWork?: boolean}
     | {type: "jump"; deviceName: string; updatedAt: string; serverPosition: Locator; serverLabel: string}
     | {type: "conflict"; serverPosition: Locator; localPosition: Locator; serverLabel: string; localLabel: string};
 
@@ -31,9 +32,10 @@ export function JumpToSavedPositionModal({modalCase, open, onJump, onKeepLocal, 
             <Button bg={colors.text} color={colors.uiBg} _hover={{opacity: 0.9}}
                 onClick={() => onJump(modalCase.serverPosition)}>{modalCase.type === "approximate" ? "Jump to approximate percent" : "Use saved position"}</Button>
         </>}>
-        {modalCase.type === "approximate" ? <>
+        {modalCase.type === "approximate" || modalCase.type === "portable" ? <>
             <Text>KOReader on <strong>{modalCase.deviceName}</strong> has a newer reading position.</Text>
-            <Text mt={3}>{modalCase.serverLabel}. This is an approximate percentage jump, not an exact native pointer.</Text>
+            <Text mt={3}>{modalCase.serverLabel}. {modalCase.type === "portable" ? "The target section is verified; placement within it is approximate. The selected passage remains your reading point even when other sections share its page." : "This is an approximate whole-book jump, not an exact native pointer."}</Text>
+            {modalCase.localWork && <Text mt={3}>This device also has unsent reading progress. Staying here preserves it; using the saved position replaces it.</Text>}
         </> : modalCase.type === "jump" ? <>
             <Text>You were reading on <strong>{modalCase.deviceName}</strong> on {new Date(modalCase.updatedAt).toLocaleDateString(undefined, {
                 month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit",

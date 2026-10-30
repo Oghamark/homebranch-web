@@ -24,9 +24,10 @@ export async function getSavedPosition(bookId: string): Promise<SavedPosition | 
     }
 }
 
-export async function savePosition(bookId: string, request: SavePositionRequest): Promise<void> {
+export async function savePosition(bookId: string, request: SavePositionRequest): Promise<SavedPosition | undefined> {
     const userId = getUserId();
-    await axiosInstance.put(`/users/${userId}/saved-positions/${bookId}`, request);
+    const response = await axiosInstance.put(`/users/${userId}/saved-positions/${bookId}`, request);
+    return response.data || undefined;
 }
 
 export async function deleteSavedPosition(bookId: string): Promise<void> {

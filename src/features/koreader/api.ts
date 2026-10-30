@@ -1,4 +1,5 @@
 import {axiosInstance} from "@/shared/api/axios";
+import type {PortableLocation} from "@/features/reader/types/PortableLocation";
 
 export interface AnnotationAnchor {
     version: 1;
@@ -35,6 +36,7 @@ export interface CrossReaderProgress {
     device: string;
     revision: string;
     updatedAt: string;
+    location?: PortableLocation | null;
 }
 const bookPath = (id: string) => `/koreader/books/${encodeURIComponent(id)}`;
 export const getDevices = async () => (await axiosInstance.get<Device[]>("/koreader/devices")).data;

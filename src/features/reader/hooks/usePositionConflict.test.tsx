@@ -6,6 +6,7 @@ import {getSavedPosition} from "../api/savedPositionApi";
 import {getCrossReaderProgress} from "@/features/koreader/api";
 import {usePositionConflict} from "./usePositionConflict";
 import {installMemoryStorage} from "@/test/memoryStorage";
+import {storePositionSyncState} from "../utils/savedPositionState";
 vi.mock("../api/savedPositionApi", () => ({getSavedPosition: vi.fn()}));
 vi.mock("@/features/koreader/api", () => ({getCrossReaderProgress: vi.fn()}));
 vi.mock("@/shared/lib/toast/toast", () => ({default: vi.fn()}));
@@ -16,14 +17,14 @@ beforeEach(() => {
     installMemoryStorage(); sessionStorage.setItem("user_id", "account");
     saved.mockReset(); cross.mockReset(); saved.mockResolvedValue(null); cross.mockResolvedValue(remote);
 });
-function setup() {
+function setup(options?: {portable?: (location: any) => Promise<{locator: Locator; label: string} | null>; hold?: {current: boolean}; failJump?: boolean}) {
     const enabled = {current: false};
-    const go = vi.fn((_loc, _animated, callback) => callback(true));
+    const go = vi.fn((_loc, _animated, callback) => callback(!options?.failJump));
     const nav = {current: {go, currentLocator: locator} as unknown as EpubNavigator};
     const change = vi.fn(), immediate = vi.fn(async () => {});
     const resolve = (position: Locator) => position;
     const percentage = vi.fn(() => locator);
-    const hook = renderHook(() => usePositionConflict("book", nav, "Browser", true, change, immediate, resolve, {current: "http://localhost/epub/"}, enabled, percentage));
+    const hook = renderHook(() => usePositionConflict("book", nav, "Browser", true, change, immediate, resolve, {current: "http://localhost/epub/"}, enabled, percentage, options?.portable, options?.hold));
     return {...hook, enabled, go, change, percentage};
 }
 describe("startup cross-reader position choice", () => {
@@ -33,7 +34,7 @@ describe("startup cross-reader position choice", () => {
         await waitFor(() => expect(hook.result.current.modalCase?.type).toBe("approximate"));
         expect(hook.enabled.current).toBe(false);
         expect(hook.percentage).toHaveBeenCalledWith(0.6);
-        act(() => hook.result.current.handleJump(locator));
+        await act(async () => { await hook.result.current.handleJump(locator); });
         expect(hook.enabled.current).toBe(true);
         expect(hook.go).toHaveBeenCalledWith(locator, true, expect.any(Function));
         expect(hook.change).toHaveBeenCalledWith(locator, 0.6);
@@ -63,5 +64,41 @@ describe("startup cross-reader position choice", () => {
         act(() => hook.result.current.retryPosition());
         await waitFor(() => expect(hook.result.current.modalCase?.type).toBe("approximate"));
         expect(hook.result.current.positionError).toBe("");
+    });
+    it("uses shared revisions despite clock skew, warns about pending local work, and holds generated restore saves", async () => {
+        storePositionSyncState("book", {revision: "1", pending: true});
+        localStorage.setItem("reader_position_time_account_book", String(Date.parse("2099-01-01T00:00:00Z")));
+        cross.mockResolvedValue({...remote, location: {version: 1, formatId: "format", contentHash: "hash", mapFingerprint: "map", href: "two.xhtml", resourceProgression: 0.2, chapterId: "two.xhtml#part", chapterProgression: 0.5, basis: "text"}});
+        const hold = {current: false};
+        const portable = vi.fn(async () => ({locator, label: "Verified chapter, approximately 50% through chapter"}));
+        const hook = setup({portable, hold});
+        await waitFor(() => expect(hook.result.current.modalCase?.type).toBe("portable"));
+        expect(hook.percentage).not.toHaveBeenCalled();
+        expect(hook.result.current.modalCase).toMatchObject({localWork: true});
+        await act(async () => { await hook.result.current.handleJump(locator); });
+        expect(hold.current).toBe(true);
+        expect(hook.enabled.current).toBe(false);
+    });
+    it("keeps saves paused and shows a restore failure instead of dismissing the choice", async () => {
+        const hook = setup({failJump: true});
+        await waitFor(() => expect(hook.result.current.modalCase?.type).toBe("approximate"));
+        await act(async () => { await hook.result.current.handleJump(locator); });
+        expect(hook.enabled.current).toBe(false);
+        expect(hook.result.current.positionError).toContain("Unable to jump");
+        expect(hook.result.current.modalCase).not.toBeNull();
+    });
+    it("does not turn invalid portable coordinates into a successful whole-book jump", async () => {
+        cross.mockResolvedValue({...remote, location: {} as any});
+        const hook = setup({portable: async () => { throw new Error("Invalid saved chapter coordinates"); }});
+        await waitFor(() => expect(hook.result.current.positionError).toContain("No guessed jump"));
+        expect(hook.enabled.current).toBe(false);
+        expect(hook.percentage).not.toHaveBeenCalled();
+    });
+    it("labels an unavailable or stale chapter map as whole-book fallback", async () => {
+        cross.mockResolvedValue({...remote, location: {} as any});
+        const hook = setup({portable: async () => null});
+        await waitFor(() => expect(hook.result.current.modalCase?.type).toBe("approximate"));
+        expect(hook.result.current.modalCase?.serverLabel).toContain("Chapter map unavailable or changed");
+        expect(hook.enabled.current).toBe(false);
     });
 });
