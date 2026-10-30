@@ -19,6 +19,7 @@ interface ReaderControlsProps {
     colors: ThemeColors;
     showKeyboardHint: boolean;
     isMobile: boolean;
+    controlsVisible?: boolean;
     isChapterTransitioning: boolean;
     tocItems: Link[];
     navigatorRef: React.RefObject<EpubNavigator | null>;
@@ -32,6 +33,7 @@ export function ReaderControls({
     colors,
     showKeyboardHint,
     isMobile,
+    controlsVisible = true,
     isChapterTransitioning,
     tocItems,
     navigatorRef,
@@ -63,6 +65,7 @@ export function ReaderControls({
     return (
         <>
             {/* Top-left: TOC */}
+            {controlsVisible && (
             <Button
                 aria-label="Table of contents"
                 aria-haspopup="dialog"
@@ -82,6 +85,7 @@ export function ReaderControls({
             >
                 <LuList /> Contents
             </Button>
+            )}
 
             <ReaderToc
                 isOpen={isTocOpen}
@@ -99,6 +103,8 @@ export function ReaderControls({
                 colors={colors}
             />
 
+            {controlsVisible && (
+                <>
             {/* Top-center-right: Settings */}
             <ReaderSettingsMenu />
 
@@ -120,6 +126,8 @@ export function ReaderControls({
             >
                 <LuX />
             </IconButton>
+                </>
+            )}
 
             {/* Side navigation arrows, hidden on mobile */}
             {!isMobile && (
