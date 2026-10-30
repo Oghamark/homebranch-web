@@ -2,6 +2,7 @@ import {render, screen} from "@testing-library/react";
 import {beforeEach, describe, expect, it, vi} from "vitest";
 import {MemoryRouter} from "react-router";
 import {Provider} from "@/shared/ui/provider";
+import {installMemoryStorage} from "@/test/memoryStorage";
 import Dashboard from "./dashboard";
 
 const mocks = vi.hoisted(() => ({
@@ -33,6 +34,7 @@ function renderDashboard() {
 }
 
 beforeEach(() => {
+    installMemoryStorage();
     sessionStorage.setItem("user_id", "dashboard-user");
     localStorage.removeItem("currentlyReading_dashboard-user");
     mocks.recent = {currentData: {pages: [{data: [book("recent-1", "New Addition")]}]}, isFetching: false, isError: false, refetch: vi.fn()};
