@@ -3,7 +3,7 @@ import type {BookModel, CreateBookRequest} from "@/entities/book";
 import type {PaginationResult} from "@/shared/api/api_response";
 import {config} from "@/shared";
 import type {QueriedSearch} from "@/entities/book/api/types";
-import type {GetBooksByIdsRequest} from "@/entities/book/api/dtos";
+import type {GetBooksByIdsRequest, UpdateBookPayload} from "@/entities/book/api/dtos";
 import type {BookDuplicateWithBooksModel} from "@/entities/book/model/BookDuplicateModel";
 
 export type CreateBookResult = BookModel | {skipped: true; existingBook: BookModel};
@@ -269,8 +269,8 @@ export const booksApi = homebranchApi.injectEndpoints({
                 return {url: '/books/audiobook/preview', method: 'POST', body: formData};
             },
         }),
-        updateBook: build.mutation<BookModel, BookModel>({
-            query: (book: BookModel) => ({url: `/books/${book.id}`, method: 'PUT', body: book}),
+        updateBook: build.mutation<BookModel, UpdateBookPayload>({
+            query: (book) => ({url: `/books/${book.id}`, method: 'PUT', body: book}),
             invalidatesTags: result => result ? [{type: 'Book' as const, id: result.id}] : []
         }),
         linkBooks: build.mutation<BookModel, {targetBookId: string; sourceBookId: string}>({
