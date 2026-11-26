@@ -11,6 +11,11 @@ const mocks = vi.hoisted(() => ({
     result: {} as Record<string, unknown>,
     shelfResult: {} as Record<string, unknown>,
     query: "",
+    booksQuery: vi.fn(),
+    filters: {
+        genre: "Fantasy", yearFrom: "1990", yearTo: "", series: "Earthsea",
+        language: "English", publisher: "Ace", sortBy: "author", sortDirection: "DESC",
+    },
     refetch: vi.fn(),
     shelfBooks: vi.fn(),
     discovery: {} as Record<string, unknown>,
@@ -21,12 +26,13 @@ vi.mock("@/features/library", async importOriginal => ({
     ...await importOriginal<typeof import("@/features/library")>(),
     CollectionToolbar: () => <div>Collection controls</div>,
     useLibrarySearch: () => mocks.query,
+    useLibraryFilters: () => ({filters: mocks.filters}),
     useLibraryDisplayMode: () => "grid",
     useShowAllUsers: () => false,
 }));
 vi.mock("@/entities/book", async () => ({
     ...await import("@/entities/book/ui/BookCard"),
-    useGetBooksInfiniteQuery: () => mocks.result,
+    useGetBooksInfiniteQuery: (args: unknown) => {mocks.booksQuery(args); return mocks.result;},
     useGetFavoriteBooksInfiniteQuery: () => mocks.result,
     useGetBooksByIdsQuery: () => mocks.result,
     AddBookButton: () => <button>Add books</button>,
@@ -59,6 +65,7 @@ beforeEach(() => {
     });
     mocks.query = "";
     mocks.refetch.mockClear();
+    mocks.booksQuery.mockClear();
     mocks.shelfBooks.mockClear();
     mocks.retryDiscovery.mockClear();
     sessionStorage.setItem("user_id", "test-user");
@@ -70,6 +77,22 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("collection request states", () => {
+    it("passes Library filters and sorting to the paginated books query", () => {
+        renderPage(<Library/>);
+        expect(mocks.booksQuery).toHaveBeenCalledWith({
+            query: "",
+            userId: "test-user",
+            genreFilter: "Fantasy",
+            yearFrom: "1990",
+            yearTo: undefined,
+            seriesFilter: "Earthsea",
+            language: "English",
+            publisher: "Ace",
+            sortBy: "author",
+            sortDirection: "DESC",
+        });
+    });
+
     it("exposes the existing upload action in the main library header", () => {
         renderPage(<Library/>);
         expect(screen.getByRole("banner")).toContainElement(screen.getByRole("button", {name: "Add books"}));

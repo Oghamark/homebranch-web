@@ -11,6 +11,7 @@ export type {BookDuplicateModel, BookDuplicateWithBooksModel} from "./model/Book
 // API
 export {
     useGetBooksInfiniteQuery,
+    useGetGenresQuery,
     useGetFavoriteBooksInfiniteQuery,
     useGetBookByIdQuery,
     useGetBooksByIdsQuery,
