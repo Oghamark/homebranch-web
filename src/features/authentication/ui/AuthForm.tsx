@@ -13,12 +13,22 @@ export function AuthForm({signup = false, oidcEnabled, oidcProviderName, notice}
     const fetcher = useFetcher<AuthFormResult>();
     const [validation, setValidation] = useState<AuthFormResult>({});
     const [providerPending, setProviderPending] = useState(false);
+    const [recoveryEnabled, setRecoveryEnabled] = useState(false);
     const submitting = useRef(false);
     const busy = fetcher.state !== "idle";
     const errors = validation.fieldErrors ?? fetcher.data?.fieldErrors ?? {};
     useEffect(() => {
         if (!busy) submitting.current = false;
     }, [busy]);
+    useEffect(() => {
+        if (signup) return;
+        const controller = new AbortController();
+        fetch(`${config.apiUrl}/password-recovery/status`, {signal: controller.signal})
+            .then(response => response.ok ? response.json() : Promise.reject(new Error("Recovery status unavailable")))
+            .then(data => setRecoveryEnabled(data.configured === true))
+            .catch(error => { if (error.name !== "AbortError") console.error("Could not load password recovery status", error); });
+        return () => controller.abort();
+    }, [signup]);
 
     return <Stack gap={5}>
         {notice && <ErrorState>{notice}</ErrorState>}
@@ -53,6 +63,7 @@ export function AuthForm({signup = false, oidcEnabled, oidcProviderName, notice}
                     minH="44px" error={!!errors.email} errorText={errors.email}/>
                 <PasswordTextField name="password" label="Password" required autoComplete={signup ? "new-password" : "current-password"}
                     error={!!errors.password} errorText={errors.password}/>
+                {!signup && recoveryEnabled && <Link to="/forgot-password" style={{textDecoration: "underline"}}>Forgot password?</Link>}
                 {signup && <PasswordTextField name="password_confirmation" label="Confirm password" required autoComplete="new-password"
                     error={!!errors.password_confirmation} errorText={errors.password_confirmation}/>}
                 <Button type="submit" colorPalette="orange" minH="44px" w="full" loading={busy} disabled={busy || providerPending}>

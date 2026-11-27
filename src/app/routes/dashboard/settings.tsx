@@ -10,6 +10,7 @@ import {SettingsNavigationGuard} from "@/features/settings/SettingsNavigationGua
 import {RegistrationSettings, SignInSettings} from "@/features/settings/SignInSettings";
 import {SocialSettings} from "@/features/social/SocialSettings";
 import {KoreaderSettings} from "@/features/koreader/KoreaderSettings";
+import {ChangePassword} from "@/features/authentication/ui/ChangePassword";
 
 export function meta({}: Route.MetaArgs) {
     return [{title: "Homebranch - Settings"}];
@@ -39,10 +40,19 @@ function AppearanceSettings() {
     </PageSection>;
 }
 
+function PasswordSettings() {
+    const id = sessionStorage.getItem("user_id");
+    const query = useGetUserByIdQuery(id ?? "", {skip: !id});
+    if (query.isLoading) return <LoadingState label="Loading your account..."/>;
+    if (!query.data || query.isError) return <ErrorState onRetry={id ? query.refetch : undefined}>Your account could not be loaded.</ErrorState>;
+    if (query.data.provider !== "LOCAL") return <PageSection title="Change password" description="Passwords for this account are managed by your identity provider." ><Text>Contact your identity provider to change your password.</Text></PageSection>;
+    return <ChangePassword/>;
+}
+
 function SettingsSections() {
     const isAdmin = sessionStorage.getItem("user_role") === "ADMIN";
     const [params] = useSearchParams();
-    const personal = [["profile", "Profile"], ["appearance", "Appearance"], ["privacy", "Friends and invitations"], ["kindle", "Send to Kindle"], ["koreader", "KOReader"]];
+    const personal = [["profile", "Profile"], ["password", "Password"], ["appearance", "Appearance"], ["privacy", "Friends and invitations"], ["kindle", "Send to Kindle"], ["koreader", "KOReader"]];
     const admin = isAdmin ? [["email", "Email delivery"], ["sign-in", "Sign-in integrations"],
         ...(!config.cloudMode ? [["registration", "Registration"]] : [])] : [];
     const requested = params.get("section") ?? "profile";
@@ -66,6 +76,7 @@ function SettingsSections() {
         </Stack>
         <Box bg="bg.panel" borderWidth="1px" borderRadius="xl" p={{base: 4, md: 6}} minW={0}>
             {section === "profile" && <ProfileSettings/>}
+            {section === "password" && <PasswordSettings/>}
             {section === "appearance" && <AppearanceSettings/>}
             {section === "privacy" && <SocialSettings/>}
             {section === "kindle" && <KindleSettingsCard/>}
