@@ -94,13 +94,37 @@ export function AudioReader({ book, format }: AudioReaderProps) {
     format === "MP3"
       ? book.formats?.find((item) => item.format === "MP3")?.audioTracks ?? []
       : [];
+  const chapters = (
+    book.formats?.find((item) => item.format === format)?.audioChapters ?? []
+  )
+    .filter((chapter) =>
+      Number.isFinite(chapter.startTime) &&
+      chapter.startTime >= 0 &&
+      (!duration || chapter.startTime < duration)
+    )
+    .sort((left, right) => left.startTime - right.startTime)
+    .filter((chapter, index, items) =>
+      index === 0 || chapter.startTime !== items[index - 1].startTime
+    );
   const trackCount = Math.max(1, tracks.length);
   const [currentTrack, setCurrentTrack] = useState(0);
   const trackQuery = format === "MP3" ? `&track=${currentTrack}` : "";
   const source = `${config.apiUrl}/books/${book.id}/download?format=${format}${trackQuery}&inline=true`;
   const currentTrackTitle = tracks[currentTrack]?.title ?? book.title;
+  const currentChapter = chapters.reduce(
+    (current, chapter, index) =>
+      chapter.startTime <= currentTime ? index : current,
+    -1
+  );
+  const showChapterList = chapters.length > 0 || tracks.length > 1;
   const progress =
     duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
+  const chapterSections = duration > 0
+    ? chapters.map((chapter, index) => ({
+        ...chapter,
+        endTime: chapters[index + 1]?.startTime ?? duration,
+      }))
+    : [];
 
   useEffect(() => {
     if (resumePlaybackRef.current && audioRef.current) {
@@ -191,6 +215,30 @@ export function AudioReader({ book, format }: AudioReaderProps) {
       audioRef.current !== null && !audioRef.current.paused;
     setCurrentTrack(track);
   };
+
+  const selectChapter = (startTime: number) => {
+    const audio = audioRef.current;
+    if (!audio || !Number.isFinite(startTime) || startTime < 0) return;
+    audio.currentTime = Math.min(startTime, duration || startTime);
+    setCurrentTime(audio.currentTime);
+  };
+
+  const chapterListItems =
+    chapters.length > 0
+      ? chapters.map((chapter, index) => ({
+          key: `${chapter.startTime}-${index}`,
+          title: chapter.title,
+          isCurrent: index === currentChapter,
+          startTime: chapter.startTime,
+          onSelect: () => selectChapter(chapter.startTime),
+        }))
+      : tracks.map((track, index) => ({
+          key: `${track.fileName}-${index}`,
+          title: track.title,
+          isCurrent: index === currentTrack,
+          startTime: undefined,
+          onSelect: () => selectTrack(index),
+        }));
 
   const seekBy = (seconds: number) => {
     if (!audioRef.current) return;
@@ -322,26 +370,96 @@ export function AudioReader({ book, format }: AudioReaderProps) {
             </Stack>
 
             <Stack gap={3}>
-              <input
-                aria-label="Playback position"
-                type="range"
-                min={0}
-                max={duration || 0}
-                step={1}
-                value={Math.min(currentTime, duration || 0)}
-                disabled={!duration}
-                onChange={(event) => {
-                  const nextTime = Number(event.target.value);
-                  if (audioRef.current) audioRef.current.currentTime = nextTime;
-                  setCurrentTime(nextTime);
-                }}
-                style={{
-                  width: "100%",
-                  height: 44,
-                  accentColor: "var(--chakra-colors-orange-solid, #a34c12)",
-                  cursor: duration ? "pointer" : "default",
-                }}
-              />
+              <Box position="relative" height="44px">
+                {chapterSections.length > 0 && (
+                  <Flex
+                    position="absolute"
+                    insetX={0}
+                    top="50%"
+                    transform="translateY(-50%)"
+                    height="8px"
+                    gap="2px"
+                    pointerEvents="none"
+                    role="list"
+                    aria-label="Audiobook chapter sections"
+                  >
+                    {chapterSections[0].startTime > 0 && (
+                      <Box
+                        aria-hidden="true"
+                        flex={`${chapterSections[0].startTime} 1 0%`}
+                        bg="bg.emphasized"
+                        borderRadius="sm"
+                      />
+                    )}
+                    {chapterSections.map((chapter, index) => {
+                      const played = Math.max(0, Math.min(100,
+                        (currentTime - chapter.startTime) / (chapter.endTime - chapter.startTime) * 100
+                      ));
+                      return (
+                        <Box
+                          key={chapter.startTime}
+                          role="listitem"
+                          aria-label={`${chapter.title}: ${formatTime(chapter.startTime)} to ${formatTime(chapter.endTime)}`}
+                          aria-current={index === currentChapter ? "true" : undefined}
+                          flex={`${chapter.endTime - chapter.startTime} 1 0%`}
+                          minW={0}
+                          borderRadius="sm"
+                          bg="bg.emphasized"
+                          backgroundImage={`linear-gradient(to right, var(--chakra-colors-orange-solid) ${played}%, transparent ${played}%)`}
+                        />
+                      );
+                    })}
+                  </Flex>
+                )}
+                <Box
+                  asChild
+                  css={chapterSections.length > 0 ? {
+                    appearance: "none",
+                    background: "transparent",
+                    position: "relative",
+                    margin: 0,
+                    "&::-webkit-slider-runnable-track": {height: "8px", background: "transparent"},
+                    "&::-webkit-slider-thumb": {
+                      appearance: "none",
+                      width: "16px",
+                      height: "16px",
+                      marginTop: "-4px",
+                      borderRadius: "full",
+                      background: "orange.solid",
+                    },
+                    "&::-moz-range-track": {height: "8px", background: "transparent"},
+                    "&::-moz-range-progress": {background: "transparent"},
+                    "&::-moz-range-thumb": {
+                      width: "16px",
+                      height: "16px",
+                      border: 0,
+                      borderRadius: "full",
+                      background: "orange.solid",
+                    },
+                  } : undefined}
+                >
+                  <input
+                    aria-label="Playback position"
+                    type="range"
+                    min={0}
+                    max={duration || 0}
+                    step={1}
+                    value={Math.min(currentTime, duration || 0)}
+                    disabled={!duration}
+                    onChange={(event) => {
+                      const nextTime = Number(event.target.value);
+                      if (audioRef.current) audioRef.current.currentTime = nextTime;
+                      setCurrentTime(nextTime);
+                    }}
+                    style={{
+                      width: "100%",
+                      height: 44,
+                      accentColor: "var(--chakra-colors-orange-solid, #a34c12)",
+                      cursor: duration ? "pointer" : "default",
+                    }}
+                  />
+                </Box>
+              </Box>
               <Flex
                 justify="space-between"
                 color="fg.subtle"
@@ -352,7 +470,7 @@ export function AudioReader({ book, format }: AudioReaderProps) {
                 <Text>{formatTime(duration)}</Text>
               </Flex>
 
-              <HStack justify="center" gap={{ base: 1, md: 4 }} pt={2} css={{"& button": {minWidth: "44px", minHeight: "44px"}}}>
+              <HStack justify="center" flexWrap="wrap" gap={{ base: 1, md: 4 }} pt={2} css={{"& button": {minWidth: "44px", minHeight: "44px"}}}>
                 {tracks.length > 1 && (
                   <IconButton
                     aria-label="Previous track"
@@ -361,6 +479,18 @@ export function AudioReader({ book, format }: AudioReaderProps) {
                     color="fg.muted"
                     disabled={currentTrack === 0}
                     onClick={() => selectTrack(currentTrack - 1)}
+                  >
+                    <LuSkipBack />
+                  </IconButton>
+                )}
+                {chapters.length > 0 && (
+                  <IconButton
+                    aria-label="Previous chapter"
+                    variant="ghost"
+                    size="lg"
+                    color="fg.muted"
+                    disabled={!duration || currentChapter <= 0}
+                    onClick={() => selectChapter(chapters[currentChapter - 1].startTime)}
                   >
                     <LuSkipBack />
                   </IconButton>
@@ -393,6 +523,18 @@ export function AudioReader({ book, format }: AudioReaderProps) {
                 >
                   <LuFastForward />
                 </IconButton>
+                {chapters.length > 0 && (
+                  <IconButton
+                    aria-label="Next chapter"
+                    variant="ghost"
+                    size="lg"
+                    color="fg.muted"
+                    disabled={!duration || currentChapter >= chapters.length - 1}
+                    onClick={() => selectChapter(chapters[currentChapter + 1].startTime)}
+                  >
+                    <LuSkipForward />
+                  </IconButton>
+                )}
                 {tracks.length > 1 && (
                   <IconButton
                     aria-label="Next track"
@@ -408,7 +550,7 @@ export function AudioReader({ book, format }: AudioReaderProps) {
               </HStack>
             </Stack>
 
-            {tracks.length > 1 && (
+            {showChapterList && (
               <Stack
                 gap={1}
                 pt={5}
@@ -427,43 +569,49 @@ export function AudioReader({ book, format }: AudioReaderProps) {
                 >
                   Chapters
                 </Text>
-                {tracks.map((track, index) => {
-                  const isCurrentTrack = index === currentTrack;
-                  return (
-                    <Button
-                      key={`${track.fileName}-${index}`}
-                      variant="ghost"
-                      justifyContent="flex-start"
-                      h="auto"
-                      minH="44px"
-                      px={3}
-                      py={2}
-                      aria-current={isCurrentTrack ? "true" : undefined}
-                      color={isCurrentTrack ? "orange.fg" : "fg.muted"}
-                      bg={isCurrentTrack ? "orange.subtle" : "transparent"}
-                      _hover={{
-                        bg: isCurrentTrack ? "orange.subtle" : "bg.muted",
-                      }}
-                      onClick={() => selectTrack(index)}
+                {chapterListItems.map((item, index) => (
+                  <Button
+                    key={item.key}
+                    variant="ghost"
+                    justifyContent="flex-start"
+                    h="auto"
+                    minH="44px"
+                    px={3}
+                    py={2}
+                    aria-current={item.isCurrent ? "true" : undefined}
+                    color={item.isCurrent ? "orange.fg" : "fg.muted"}
+                    bg={item.isCurrent ? "orange.subtle" : "transparent"}
+                    _hover={{
+                      bg: item.isCurrent ? "orange.subtle" : "bg.muted",
+                    }}
+                    onClick={item.onSelect}
+                  >
+                    <Text
+                      w="2.5em"
+                      flexShrink={0}
+                      textAlign="left"
+                      fontSize="xs"
+                      fontVariantNumeric="tabular-nums"
                     >
+                      {String(index + 1).padStart(2, "0")}
+                    </Text>
+                    <Text flex={1} textAlign="left" truncate fontSize="sm">
+                      {item.title}
+                    </Text>
+                    {item.startTime !== undefined && (
                       <Text
-                        w="2.5em"
-                        flexShrink={0}
-                        textAlign="left"
+                        color="fg.subtle"
                         fontSize="xs"
                         fontVariantNumeric="tabular-nums"
                       >
-                        {String(index + 1).padStart(2, "0")}
+                        {formatTime(item.startTime)}
                       </Text>
-                      <Text flex={1} textAlign="left" truncate fontSize="sm">
-                        {track.title}
-                      </Text>
-                      {isCurrentTrack && isPlaying && (
-                        <LuAudioLines size={16} />
-                      )}
-                    </Button>
-                  );
-                })}
+                    )}
+                    {item.isCurrent && isPlaying && (
+                      <LuAudioLines size={16} />
+                    )}
+                  </Button>
+                ))}
               </Stack>
             )}
           </Stack>
@@ -490,7 +638,7 @@ export function AudioReader({ book, format }: AudioReaderProps) {
         onLoadedMetadata={() => {
           const audio = audioRef.current;
           if (!audio) return;
-          setDuration(audio.duration);
+          setDuration(Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 0);
           trackSwitchPendingRef.current = false;
           if (
             pendingSeekRef.current !== null &&

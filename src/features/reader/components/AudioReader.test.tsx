@@ -1,4 +1,4 @@
-import {fireEvent, render, screen, waitFor} from "@testing-library/react";
+import {fireEvent, render, screen, waitFor, within} from "@testing-library/react";
 import {MemoryRouter} from "react-router";
 import {afterEach, beforeEach, describe, expect, it, vi} from "vitest";
 import {Provider} from "@/shared/ui/provider";
@@ -24,8 +24,8 @@ beforeEach(() => {
 });
 afterEach(() => vi.restoreAllMocks());
 
-function setup(format: "MP3" | "M4B" = "MP3") {
-    const ui = (theme: "light" | "dark") => <Provider forcedTheme={theme}><MemoryRouter><AudioReader book={book} format={format}/></MemoryRouter></Provider>;
+function setup(format: "MP3" | "M4B" = "MP3", audioBook: BookModel = book) {
+    const ui = (theme: "light" | "dark") => <Provider forcedTheme={theme}><MemoryRouter><AudioReader book={audioBook} format={format}/></MemoryRouter></Provider>;
     const result = render(ui("light"));
     const audio = result.container.querySelector("audio")!;
     let paused = true;
@@ -91,6 +91,91 @@ describe("audio controls preserve media behavior", () => {
         expect(audio.src).toContain("format=M4B&inline=true");
         expect(audio.src).not.toContain("track=");
         expect(screen.queryByRole("button", {name: "Next track"})).not.toBeInTheDocument();
+        expect(screen.queryByRole("button", {name: "Next chapter"})).not.toBeInTheDocument();
+        expect(screen.queryByRole("list", {name: "Audiobook chapter sections"})).not.toBeInTheDocument();
+        expect(screen.queryByText("Chapters")).not.toBeInTheDocument();
+    });
+
+    it.each(["MP3", "M4B"] as const)("lists and seeks embedded %s chapters", (format) => {
+        const chapterBook: BookModel = {
+            ...book,
+            formats: [{
+                id: format.toLowerCase(),
+                format,
+                fileName: format === "MP3" ? "single.mp3" : "book.m4b",
+                audioChapters: [
+                    {title: "Opening", startTime: 0},
+                    {title: "The Door", startTime: 62.5},
+                ],
+            }],
+        };
+        const {audio} = setup(format, chapterBook);
+
+        const chapter = screen.getByRole("button", {name: /02 The Door 1:02/});
+        fireEvent.click(chapter);
+
+        expect(audio.currentTime).toBe(62.5);
+        expect(chapter).toHaveAttribute("aria-current", "true");
+    });
+
+    it.each(["MP3", "M4B"] as const)("segments the %s seek track and skips chapters without interrupting playback", (format) => {
+        const chapterBook: BookModel = {
+            ...book,
+            formats: [{
+                id: format.toLowerCase(), format, fileName: `book.${format.toLowerCase()}`,
+                audioChapters: [
+                    {title: "Opening", startTime: 0},
+                    {title: "Middle", startTime: 30},
+                    {title: "Ending", startTime: 90},
+                ],
+            }],
+        };
+        const {audio, play, container} = setup(format, chapterBook);
+        const sections = screen.getByRole("list", {name: "Audiobook chapter sections"});
+        const segments = within(sections).getAllByRole("listitem");
+        expect(segments).toHaveLength(3);
+        expect(segments[0]).toHaveAttribute("aria-label", "Opening: 0:00 to 0:30");
+        expect(segments[0]).toHaveStyle({flex: "30 1 0%"});
+        expect(segments[1]).toHaveStyle({flex: "60 1 0%"});
+        expect(segments[2]).toHaveStyle({flex: "30 1 0%"});
+        expect(screen.getByRole("button", {name: "Previous chapter"})).toBeDisabled();
+
+        fireEvent.click(screen.getByRole("button", {name: "Next chapter"}));
+        expect(audio.currentTime).toBe(30);
+        expect(play).not.toHaveBeenCalled();
+        expect(segments[1]).toHaveAttribute("aria-current", "true");
+        fireEvent.click(screen.getByRole("button", {name: "Play"}));
+        const source = audio.src;
+        fireEvent.click(screen.getByRole("button", {name: "Next chapter"}));
+        expect(audio.currentTime).toBe(90);
+        expect(screen.getByRole("button", {name: "Next chapter"})).toBeDisabled();
+        expect(screen.getByRole("button", {name: "Pause"})).toBeVisible();
+        expect(play).toHaveBeenCalledOnce();
+        expect(audio.src).toBe(source);
+        expect(container.querySelector("audio")).toBe(audio);
+
+        fireEvent.click(screen.getByRole("button", {name: "Previous chapter"}));
+        expect(audio.currentTime).toBe(30);
+        fireEvent.change(screen.getByRole("slider", {name: "Playback position"}), {target: {value: "20"}});
+        expect(segments[0]).toHaveAttribute("aria-current", "true");
+        expect(screen.getByRole("button", {name: "Previous chapter"})).toBeDisabled();
+        fireEvent.click(screen.getByRole("button", {name: "Forward 15 seconds"}));
+        expect(audio.currentTime).toBe(35);
+        expect(segments[1]).toHaveAttribute("aria-current", "true");
+    });
+
+    it("waits for a finite duration before showing chapter sections or enabling chapter skips", () => {
+        const {audio} = setup("M4B", {
+            ...book,
+            formats: [{id: "m4b", format: "M4B", fileName: "book.m4b", audioChapters: [
+                {title: "Opening", startTime: 0}, {title: "Ending", startTime: 60},
+            ]}],
+        });
+        Object.defineProperty(audio, "duration", {configurable: true, value: Infinity});
+        fireEvent.loadedMetadata(audio);
+        expect(screen.queryByRole("list", {name: "Audiobook chapter sections"})).not.toBeInTheDocument();
+        expect(screen.getByRole("slider", {name: "Playback position"})).toBeDisabled();
+        expect(screen.getByRole("button", {name: "Next chapter"})).toBeDisabled();
     });
 
     it("keeps the ten-second timeupdate save cadence", async () => {

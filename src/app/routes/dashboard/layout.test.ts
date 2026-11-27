@@ -11,6 +11,7 @@ vi.mock("@/components/navigation/NavigationCard", () => ({NavigationCard: () => 
 vi.mock("@/components/navigation/MobileNavigation", () => ({MobileNavigation: () => null}));
 vi.mock("@/shared/hooks", () => ({useLibraryEvents: () => undefined}));
 vi.mock("@/entities/book", () => ({DragDropOverlay: () => null}));
+vi.mock("@/features/library/selection/BulkBookActions", () => ({BulkBookActions: () => null}));
 
 beforeEach(() => {
     vi.resetModules(); vi.clearAllMocks(); sessionStorage.clear();

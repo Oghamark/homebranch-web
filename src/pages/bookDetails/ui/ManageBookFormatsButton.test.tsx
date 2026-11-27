@@ -1,14 +1,15 @@
-import {fireEvent, render, screen, within} from "@testing-library/react";
+import {fireEvent, render, screen, waitFor, within} from "@testing-library/react";
 import {beforeEach, describe, expect, it, vi} from "vitest";
 import {Provider} from "@/shared/ui/provider";
 import {ManageBookFormatsButton} from "./ManageBookFormatsButton";
 import type {BookModel} from "@/entities/book";
 
-const api = vi.hoisted(() => ({link: vi.fn(), unlink: vi.fn(), refetch: vi.fn(), failed: false}));
+const api = vi.hoisted(() => ({link: vi.fn(), unlink: vi.fn(), deleteFormat: vi.fn(), refetch: vi.fn(), failed: false}));
 vi.mock("@uidotdev/usehooks", () => ({useDebounce: (value: unknown) => value}));
 vi.mock("@/entities/book", () => ({
     useLinkBooksMutation: () => [api.link, {}],
     useUnlinkBookFormatMutation: () => [api.unlink],
+    useDeleteBookFormatMutation: () => [api.deleteFormat],
     useSearchBooksQuery: () => ({
         data: [{id: "source", title: "Other edition", author: "Writer", fileName: "source.pdf"}],
         isError: api.failed, isFetching: false, refetch: api.refetch,
@@ -57,11 +58,30 @@ describe("format maintenance", () => {
         expect(api.unlink).toHaveBeenCalledWith({bookId: "target", formatId: "pdf"});
     });
 
+    it("confirms deletion of a format without removing the book", async () => {
+        api.deleteFormat.mockReturnValue({unwrap: () => Promise.resolve({...book, formats: [book.formats![0]]})});
+        const manager = await open();
+        fireEvent.click(within(manager).getByRole("button", {name: "Delete PDF"}));
+        const confirm = await screen.findByRole("alertdialog", {name: "Delete PDF from The Orchard?"});
+        expect(confirm).toHaveAccessibleDescription(/book and its other formats will remain/);
+        expect(api.deleteFormat).not.toHaveBeenCalled();
+        fireEvent.click(within(confirm).getByRole("button", {name: "Delete PDF"}));
+        await waitFor(() => expect(api.deleteFormat).toHaveBeenCalledWith({bookId: "target", formatId: "pdf"}));
+    });
+
+    it("does not offer deletion for a single format", async () => {
+        render(<Provider><ManageBookFormatsButton book={{...book, formats: [book.formats![0]]}} canManage/></Provider>);
+        fireEvent.click(screen.getByRole("button", {name: "Manage format links"}));
+        const manager = await screen.findByRole("dialog");
+        expect(within(manager).queryByRole("button", {name: "Delete EPUB"})).not.toBeInTheDocument();
+    });
+
     it("preserves read-only permissions and distinguishes failed search", async () => {
         const {unmount} = render(<Provider><ManageBookFormatsButton book={book} canManage={false}/></Provider>);
         fireEvent.click(screen.getByRole("button", {name: "Manage format links"}));
         const readOnly = await screen.findByRole("dialog");
         expect(within(readOnly).queryByRole("button", {name: "Unlink PDF"})).not.toBeInTheDocument();
+        expect(within(readOnly).queryByRole("button", {name: "Delete PDF"})).not.toBeInTheDocument();
         expect(within(readOnly).queryByRole("textbox")).not.toBeInTheDocument();
         unmount();
         api.failed = true;

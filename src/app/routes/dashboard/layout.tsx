@@ -9,6 +9,8 @@ import {DragDropOverlay} from "@/entities/book";
 import {checkCloudAccess} from "@/features/authentication/api/cloudAccess";
 import {store} from "@/app/store";
 import {authenticationApi, homebranchApi} from "@/shared/api/rtk-query";
+import {BookSelectionProvider} from "@/features/library/selection/BookSelectionContext";
+import {BulkBookActions} from "@/features/library/selection/BulkBookActions";
 
 let cachedAccountId: string | null = null;
 
@@ -32,19 +34,22 @@ export default function Layout() {
     const isReader = /^\/books\/[^/]+\/read$/.test(useLocation().pathname);
 
     return (
-        <MobileNavProvider>
-            {!isReader && <a href="#main-content" className="skip-to-content">Skip to content</a>}
-            <DragDropOverlay/>
-            <MobileNavigation/>
-            <Box display={isReader ? "none" : {base: "none", md: "block"}}>
-                <NavigationCard/>
-            </Box>
-            <Box as="main" id="main-content" tabIndex={-1} minW={0}
-                p={isReader ? 0 : {base: 4, md: 8}} ml={isReader ? 0 : {base: 0, md: "266px"}}
-                minH={isReader ? "100dvh" : "calc(100dvh - 60px)"} height={isReader ? "100%" : undefined}
-                maxW="1800px" pb={isReader ? 0 : "max(24px, env(safe-area-inset-bottom))"}>
-                <Outlet/>
-            </Box>
-        </MobileNavProvider>
+        <BookSelectionProvider key={typeof window === "undefined" ? "server" : sessionStorage.getItem("user_id")}>
+            <MobileNavProvider>
+                {!isReader && <a href="#main-content" className="skip-to-content">Skip to content</a>}
+                <DragDropOverlay/>
+                <MobileNavigation/>
+                <Box display={isReader ? "none" : {base: "none", md: "block"}}>
+                    <NavigationCard/>
+                </Box>
+                <Box as="main" id="main-content" tabIndex={-1} minW={0}
+                    p={isReader ? 0 : {base: 4, md: 8}} ml={isReader ? 0 : {base: 0, md: "266px"}}
+                    minH={isReader ? "100dvh" : "calc(100dvh - 60px)"} height={isReader ? "100%" : undefined}
+                    maxW="1800px" pb={isReader ? 0 : "max(24px, env(safe-area-inset-bottom))"}>
+                    {!isReader && <BulkBookActions/>}
+                    <Outlet/>
+                </Box>
+            </MobileNavProvider>
+        </BookSelectionProvider>
     )
 }

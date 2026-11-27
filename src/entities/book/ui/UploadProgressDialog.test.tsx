@@ -1,4 +1,4 @@
-import {fireEvent, render, screen, within} from "@testing-library/react";
+import {fireEvent, render, screen, waitFor, within} from "@testing-library/react";
 import {describe, expect, it, vi} from "vitest";
 import {Provider} from "@/shared/ui/provider";
 import {UploadProgressDialog} from "./UploadProgressDialog";
@@ -30,5 +30,32 @@ describe("upload feedback", () => {
         fireEvent.keyDown(dialog, {key: "Escape"});
         expect(close).not.toHaveBeenCalled();
         expect(within(dialog).getByRole("status")).toHaveTextContent("Keep this window open");
+    });
+
+    it("opens a failed row's metadata editor, requires missing fields and retries only that row", async () => {
+        const retry = vi.fn().mockResolvedValue(undefined);
+        render(<Provider><UploadProgressDialog isOpen isUploading={false} onClose={vi.fn()} onRetryWithMetadata={retry}
+            statuses={[
+                {name: "Added.epub", status: "success"},
+                {name: "Missing.pdf", status: "failed", error: "Author is missing", metadata: {title: "Known title"}, missingFields: ["author"]},
+            ]}/></Provider>);
+        fireEvent.click(await screen.findByRole("button", {name: "Edit metadata for Missing.pdf"}));
+        const editor = await screen.findByRole("dialog", {name: "Complete book metadata"});
+        expect(within(editor).getByRole("textbox", {name: "Title"})).toHaveValue("Known title");
+        expect(within(editor).getByRole("button", {name: "Save and retry"})).toBeDisabled();
+        fireEvent.change(within(editor).getByRole("textbox", {name: /Author/}), {target: {value: "Author"}});
+        fireEvent.click(within(editor).getByRole("button", {name: "Save and retry"}));
+        expect(retry).toHaveBeenCalledWith(1, {title: "Known title", author: "Author"});
+    });
+
+    it("allows cancelling metadata correction without retrying the upload", async () => {
+        const retry = vi.fn();
+        render(<Provider><UploadProgressDialog isOpen isUploading={false} onClose={vi.fn()} onRetryWithMetadata={retry}
+            statuses={[{name: "Missing.epub", status: "failed", missingFields: ["title", "author"]}]}/></Provider>);
+        fireEvent.click(await screen.findByRole("button", {name: "Edit metadata for Missing.epub"}));
+        const editor = await screen.findByRole("dialog", {name: "Complete book metadata"});
+        fireEvent.click(within(editor).getByRole("button", {name: "Cancel"}));
+        expect(retry).not.toHaveBeenCalled();
+        await waitFor(() => expect(screen.getByRole("dialog", {name: "Upload needs attention"})).toBeVisible());
     });
 });

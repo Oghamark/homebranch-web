@@ -13,6 +13,7 @@ const pathnameToTitle: Record<string, string> = {
     "/favorites": "Favorites",
     "/settings": "Account Settings",
     "/users": "User Management",
+    "/audit-logs": "Audit logs",
     "/authors": "Authors",
     "/library-management": "Library management",
     "/book-clubs": "Book clubs",

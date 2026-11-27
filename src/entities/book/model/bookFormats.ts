@@ -5,11 +5,17 @@ export type AudioTrackModel = {
     title: string;
 };
 
+export type AudioChapterModel = {
+    title: string;
+    startTime: number;
+};
+
 export type BookFormatModel = {
     id: string;
     format: BookFormatType;
     fileName: string;
     audioTracks?: AudioTrackModel[] | null;
+    audioChapters?: AudioChapterModel[] | null;
     title?: string;
     author?: string;
     genres?: string[];
