@@ -23,6 +23,7 @@ export {
     useUpdateBookMutation,
     useLinkBooksMutation,
     useUnlinkBookFormatMutation,
+    useDeleteBookFormatMutation,
     useToggleFavoriteMutation,
     useDeleteBookMutation,
     useGenerateBookSummaryMutation,

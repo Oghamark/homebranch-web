@@ -50,6 +50,7 @@ describe("reading navigation", () => {
         renderNavigation();
         expect(screen.queryByRole("link", {name: "Library management"})).not.toBeInTheDocument();
         expect(screen.queryByRole("link", {name: "User management"})).not.toBeInTheDocument();
+        expect(screen.queryByRole("link", {name: "Audit logs"})).not.toBeInTheDocument();
         expect(screen.getByRole("link", {name: "Settings"})).toBeVisible();
     });
 
@@ -58,6 +59,7 @@ describe("reading navigation", () => {
         renderNavigation("/users");
         expect(screen.getByRole("link", {name: "Library management"})).toBeVisible();
         expect(screen.getByRole("link", {name: "User management"})).toHaveAttribute("aria-current", "page");
+        expect(screen.getByRole("link", {name: "Audit logs"})).toHaveAttribute("href", "/audit-logs");
         fireEvent.click(screen.getByRole("button", {name: "Log out"}));
         expect(mocks.submit).toHaveBeenCalledWith("", {method: "post", action: "/logout"});
     });

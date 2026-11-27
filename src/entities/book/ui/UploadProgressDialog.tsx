@@ -1,5 +1,6 @@
-import {Badge, Button, CloseButton, Dialog, HStack, Portal, Progress, Spinner, Text, VStack} from "@chakra-ui/react";
-import type {FileUploadStatus} from "./useBookUpload";
+import {Badge, Button, CloseButton, Dialog, Field, HStack, Input, Portal, Progress, Spinner, Text, VStack} from "@chakra-ui/react";
+import {useEffect, useState} from "react";
+import type {BookUploadMetadata, FileUploadStatus} from "./useBookUpload";
 
 interface UploadProgressDialogProps {
     statuses: FileUploadStatus[];
@@ -7,6 +8,7 @@ interface UploadProgressDialogProps {
     isUploading: boolean;
     onClose: () => void;
     onRetryFailed?: () => Promise<unknown>;
+    onRetryWithMetadata?: (index: number, metadata: BookUploadMetadata) => Promise<unknown>;
 }
 
 function StatusBadge({status}: { status: FileUploadStatus["status"] }) {
@@ -29,14 +31,22 @@ function StatusBadge({status}: { status: FileUploadStatus["status"] }) {
     }
 }
 
-export function UploadProgressDialog({statuses, isOpen, isUploading, onClose, onRetryFailed}: UploadProgressDialogProps) {
+export function UploadProgressDialog({statuses, isOpen, isUploading, onClose, onRetryFailed, onRetryWithMetadata}: UploadProgressDialogProps) {
+    const [editingIndex, setEditingIndex] = useState<number | null>(null);
+    const [metadata, setMetadata] = useState<BookUploadMetadata>({});
+    const editingStatus = editingIndex === null ? undefined : statuses[editingIndex];
+    const hasEmptyRequiredField = editingStatus?.missingFields?.some(field => !metadata[field]?.trim());
+    useEffect(() => {
+        if (!isOpen || (editingIndex !== null && editingStatus?.status !== "failed")) setEditingIndex(null);
+    }, [isOpen, editingIndex, editingStatus?.status]);
     const successCount = statuses.filter(s => s.status === "success").length;
     const skippedCount = statuses.filter(s => s.status === "skipped").length;
     const failedCount = statuses.filter(s => s.status === "failed").length;
 
     return (
-        <Dialog.Root open={isOpen} closeOnEscape={!isUploading} closeOnInteractOutside={!isUploading}
-            onOpenChange={({open}) => { if (!open && !isUploading) onClose(); }}>
+        <>
+        <Dialog.Root open={isOpen && editingIndex === null} closeOnEscape={!isUploading} closeOnInteractOutside={!isUploading}
+            onOpenChange={({open}) => { if (!open && !isUploading && editingIndex === null) onClose(); }}>
             <Portal>
                 <Dialog.Backdrop/>
                 <Dialog.Positioner>
@@ -59,8 +69,8 @@ export function UploadProgressDialog({statuses, isOpen, isUploading, onClose, on
                                 {successCount + skippedCount + failedCount} of {statuses.length} processed{isUploading ? ". Keep this window open while your books upload." : "."}
                             </Text>
                             <VStack align="stretch" gap={2}>
-                                {statuses.map((s, i) => (
-                                    <VStack key={i} align="stretch" gap={0.5}>
+                                {statuses.map((s, i) => {
+                                    const content = <>
                                         <HStack justify="space-between">
                                             <Text fontSize="sm" overflowWrap="anywhere" minW={0}>{s.name}</Text>
                                             <StatusBadge status={s.status}/>
@@ -68,8 +78,17 @@ export function UploadProgressDialog({statuses, isOpen, isUploading, onClose, on
                                         {s.status === "failed" && s.error && (
                                             <Text fontSize="xs" color="fg.error">{s.error}</Text>
                                         )}
-                                    </VStack>
-                                ))}
+                                    </>;
+                                    return s.status === "failed" && onRetryWithMetadata ? (
+                                        <Button key={i} variant="ghost" height="auto" minH="44px" py={2} whiteSpace="normal"
+                                            display="flex" flexDirection="column" alignItems="stretch" gap={0.5} textAlign="left"
+                                            disabled={isUploading} aria-label={`Edit metadata for ${s.name}`}
+                                            onClick={() => {setMetadata({...s.metadata}); setEditingIndex(i);}}>
+                                            {content}
+                                            <Text fontSize="xs" color="fg.muted">Edit metadata and retry</Text>
+                                        </Button>
+                                    ) : <VStack key={i} align="stretch" gap={0.5}>{content}</VStack>;
+                                })}
                             </VStack>
                         </Dialog.Body>
 
@@ -106,5 +125,43 @@ export function UploadProgressDialog({statuses, isOpen, isUploading, onClose, on
                 </Dialog.Positioner>
             </Portal>
         </Dialog.Root>
+        <Dialog.Root open={isOpen && editingIndex !== null} onOpenChange={({open}) => {if (!open) setEditingIndex(null);}}>
+            <Portal>
+                <Dialog.Backdrop/>
+                <Dialog.Positioner>
+                    <Dialog.Content maxHeight="80vh" overflowY="auto">
+                        <form onSubmit={event => {
+                            event.preventDefault();
+                            if (editingIndex === null || !onRetryWithMetadata || isUploading || hasEmptyRequiredField) return;
+                            const index = editingIndex;
+                            setEditingIndex(null);
+                            void onRetryWithMetadata(index, metadata);
+                        }}>
+                            <Dialog.Header><Dialog.Title>Complete book metadata</Dialog.Title></Dialog.Header>
+                            <Dialog.Body>
+                                <VStack align="stretch" gap={4}>
+                                    <Text overflowWrap="anywhere">{editingStatus?.name}</Text>
+                                    {editingStatus?.error && <Text fontSize="sm" color="fg.error">{editingStatus.error}</Text>}
+                                    <Text fontSize="sm">Fill in missing metadata, then retry this upload. Existing metadata is kept when a field is left blank.</Text>
+                                    {(["title", "author"] as const).map(field => (
+                                        <Field.Root key={field} required={editingStatus?.missingFields?.includes(field)}>
+                                            <Field.Label>{field === "title" ? "Title" : "Author"}<Field.RequiredIndicator/></Field.Label>
+                                            <Input value={metadata[field] ?? ""} required={editingStatus?.missingFields?.includes(field)}
+                                                onChange={event => setMetadata(previous => ({...previous, [field]: event.target.value}))}/>
+                                        </Field.Root>
+                                    ))}
+                                </VStack>
+                            </Dialog.Body>
+                            <Dialog.Footer>
+                                <Button minH="44px" variant="outline" type="button" onClick={() => setEditingIndex(null)}>Cancel</Button>
+                                <Button minH="44px" type="submit" disabled={isUploading || hasEmptyRequiredField}>Save and retry</Button>
+                            </Dialog.Footer>
+                        </form>
+                        <Dialog.CloseTrigger asChild><CloseButton aria-label="Close metadata editor" minH="44px" minW="44px"/></Dialog.CloseTrigger>
+                    </Dialog.Content>
+                </Dialog.Positioner>
+            </Portal>
+        </Dialog.Root>
+        </>
     );
 }

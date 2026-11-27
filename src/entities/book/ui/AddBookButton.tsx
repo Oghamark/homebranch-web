@@ -62,6 +62,7 @@ export function AddBookButton(buttonProps: ButtonProps) {
     processFiles,
     processBatch,
     retryFailed,
+    retryWithMetadata,
     previewAudiobook,
     closeDialog,
   } = useBookUpload();
@@ -248,6 +249,7 @@ export function AddBookButton(buttonProps: ButtonProps) {
         isUploading={isUploading}
         onClose={closeDialog}
         onRetryFailed={retryFailed}
+        onRetryWithMetadata={retryWithMetadata}
       />
 
       <Dialog.Root

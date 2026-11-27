@@ -74,6 +74,7 @@ export default defineConfig({
         '/api': {
             target: env.VITE_API_ROOT,
             changeOrigin: true,
+            xfwd: true,
             secure: false,
             headers: { 'X-Forwarded-Prefix': '/api' },
             rewrite: (path) => path.replace(/^\/api/, '')

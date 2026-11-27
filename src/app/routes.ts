@@ -21,6 +21,7 @@ export default [
         route("settings", "routes/dashboard/settings.tsx"),
         route("library-management", "routes/dashboard/library-management.tsx"),
         route("statistics", "routes/dashboard/statistics.tsx"),
+        route("audit-logs", "routes/dashboard/audit-logs.tsx"),
         route("users", "routes/dashboard/users.tsx")
     ]),
     route('logout', 'routes/dashboard/logout.tsx'),

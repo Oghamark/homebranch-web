@@ -1,6 +1,6 @@
 import {AddBookButton} from "@/entities/book";
 import {Badge, Box, Button, Separator, Spinner, Stack, Text} from "@chakra-ui/react";
-import {LuBell, LuBookOpen, LuFolderSync, LuHeart, LuHouse, LuLibrary, LuLogOut, LuMessagesSquare, LuSettings, LuUser, LuUsers} from "react-icons/lu";
+import {LuBell, LuBookOpen, LuFolderSync, LuHeart, LuHouse, LuLibrary, LuLogOut, LuMessagesSquare, LuScrollText, LuSettings, LuUser, LuUsers} from "react-icons/lu";
 import {NavLink, useFetcher} from "react-router";
 import {BookShelfNavigationSection} from "@/entities/bookShelf";
 import type {IconType} from "react-icons";
@@ -50,6 +50,7 @@ export function NavigationContent({onNavigate}: {onNavigate?: () => void}) {
                 {navigationLink({to: "/settings", label: "Settings", icon: LuSettings})}
                 {(!config.cloudMode || isAdmin) && navigationLink({to: "/library-management", label: "Library management", icon: LuFolderSync})}
                 {isAdmin && navigationLink({to: "/users", label: "User management", icon: LuUsers})}
+                {isAdmin && navigationLink({to: "/audit-logs", label: "Audit logs", icon: LuScrollText})}
             </Stack>
         </Box>
         <Separator my={4}/>
