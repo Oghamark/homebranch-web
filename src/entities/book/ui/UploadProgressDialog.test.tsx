@@ -4,6 +4,22 @@ import {Provider} from "@/shared/ui/provider";
 import {UploadProgressDialog} from "./UploadProgressDialog";
 
 describe("upload feedback", () => {
+    it("shows a single file's percentage and distinguishes transfer completion from processing", async () => {
+        const props = {isOpen: true, isUploading: true, onClose: vi.fn()};
+        const {rerender} = render(<Provider><UploadProgressDialog {...props}
+            statuses={[{name: "Story.epub", status: "uploading", progress: 37}]}/></Provider>);
+        const dialog = await screen.findByRole("dialog");
+        expect(within(dialog).getByText("Uploading 37%")).toBeVisible();
+        expect(within(dialog).getByText("37% uploaded")).toBeVisible();
+        expect(within(dialog).getAllByRole("progressbar")[1]).toHaveAttribute("aria-valuenow", "37");
+        rerender(<Provider><UploadProgressDialog {...props}
+            statuses={[{name: "Story.epub", status: "uploading", progress: 100}]}/></Provider>);
+        expect(within(dialog).getByText("Processing")).toBeVisible();
+        expect(within(dialog).getByText("100% uploaded. Processing...")).toBeVisible();
+        expect(within(dialog).queryByText("Added")).not.toBeInTheDocument();
+        expect(within(dialog).getByRole("status")).toHaveTextContent("0 of 1 processed");
+    });
+
     it("reports partial results honestly and offers retry without hiding successful books", async () => {
         const retry = vi.fn().mockResolvedValue(undefined);
         render(<Provider><UploadProgressDialog isOpen isUploading={false} onClose={vi.fn()} onRetryFailed={retry}

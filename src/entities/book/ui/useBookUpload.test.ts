@@ -34,7 +34,7 @@ describe("book upload batches", () => {
         await act(() => result.current.retryFailed());
         expect(api.create).toHaveBeenCalledTimes(2);
         expect(api.audio).toHaveBeenCalledTimes(2);
-        expect(api.audio.mock.calls[1][0]).toEqual({title: "Reviewed audiobook", author: "Narrator", files: tracks});
+        expect(api.audio.mock.calls[1][0]).toEqual({title: "Reviewed audiobook", author: "Narrator", files: tracks, onUploadProgress: expect.any(Function)});
         expect(result.current.uploadStatuses.map(status => status.status)).toEqual(["success", "skipped", "success"]);
     });
 
@@ -105,6 +105,54 @@ describe("book upload batches", () => {
         const files = [new File(["1"], "one.mp3"), new File(["2"], "two.mp3")];
         await act(() => result.current.processAudiobooks([{title: "", files}]));
         await act(() => result.current.retryWithMetadata(0, {title: "New title", author: "Author"}));
-        expect(api.audio.mock.calls[1][0]).toEqual({files, title: "New title", author: "Author"});
+        expect(api.audio.mock.calls[1][0]).toEqual({files, title: "New title", author: "Author", onUploadProgress: expect.any(Function)});
+    });
+
+    it("tracks a single file's transfer, waits for processing and resets progress on retry", async () => {
+        let resolve!: (value: unknown) => void;
+        let reject!: (error: unknown) => void;
+        api.create.mockImplementation(() => ({unwrap: () => new Promise((done, fail) => {
+            resolve = done;
+            reject = fail;
+        })}));
+        const {result} = renderHook(useBookUpload);
+        let upload!: Promise<void>;
+        act(() => {upload = result.current.processFiles([new File(["x"], "story.epub")]);});
+        expect(result.current.uploadStatuses[0]).toMatchObject({status: "uploading", progress: 0});
+        act(() => api.create.mock.calls[0][0].onUploadProgress(42));
+        expect(result.current.uploadStatuses[0].progress).toBe(42);
+        act(() => api.create.mock.calls[0][0].onUploadProgress(100));
+        expect(result.current.uploadStatuses[0]).toMatchObject({status: "uploading", progress: 100});
+        expect(result.current.isUploading).toBe(true);
+        await act(async () => {reject({message: "Processing failed"}); await upload;});
+        act(() => {upload = result.current.retryFailed();});
+        expect(result.current.uploadStatuses[0]).toMatchObject({status: "uploading", progress: 0});
+        act(() => api.create.mock.calls[1][0].onUploadProgress(25));
+        expect(result.current.uploadStatuses[0].progress).toBe(25);
+        await act(async () => {resolve({id: "done"}); await upload;});
+        expect(result.current.uploadStatuses[0]).toMatchObject({status: "success", progress: 100});
+    });
+
+    it("updates only the active file or audiobook group", async () => {
+        let resolve!: (value: unknown) => void;
+        api.create.mockImplementation(() => ({unwrap: () => new Promise(done => {resolve = done;})}));
+        api.audio.mockImplementation(({onUploadProgress}) => ({unwrap: async () => {
+            onUploadProgress(70);
+            return {id: "audio"};
+        }}));
+        const {result} = renderHook(useBookUpload);
+        let upload!: Promise<void>;
+        act(() => {upload = result.current.processBatch([new File(["x"], "story.epub")], [], [
+            {title: "Audio", files: [new File(["x"], "track.mp3")]},
+        ]);});
+        act(() => api.create.mock.calls[0][0].onUploadProgress(55));
+        expect(result.current.uploadStatuses).toMatchObject([
+            {status: "uploading", progress: 55}, {status: "pending", progress: 0},
+        ]);
+        await act(async () => {resolve({id: "done"}); await upload;});
+        expect(api.audio.mock.calls[0][0].onUploadProgress).toEqual(expect.any(Function));
+        expect(result.current.uploadStatuses).toMatchObject([
+            {status: "success", progress: 100}, {status: "success", progress: 100},
+        ]);
     });
 });
