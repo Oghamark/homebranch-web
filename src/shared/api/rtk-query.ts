@@ -1,7 +1,6 @@
 import {
     type BaseQueryFn,
     createApi,
-    type FetchArgs,
     type FetchBaseQueryError,
     type FetchBaseQueryMeta,
     type QueryReturnValue
@@ -11,25 +10,28 @@ import {config} from "@/shared";
 import ToastFactory from "@/shared/lib/toast/toast";
 import {Mutex} from "async-mutex";
 import {INACTIVE_MESSAGE, isInactiveAccountResponse, rejectInactiveAccount} from "@/features/authentication/api/cloudAccess";
-import {uploadWithProgress, type UploadProgressCallback} from "./upload";
-
-type RequestArgs = FetchArgs & {onUploadProgress?: UploadProgressCallback};
+import {uploadFilesInChunks, uploadWithProgress, type UploadRequestArgs} from "./upload";
 
 // Create a mutex to prevent multiple refresh attempts
 const refreshTokenMutex = new Mutex();
 
 const baseQueryWithAuthRefresh: BaseQueryFn<
-    string | RequestArgs,
+    string | UploadRequestArgs,
     unknown,
-    FetchBaseQueryError
+    FetchBaseQueryError,
+    {},
+    FetchBaseQueryMeta
 > = async (args, api, extraOptions): Promise<QueryReturnValue<unknown, FetchBaseQueryError, FetchBaseQueryMeta>> => {
+    if (typeof args !== "string" && args.uploadFiles) {
+        return uploadFilesInChunks(args, async requestArgs => baseQueryWithAuthRefresh(requestArgs, api, extraOptions));
+    }
     // wait until the mutex is available without locking it
     await refreshTokenMutex.waitForUnlock();
     const request = () => {
         if (typeof args !== "string" && args.onUploadProgress && args.body instanceof FormData) {
             return uploadWithProgress(
                 `${config.apiUrl.replace(/\/$/, "")}/${args.url.replace(/^\//, "")}`,
-                args.body, args.onUploadProgress, api.signal,
+                args.body, args.onUploadProgress, api.signal, args.method,
             );
         }
         return fetchBaseQuery({
