@@ -1,11 +1,12 @@
 import {BookCard, BookCardSkeleton, type BookModel} from "@/entities/book";
-import {Avatar, Box, Button, For, Grid, HStack, Link as ChakraLink, Stack, Table, Text} from "@chakra-ui/react";
+import {Avatar, Box, Button, Checkbox, Flex, For, Grid, HStack, Link as ChakraLink, Stack, Table, Text} from "@chakra-ui/react";
 import InfiniteScroll from "react-infinite-scroll-component";
 import type {LibraryDisplayMode} from "@/features/library/store/librarySlice";
 import {Link} from "react-router";
 import {config} from "@/shared";
 import type {ReactNode} from "react";
 import {ErrorState, LoadingState} from "@/shared/ui/EditorialUI";
+import {useBookSelection} from "@/features/library/selection/BookSelectionContext";
 
 interface LibraryPageProps {
     books: BookModel[];
@@ -69,8 +70,24 @@ export function BookGridSkeletons({count = 12, displayMode = "grid"}: BookGridSk
 }
 
 export function LibraryPage({books, hasMore, totalBooks, fetchMore, displayMode = "grid", getBookBadge, loadingMore = false, loadMoreError = false}: LibraryPageProps) {
+    const selection = useBookSelection();
+    const selectedDisplayed = books.filter(book => selection?.selected.has(book.id)).length;
+    function selectBook(book: BookModel) {
+        return <Checkbox.Root checked={selection?.selected.has(book.id) ?? false} disabled={selection?.busy} colorPalette="orange"
+            onCheckedChange={() => selection?.toggle(book)} minH="44px" minW="44px" justifyContent="center">
+            <Checkbox.HiddenInput aria-label={`Select ${book.title}`}/>
+            <Checkbox.Control bg="bg" _checked={{bg: "colorPalette.solid"}} boxShadow="sm"/>
+        </Checkbox.Root>;
+    }
     return <Stack gap={4} minW={0}>
-        <Text fontSize="sm" color="fg.muted" role="status">{books.length}{totalBooks != null ? ` of ${totalBooks}` : ""} {totalBooks === 1 || (totalBooks == null && books.length === 1) ? "book" : "books"}</Text>
+        <Flex justify="space-between" align="center" gap={3} wrap="wrap">
+            <Text fontSize="sm" color="fg.muted" role="status">{books.length}{totalBooks != null ? ` of ${totalBooks}` : ""} {totalBooks === 1 || (totalBooks == null && books.length === 1) ? "book" : "books"}</Text>
+            {selection && <Checkbox.Root minH="44px" disabled={selection.busy || books.length === 0} size="sm"
+                checked={selectedDisplayed === books.length && books.length > 0 ? true : selectedDisplayed > 0 ? "indeterminate" : false}
+                onCheckedChange={() => selection?.toggleDisplayed(books)}>
+                <Checkbox.HiddenInput/><Checkbox.Control/><Checkbox.Label>Select displayed books</Checkbox.Label>
+            </Checkbox.Root>}
+        </Flex>
         <InfiniteScroll
             next={fetchMore}
             hasMore={hasMore && !loadMoreError && books.length > 0}
@@ -83,6 +100,7 @@ export function LibraryPage({books, hasMore, totalBooks, fetchMore, displayMode 
                 <Table.Root variant="outline" size="sm">
                     <Table.Header>
                         <Table.Row>
+                            {selection && <Table.ColumnHeader>Select</Table.ColumnHeader>}
                             <Table.ColumnHeader>Title</Table.ColumnHeader>
                             <Table.ColumnHeader>Author</Table.ColumnHeader>
                             <Table.ColumnHeader>Published</Table.ColumnHeader>
@@ -92,6 +110,7 @@ export function LibraryPage({books, hasMore, totalBooks, fetchMore, displayMode 
                         <For each={books}>
                             {(book) => (
                                 <Table.Row key={book.id}>
+                                    {selection && <Table.Cell>{selectBook(book)}</Table.Cell>}
                                     <Table.Cell>
                                         <HStack gap={3}>
                                             <Avatar.Root size="sm">
@@ -121,11 +140,9 @@ export function LibraryPage({books, hasMore, totalBooks, fetchMore, displayMode 
                 >
                     <For each={books}>
                         {(book) => (
-                            <BookCard
-                                key={book.id}
-                                book={book}
-                                badge={getBookBadge?.(book)}
-                            />
+                            <BookCard key={book.id} book={book} badge={getBookBadge?.(book)}
+                                selected={selection?.selected.has(book.id)}
+                                coverControls={selection ? selectBook(book) : undefined}/>
                         )}
                     </For>
                 </Grid>

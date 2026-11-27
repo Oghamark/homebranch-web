@@ -10,7 +10,7 @@ const ACCEPTED_EXTENSIONS = /\.(epub|pdf)$/i;
 export function DragDropOverlay() {
     const [isDragging, setIsDragging] = useState(false);
     const dragCounterRef = useRef(0);
-    const {uploadStatuses, isDialogOpen, isUploading, processFiles, closeDialog, retryFailed} = useBookUpload();
+    const {uploadStatuses, isDialogOpen, isUploading, processFiles, closeDialog, retryFailed, retryWithMetadata} = useBookUpload();
     const collecting = useRef(false);
 
     const handleDragEnter = useCallback((e: DragEvent) => {
@@ -105,6 +105,7 @@ export function DragDropOverlay() {
                 isUploading={isUploading}
                 onClose={closeDialog}
                 onRetryFailed={retryFailed}
+                onRetryWithMetadata={retryWithMetadata}
             />
             {isDragging && (
                 <Box

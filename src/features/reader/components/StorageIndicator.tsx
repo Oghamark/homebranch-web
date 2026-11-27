@@ -12,7 +12,7 @@ export function StorageIndicator({location}: StorageIndicatorProps) {
         <Flex
             position="absolute"
             top={1}
-            right={1}
+            left={1}
             bg="rgba(0, 0, 0, 0.65)"
             color="white"
             borderRadius="md"

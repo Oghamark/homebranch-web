@@ -5,6 +5,19 @@ import {config} from "@/shared";
 import type {LibraryBooksQuery, QueriedSearch} from "@/entities/book/api/types";
 import type {GetBooksByIdsRequest, UpdateBookPayload} from "@/entities/book/api/dtos";
 import type {BookDuplicateWithBooksModel} from "@/entities/book/model/BookDuplicateModel";
+import {clearDeletedBooksFromLocalStorage} from "@/entities/book/model/bookDeletion";
+
+export type BulkBookAction = "delete" | "favorite" | "unfavorite" | "add-to-shelf" | "remove-from-shelf" | "assign-owner";
+export type BulkBooksRequest = {bookIds: string[]} & (
+    {action: "delete" | "favorite" | "unfavorite"} |
+    {action: "add-to-shelf" | "remove-from-shelf"; shelfId: string} |
+    {action: "assign-owner"; ownerId: string | null}
+);
+export interface BulkBooksResult {
+    success: boolean;
+    succeeded: string[];
+    failed: Array<{bookId: string; message: string}>;
+}
 
 export type CreateBookResult = BookModel | {skipped: true; existingBook: BookModel};
 export type ResolveDuplicateAction = 'merge' | 'keep_both' | 'replace';
@@ -211,6 +224,7 @@ export const booksApi = homebranchApi.injectEndpoints({
             query: (id: string) => ({url: `/books/${id}`, method: 'DELETE'}),
             invalidatesTags: [{type: 'Book', id: 'LIST'}],
             async onQueryStarted(id, {queryFulfilled}) {
+                const userId = typeof sessionStorage === "undefined" ? null : sessionStorage.getItem("user_id");
                 try {
                     await queryFulfilled;
                 } catch {
@@ -218,31 +232,25 @@ export const booksApi = homebranchApi.injectEndpoints({
                     return;
                 }
 
-                if (typeof localStorage === 'undefined') {
-                    return;
-                }
-
-                const userId = sessionStorage.getItem('user_id');
-                const key = `currentlyReading_${userId}`;
-                const stored = localStorage.getItem(key);
-
-                if (stored === null) {
-                    return;
-                }
-
-                try {
-                    const currentlyReadingBooks = JSON.parse(stored);
-                    currentlyReadingBooks.delete(id);
-                    if (Object.keys(currentlyReadingBooks).length === 0) {
-                        localStorage.removeItem(key);
-                    } else {
-                        localStorage.setItem(key, JSON.stringify(currentlyReadingBooks));
-                    }
-                    return;
-                } catch (e) {
-                    console.warn(`Encountered error during book deletion cleanup: ${e}`);
-                }
+                clearDeletedBooksFromLocalStorage(userId, [id]);
             }
+        }),
+        bulkBooks: build.mutation<BulkBooksResult, BulkBooksRequest>({
+            query: ({action, ...body}) => ({url: `/books/bulk/${action}`, method: "POST", body}),
+            invalidatesTags: (_result, _error, {action}) => action === "delete"
+                ? ["Book", "BookShelf", "BookDuplicate"]
+                : action === "favorite" || action === "unfavorite" ? ["Book"] : ["Book", "BookShelf"],
+            async onQueryStarted(request, {queryFulfilled}) {
+                const userId = typeof sessionStorage === "undefined" ? null : sessionStorage.getItem("user_id");
+                if (request.action !== "delete") return;
+                let result: BulkBooksResult;
+                try {
+                    result = (await queryFulfilled).data;
+                } catch {
+                    return;
+                }
+                clearDeletedBooksFromLocalStorage(userId, result.succeeded);
+            },
         }),
         createBook: build.mutation<CreateBookResult, CreateBookRequest>({
             query: (book: CreateBookRequest) => {
@@ -306,6 +314,17 @@ export const booksApi = homebranchApi.injectEndpoints({
             invalidatesTags: (_result, _error, {bookId}) => [
                 {type: 'Book' as const, id: bookId},
                 {type: 'Book', id: 'LIST'},
+            ],
+        }),
+        deleteBookFormat: build.mutation<BookModel, {bookId: string; formatId: string}>({
+            query: ({bookId, formatId}) => ({
+                url: `/books/${bookId}/formats/${formatId}/file`,
+                method: 'DELETE',
+            }),
+            invalidatesTags: (_result, _error, {bookId}) => [
+                {type: 'Book' as const, id: bookId},
+                {type: 'Book', id: 'LIST'},
+                'Book',
             ],
         }),
         toggleFavorite: build.mutation<{ isFavorite: boolean }, string>({
@@ -376,8 +395,10 @@ export const {
     useUpdateBookMutation,
     useLinkBooksMutation,
     useUnlinkBookFormatMutation,
+    useDeleteBookFormatMutation,
     useToggleFavoriteMutation,
     useDeleteBookMutation,
+    useBulkBooksMutation,
     useGenerateBookSummaryMutation,
     useFetchBookMetadataMutation,
     useSearchBookCoversMutation,

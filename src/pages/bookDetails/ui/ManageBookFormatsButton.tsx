@@ -6,6 +6,7 @@ import {
     useLinkBooksMutation,
     useSearchBooksQuery,
     useUnlinkBookFormatMutation,
+    useDeleteBookFormatMutation,
 } from "@/entities/book";
 import {getAvailableBookFormats, getBookFormatLabel} from "@/entities/book/model/bookFormats";
 import TextField from "@/shared/ui/TextField";
@@ -24,6 +25,7 @@ export function ManageBookFormatsButton({book, canManage}: ManageBookFormatsButt
     const [linkQuery, setLinkQuery] = useState("");
     const [selectedLinkBookId, setSelectedLinkBookId] = useState<string | null>(null);
     const [unlinkingId, setUnlinkingId] = useState<string | null>(null);
+    const [deletingId, setDeletingId] = useState<string | null>(null);
     const debouncedLinkQuery = useDebounce(linkQuery, 250);
 
     const availableFormats = useMemo(() => getAvailableBookFormats(book), [book]);
@@ -40,6 +42,8 @@ export function ManageBookFormatsButton({book, canManage}: ManageBookFormatsButt
 
     const [linkBooks, {isLoading: linkingBooks}] = useLinkBooksMutation();
     const [unlinkFormat] = useUnlinkBookFormatMutation();
+    const [deleteFormat] = useDeleteBookFormatMutation();
+    const busy = linkingBooks || Boolean(unlinkingId) || Boolean(deletingId);
 
     const handleClose = () => {
         setIsOpen(false);
@@ -71,6 +75,19 @@ export function ManageBookFormatsButton({book, canManage}: ManageBookFormatsButt
         }
     };
 
+    const handleDelete = async (formatId: string) => {
+        setDeletingId(formatId);
+        try {
+            await deleteFormat({bookId: book.id, formatId}).unwrap();
+            ToastFactory({message: "Format deleted", type: "success"});
+        } catch (error) {
+            handleRtkError(error);
+            throw error;
+        } finally {
+            setDeletingId(null);
+        }
+    };
+
     const unlinkableFormats = availableFormats.filter(
         (f) => !f.id.endsWith("-legacy"),
     );
@@ -80,8 +97,8 @@ export function ManageBookFormatsButton({book, canManage}: ManageBookFormatsButt
         <>
             <Button variant="outline" minH="44px" onClick={() => setIsOpen(true)}><LuLink/> Manage format links</Button>
 
-            <Dialog.Root open={isOpen} closeOnEscape={!linkingBooks && !unlinkingId} closeOnInteractOutside={!linkingBooks && !unlinkingId}
-                onOpenChange={(e) => !e.open && !linkingBooks && !unlinkingId && handleClose()}>
+            <Dialog.Root open={isOpen} closeOnEscape={!busy} closeOnInteractOutside={!busy}
+                onOpenChange={(e) => !e.open && !busy && handleClose()}>
                 <Portal>
                     <Dialog.Backdrop/>
                     <Dialog.Positioner>
@@ -105,13 +122,21 @@ export function ManageBookFormatsButton({book, canManage}: ManageBookFormatsButt
                                                         <Badge size="sm" variant="outline">
                                                             {getBookFormatLabel(format.format)}
                                                         </Badge>
-                                                        {isUnlinkable && (
-                                                            <ConfirmAction title={`Unlink ${getBookFormatLabel(format.format)} from ${book.title}?`}
-                                                                description="Separate this format into its own library entry. It will no longer be available as a format of this book."
-                                                                actionLabel={`Unlink ${getBookFormatLabel(format.format)}`} destructive
-                                                                disabled={Boolean(unlinkingId) || linkingBooks}
-                                                                onConfirm={() => handleUnlink(format.id)}/>
-                                                        )}
+                                                        <Flex gap={2}>
+                                                            {isUnlinkable && (
+                                                                <ConfirmAction title={`Unlink ${getBookFormatLabel(format.format)} from ${book.title}?`}
+                                                                    description="Separate this format into its own library entry. It will no longer be available as a format of this book."
+                                                                    actionLabel={`Unlink ${getBookFormatLabel(format.format)}`} destructive
+                                                                    disabled={busy}
+                                                                    onConfirm={() => handleUnlink(format.id)}/>
+                                                            )}
+                                                            {canManage && availableFormats.length > 1 && !format.id.endsWith("-legacy") && (
+                                                                <ConfirmAction title={`Delete ${getBookFormatLabel(format.format)} from ${book.title}?`}
+                                                                    description="Permanently delete this format and its files. The book and its other formats will remain. This cannot be undone."
+                                                                    actionLabel={`Delete ${getBookFormatLabel(format.format)}`} destructive
+                                                                    disabled={busy} onConfirm={() => handleDelete(format.id)}/>
+                                                            )}
+                                                        </Flex>
                                                     </Flex>
                                                 );
                                             })}
@@ -135,7 +160,7 @@ export function ManageBookFormatsButton({book, canManage}: ManageBookFormatsButt
                                                         label="Search library"
                                                         placeholder="Type a title or author"
                                                         value={linkQuery}
-                                                        disabled={linkingBooks || Boolean(unlinkingId)}
+                                                        disabled={busy}
                                                         onChange={(e) => {
                                                             setLinkQuery(e.currentTarget.value);
                                                             setSelectedLinkBookId(null);
@@ -197,19 +222,19 @@ export function ManageBookFormatsButton({book, canManage}: ManageBookFormatsButt
                             </Dialog.Body>
 
                             <Dialog.Footer>
-                                <Button variant="ghost" minH="44px" disabled={linkingBooks || Boolean(unlinkingId)} onClick={handleClose}>
+                                <Button variant="ghost" minH="44px" disabled={busy} onClick={handleClose}>
                                     {canManage ? "Cancel" : "Close"}
                                 </Button>
                                 {canManage && (
                                     <ConfirmAction title={`Link ${selectedCandidate?.title ?? "book"} to ${book.title}?`}
                                         description={`Merge the formats of "${selectedCandidate?.title ?? ""}" into "${book.title}". The source entry is removed from the library; its formats become part of this book.`}
-                                        actionLabel="Link books" disabled={!selectedCandidate || isSearching || searchFailed || Boolean(unlinkingId)}
+                                        actionLabel="Link books" disabled={!selectedCandidate || isSearching || searchFailed || busy}
                                         onConfirm={handleLink}/>
                                 )}
                             </Dialog.Footer>
 
                             <Dialog.CloseTrigger asChild>
-                                <CloseButton aria-label="Close format links" minH="44px" minW="44px" disabled={linkingBooks || Boolean(unlinkingId)}/>
+                                <CloseButton aria-label="Close format links" minH="44px" minW="44px" disabled={busy}/>
                             </Dialog.CloseTrigger>
                         </Dialog.Content>
                     </Dialog.Positioner>
