@@ -18,11 +18,12 @@ const state = vi.hoisted(() => ({
     },
     updateMail: vi.fn(), updateKindle: vi.fn(), updateAuth: vi.fn(), testMail: vi.fn(), refetch: vi.fn(),
     authQuery: vi.fn(),
+    provider: "LOCAL",
     version: 0, listeners: new Set<() => void>(),
 }));
 vi.mock("@/shared", () => ({config: {cloudMode: false}}));
 vi.mock("@/entities/user", () => ({
-    useGetUserByIdQuery: () => ({data: {name: "Reader", email: "reader@example.test"}, refetch: state.refetch}),
+    useGetUserByIdQuery: () => ({data: {name: "Reader", email: "reader@example.test", provider: state.provider}, refetch: state.refetch}),
 }));
 vi.mock("@/entities/authConfig", async () => {
     const {useSyncExternalStore} = await import("react");
@@ -68,6 +69,7 @@ beforeEach(() => {
     sessionStorage.setItem("user_id", "reader-id");
     sessionStorage.setItem("user_role", "ADMIN");
     config.cloudMode = false;
+    state.provider = "LOCAL";
     state.mail = {configured: true, smtp: {host: "smtp.example.test", port: 587, secure: false, user: "reader", from: "library@example.test", hasPassword: true}};
     state.kindle = {kindleEmail: "reader@kindle.test"};
     state.updateMail.mockReturnValue({unwrap: () => Promise.resolve(state.mail)});
@@ -77,6 +79,18 @@ beforeEach(() => {
 });
 
 describe("settings sections and safety", () => {
+    it("offers a password form only for local accounts", () => {
+        mount("password");
+        expect(screen.getByLabelText("Current password")).toBeVisible();
+    });
+
+    it("directs externally authenticated accounts to their identity provider", () => {
+        state.provider = "OIDC";
+        mount("password");
+        expect(screen.getByText("Contact your identity provider to change your password.")).toBeVisible();
+        expect(screen.queryByLabelText("Current password")).not.toBeInTheDocument();
+    });
+
     it("defaults to read-only profile, with real section links", () => {
         mount();
         expect(screen.getByRole("heading", {name: "Profile"})).toBeVisible();

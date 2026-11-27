@@ -7,11 +7,13 @@ import {
     useSelectBookCoverMutation,
     type BookCoverCandidate,
     useToggleFavoriteMutation,
+    useUpdateBookMutation,
+    type UpdateBookPayload,
 } from "@/entities/book";
 import {config} from "@/shared";
-import {Badge, Box, Button, CloseButton, Dialog, Flex, Image, Input, Portal, SimpleGrid, Spinner, Stack, Text,} from "@chakra-ui/react";
-import {useEffect, useMemo, useState} from "react";
-import {LuBookOpen, LuDownload, LuHeart, LuImagePlus, LuLibrary, LuRefreshCw, LuSearch, LuSend, LuStar} from "react-icons/lu";
+import {Badge, Box, Button, CloseButton, Dialog, Flex, Image, Input, Portal, SimpleGrid, Spinner, Stack, Text, Textarea,} from "@chakra-ui/react";
+import {useEffect, useId, useMemo, useState} from "react";
+import {LuBookOpen, LuDownload, LuHeart, LuImagePlus, LuLibrary, LuPencil, LuRefreshCw, LuSearch, LuSend, LuStar} from "react-icons/lu";
 import {Link, useNavigate} from "react-router";
 import {ManageBookShelvesButton} from "@/entities/bookShelf";
 import {BookJacket, ConfirmAction, EmptyState, ErrorState, PageHeader, PageSection} from "@/shared/ui/EditorialUI";
@@ -29,6 +31,7 @@ import {
 } from "@/entities/book/model/bookFormats";
 import {getApiErrorMessage, useGetKindleEmailQuery, useGetMailSenderQuery, useSendToKindleMutation} from "@/entities/kindle";
 import {ManageBookFormatsButton} from "@/pages/bookDetails/ui/ManageBookFormatsButton";
+import TextField from "@/shared/ui/TextField";
 
 const SUMMARY_CHAR_LIMIT = 400;
 
@@ -105,8 +108,10 @@ function isBookOpenedLocally(bookId: string): boolean {
 }
 
 export default function BookDetailsPage({book}: BookDetailsPageProps) {
+    const metadataFormId = useId();
     const [toggleFavorite, {isLoading: favoriting}] = useToggleFavoriteMutation();
     const [deleteBook] = useDeleteBookMutation();
+    const [updateBook, {isLoading: updatingMetadata}] = useUpdateBookMutation();
     const [generateSummary, {isLoading: generatingSummary}] = useGenerateBookSummaryMutation();
     const [fetchMetadata, {isLoading: fetchingMetadata}] = useFetchBookMetadataMutation();
     const navigate = useNavigate();
@@ -121,6 +126,21 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
     const [coverCandidates, setCoverCandidates] = useState<BookCoverCandidate[]>([]);
     const [searchCovers, {isLoading: searchingCovers}] = useSearchBookCoversMutation();
     const [selectCover, {isLoading: selectingCover}] = useSelectBookCoverMutation();
+    const [editMetadataOpen, setEditMetadataOpen] = useState(false);
+    const [editMetadataError, setEditMetadataError] = useState("");
+    const [metadataDraft, setMetadataDraft] = useState({
+        title: "",
+        author: "",
+        summary: "",
+        genres: "",
+        publishedYear: "",
+        series: "",
+        seriesPosition: "",
+        isbn: "",
+        pageCount: "",
+        publisher: "",
+        language: "",
+    });
     const availableFormats = useMemo(() => getAvailableBookFormats(book), [book]);
     const preferredFormat = useMemo(() => getPreferredBookFormat(availableFormats), [availableFormats]);
     const [selectedFormat, setSelectedFormat] = useState<BookFormatType | undefined>(preferredFormat?.format);
@@ -229,6 +249,91 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
     const activePublisher = activeFormat?.publisher ?? book.publisher;
     const activeLanguage = activeFormat?.language ?? book.language;
     const sanitizedTitle = activeTitle.replace(/[/\\:*?"<>|]/g, '_');
+
+    const openMetadataEditor = () => {
+        setEditMetadataError("");
+        setMetadataDraft({
+            title: activeTitle ?? "",
+            author: activeAuthor ?? "",
+            summary: activeSummary ?? "",
+            genres: (activeGenres ?? []).join(", "),
+            publishedYear: activePublishedYear != null ? String(activePublishedYear) : "",
+            series: activeSeries ?? "",
+            seriesPosition: activeSeriesPosition != null ? String(activeSeriesPosition) : "",
+            isbn: activeIsbn ?? "",
+            pageCount: activePageCount != null ? String(activePageCount) : "",
+            publisher: activePublisher ?? "",
+            language: activeLanguage ?? "",
+        });
+        setEditMetadataOpen(true);
+    };
+
+    const parseOptionalNumber = (value: string): number | undefined => {
+        if (!value.trim()) return undefined;
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : undefined;
+    };
+
+    const saveMetadata = async (event: {preventDefault: () => void}) => {
+        event.preventDefault();
+        setEditMetadataError("");
+        const title = metadataDraft.title.trim();
+        const author = metadataDraft.author.trim();
+        if (!title || !author) {
+            setEditMetadataError("Title and author are required.");
+            return;
+        }
+
+        const publishedYear = parseOptionalNumber(metadataDraft.publishedYear);
+        const seriesPosition = parseOptionalNumber(metadataDraft.seriesPosition);
+        const pageCount = parseOptionalNumber(metadataDraft.pageCount);
+        if (
+            (metadataDraft.publishedYear.trim() && publishedYear == null) ||
+            (metadataDraft.seriesPosition.trim() && seriesPosition == null) ||
+            (metadataDraft.pageCount.trim() && pageCount == null)
+        ) {
+            setEditMetadataError("Published year, series position, and page count must be valid numbers.");
+            return;
+        }
+        if (
+            (publishedYear != null && publishedYear < 1) ||
+            (seriesPosition != null && seriesPosition < 0) ||
+            (pageCount != null && pageCount < 1)
+        ) {
+            setEditMetadataError("Published year and page count must be positive; series position cannot be negative.");
+            return;
+        }
+
+        const payload: UpdateBookPayload = {
+            id: book.id,
+        };
+        const summary = metadataDraft.summary.trim();
+        const genres = metadataDraft.genres.split(",").map((genre) => genre.trim()).filter(Boolean);
+        const series = metadataDraft.series.trim();
+        const isbn = metadataDraft.isbn.trim();
+        const publisher = metadataDraft.publisher.trim();
+        const language = metadataDraft.language.trim();
+        if (title !== activeTitle) payload.title = title;
+        if (author !== activeAuthor) payload.author = author;
+        if (summary !== (activeSummary ?? "")) payload.summary = summary;
+        if (JSON.stringify(genres) !== JSON.stringify(activeGenres ?? [])) payload.genres = genres;
+        if (publishedYear != null && publishedYear !== activePublishedYear) payload.publishedYear = publishedYear;
+        if (series !== (activeSeries ?? "")) payload.series = series;
+        if (seriesPosition != null && seriesPosition !== activeSeriesPosition) payload.seriesPosition = seriesPosition;
+        if (isbn !== (activeIsbn ?? "")) payload.isbn = isbn;
+        if (pageCount != null && pageCount !== activePageCount) payload.pageCount = pageCount;
+        if (publisher !== (activePublisher ?? "")) payload.publisher = publisher;
+        if (language !== (activeLanguage ?? "")) payload.language = language;
+
+        try {
+            await updateBook(payload).unwrap();
+            setEditMetadataOpen(false);
+            ToastFactory({message: "Book metadata updated", type: "success"});
+        } catch (error) {
+            setEditMetadataError("The metadata could not be saved. Please try again.");
+            handleRtkError(error);
+        }
+    };
 
     const removeCurrentlyReading = async (bookId: string) => {
         try {
@@ -425,6 +530,7 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
                 <Stack gap={4} pt={4}>
                     <Text color="fg.muted">Update this book's presentation, manage linked formats, or clear your saved reading position.</Text>
                     <Flex gap={3} wrap="wrap">
+                        {canDelete && <Button variant="outline" minH="44px" onClick={openMetadataEditor}><LuPencil/> Edit metadata</Button>}
                         <Button variant="outline" minH="44px" onClick={() => void openCoverSearch()}><LuImagePlus/> Find a cover</Button>
                         <Button variant="outline" minH="44px" loading={generatingSummary} onClick={async () => {
                             setActionError("");
@@ -449,6 +555,81 @@ export default function BookDetailsPage({book}: BookDetailsPageProps) {
                     </Flex>
                 </Stack>
             </Box>
+
+            <Dialog.Root open={editMetadataOpen} closeOnEscape={!updatingMetadata} closeOnInteractOutside={!updatingMetadata}
+                onOpenChange={(event) => {if (!updatingMetadata) setEditMetadataOpen(event.open);}}>
+                <Portal>
+                    <Dialog.Backdrop/>
+                    <Dialog.Positioner>
+                        <Dialog.Content maxW="3xl" maxH="85vh" display="flex" flexDirection="column" aria-busy={updatingMetadata}>
+                            <Dialog.Header flexShrink={0}>
+                                <Dialog.Title>Edit book metadata</Dialog.Title>
+                            </Dialog.Header>
+                            <Dialog.Body overflowY="auto" minH={0} flex="1">
+                                <form id={metadataFormId} onSubmit={(event) => void saveMetadata(event)}>
+                                    <Stack gap={4}>
+                                        {editMetadataError && <ErrorState>{editMetadataError}</ErrorState>}
+                                        <SimpleGrid columns={{base: 1, md: 2}} gap={4}>
+                                            <TextField
+                                                label="Title"
+                                                value={metadataDraft.title}
+                                                onChange={(event) => setMetadataDraft((draft) => ({...draft, title: event.target.value}))}
+                                                required
+                                            />
+                                            <TextField
+                                                label="Author"
+                                                value={metadataDraft.author}
+                                                onChange={(event) => setMetadataDraft((draft) => ({...draft, author: event.target.value}))}
+                                                required
+                                            />
+                                        </SimpleGrid>
+                                        <Stack gap={2}>
+                                            <Text fontSize="sm" fontWeight="medium">Summary</Text>
+                                            <Textarea
+                                                aria-label="Summary"
+                                                minH="140px"
+                                                value={metadataDraft.summary}
+                                                onChange={(event) => setMetadataDraft((draft) => ({...draft, summary: event.target.value}))}
+                                            />
+                                        </Stack>
+                                        <SimpleGrid columns={{base: 1, md: 2}} gap={4}>
+                                            <TextField label="Genres" placeholder="Fantasy, Adventure"
+                                                value={metadataDraft.genres}
+                                                onChange={(event) => setMetadataDraft((draft) => ({...draft, genres: event.target.value}))}/>
+                                            <TextField label="Published year" type="number" min="1"
+                                                value={metadataDraft.publishedYear}
+                                                onChange={(event) => setMetadataDraft((draft) => ({...draft, publishedYear: event.target.value}))}/>
+                                            <TextField label="Series"
+                                                value={metadataDraft.series}
+                                                onChange={(event) => setMetadataDraft((draft) => ({...draft, series: event.target.value}))}/>
+                                            <TextField label="Series position" type="number" min="0"
+                                                value={metadataDraft.seriesPosition}
+                                                onChange={(event) => setMetadataDraft((draft) => ({...draft, seriesPosition: event.target.value}))}/>
+                                            <TextField label="ISBN"
+                                                value={metadataDraft.isbn}
+                                                onChange={(event) => setMetadataDraft((draft) => ({...draft, isbn: event.target.value}))}/>
+                                            <TextField label="Page count" type="number" min="1"
+                                                value={metadataDraft.pageCount}
+                                                onChange={(event) => setMetadataDraft((draft) => ({...draft, pageCount: event.target.value}))}/>
+                                            <TextField label="Publisher"
+                                                value={metadataDraft.publisher}
+                                                onChange={(event) => setMetadataDraft((draft) => ({...draft, publisher: event.target.value}))}/>
+                                            <TextField label="Language"
+                                                value={metadataDraft.language}
+                                                onChange={(event) => setMetadataDraft((draft) => ({...draft, language: event.target.value}))}/>
+                                        </SimpleGrid>
+                                    </Stack>
+                                </form>
+                            </Dialog.Body>
+                            <Dialog.Footer flexShrink={0}>
+                                <Button type="button" variant="outline" minH="44px" disabled={updatingMetadata}
+                                    onClick={() => setEditMetadataOpen(false)}>Cancel</Button>
+                                <Button type="submit" form={metadataFormId} minH="44px" loading={updatingMetadata}>Save metadata</Button>
+                            </Dialog.Footer>
+                        </Dialog.Content>
+                    </Dialog.Positioner>
+                </Portal>
+            </Dialog.Root>
 
             <Dialog.Root open={coverSearchOpen} closeOnEscape={!selectingCover} closeOnInteractOutside={!selectingCover}
                 onOpenChange={(event) => {if (!selectingCover) setCoverSearchOpen(event.open);}}>

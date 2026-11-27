@@ -8,10 +8,11 @@ import BookDetailsPage from "./BookDetailsPage";
 const api = vi.hoisted(() => ({
     deleteBook: vi.fn(), favorite: vi.fn(), summary: vi.fn(), metadata: vi.fn(),
     covers: vi.fn(), selectCover: vi.fn(), deletePosition: vi.fn(), readingBooks: vi.fn(),
-    send: vi.fn(), mail: {configured: true}, kindle: {kindleEmail: ""},
+    send: vi.fn(), update: vi.fn(), mail: {configured: true}, kindle: {kindleEmail: ""},
 }));
 vi.mock("@/entities/book", () => ({
     useDeleteBookMutation: () => [api.deleteBook, {}],
+    useUpdateBookMutation: () => [api.update, {}],
     useToggleFavoriteMutation: () => [api.favorite, {}],
     useGenerateBookSummaryMutation: () => [api.summary, {}],
     useFetchBookMetadataMutation: () => [api.metadata, {}],
@@ -67,6 +68,38 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe("book detail actions", () => {
+    it("edits and saves book metadata", async () => {
+        api.update.mockReturnValue({unwrap: () => Promise.resolve(book)});
+        renderBook();
+        fireEvent.click(screen.getByText("Book tools and maintenance"));
+        fireEvent.click(screen.getByRole("button", {name: "Edit metadata"}));
+        const dialog = await screen.findByRole("dialog", {name: "Edit book metadata"});
+        fireEvent.change(within(dialog).getByRole("textbox", {name: "Title"}), {target: {value: "A Better Orchard"}});
+        fireEvent.change(within(dialog).getByRole("textbox", {name: "Genres"}), {target: {value: "Fiction, Mystery"}});
+        fireEvent.change(within(dialog).getByRole("spinbutton", {name: "Published year"}), {target: {value: "2024"}});
+        fireEvent.click(within(dialog).getByRole("button", {name: "Save metadata"}));
+        await waitFor(() => expect(api.update).toHaveBeenCalledWith(expect.objectContaining({
+            id: "orchard",
+            title: "A Better Orchard",
+            genres: ["Fiction", "Mystery"],
+            publishedYear: 2024,
+        })));
+        expect(api.update).toHaveBeenCalledWith(expect.not.objectContaining({author: expect.anything()}));
+        await waitFor(() => expect(dialog).not.toBeVisible());
+    });
+
+    it("sends only edited metadata when a format has its own values", async () => {
+        api.update.mockReturnValue({unwrap: () => Promise.resolve(book)});
+        renderBook();
+        fireEvent.click(screen.getByRole("button", {name: "MP3 audiobook"}));
+        fireEvent.click(screen.getByText("Book tools and maintenance"));
+        fireEvent.click(screen.getByRole("button", {name: "Edit metadata"}));
+        const dialog = await screen.findByRole("dialog", {name: "Edit book metadata"});
+        fireEvent.change(within(dialog).getByRole("textbox", {name: "Summary"}), {target: {value: "test2"}});
+        fireEvent.click(within(dialog).getByRole("button", {name: "Save metadata"}));
+        await waitFor(() => expect(api.update).toHaveBeenCalledWith({id: "orchard", summary: "test2"}));
+    });
+
     it("preserves format-specific reading, listening, metadata and download links", () => {
         renderBook();
         expect(screen.getByRole("heading", {level: 1, name: "The Orchard"})).toBeVisible();

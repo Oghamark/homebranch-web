@@ -2,7 +2,7 @@ import {BookGridSkeletons, CollectionEmpty, LibraryPage} from "@/pages/library";
 import type {Route} from "./+types/library";
 import {Stack} from "@chakra-ui/react";
 import {AddBookButton, useGetBooksInfiniteQuery} from "@/entities/book";
-import {CollectionToolbar, useLibraryDisplayMode, useLibrarySearch, useShowAllUsers} from "@/features/library";
+import {CollectionToolbar, useLibraryDisplayMode, useLibraryFilters, useLibrarySearch, useShowAllUsers} from "@/features/library";
 import {useMobileNavConfig} from "@/components/navigation/MobileNavContext";
 import {ErrorState, PageHeader} from "@/shared/ui/EditorialUI";
 
@@ -13,17 +13,29 @@ export function meta({}: Route.MetaArgs) {
 export default function Library() {
     useMobileNavConfig("Library");
     const query = useLibrarySearch();
+    const {filters} = useLibraryFilters();
     const showAllUsers = useShowAllUsers();
     const displayMode = useLibraryDisplayMode();
     const userId = showAllUsers ? undefined : (sessionStorage.getItem("user_id") ?? undefined);
-    const {currentData: data, hasNextPage, fetchNextPage, isFetching, isError, refetch, isFetchingNextPage} = useGetBooksInfiniteQuery({query, userId});
+    const {currentData: data, hasNextPage, fetchNextPage, isFetching, isError, refetch, isFetchingNextPage} = useGetBooksInfiniteQuery({
+        query,
+        userId,
+        genreFilter: filters.genre || undefined,
+        yearFrom: filters.yearFrom || undefined,
+        yearTo: filters.yearTo || undefined,
+        seriesFilter: filters.series || undefined,
+        language: filters.language || undefined,
+        publisher: filters.publisher || undefined,
+        sortBy: filters.sortBy,
+        sortDirection: filters.sortDirection,
+    });
     const books = data?.pages.flatMap(page => page.data) ?? [];
     const isFetchNextPageError = isError && books.length > 0;
 
     return <Stack gap={6}>
         <PageHeader title="Library" description="Find your next read or return to an old favorite."
             actions={<AddBookButton variant="solid" colorPalette="orange" width="auto" size="md"/>}/>
-        <CollectionToolbar label="Search library" scope/>
+        <CollectionToolbar label="Search library" scope advanced/>
         {isError && !isFetchNextPageError && <ErrorState onRetry={refetch}>Your library could not be loaded. Your books have not been changed.</ErrorState>}
         {isFetching && !data ? <BookGridSkeletons displayMode={displayMode}/>
             : books.length ? <LibraryPage books={books} fetchMore={fetchNextPage} hasMore={!!hasNextPage}

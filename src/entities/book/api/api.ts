@@ -2,8 +2,8 @@ import {homebranchApi} from "@/shared/api/rtk-query";
 import type {BookModel, CreateBookRequest} from "@/entities/book";
 import type {PaginationResult} from "@/shared/api/api_response";
 import {config} from "@/shared";
-import type {QueriedSearch} from "@/entities/book/api/types";
-import type {GetBooksByIdsRequest} from "@/entities/book/api/dtos";
+import type {LibraryBooksQuery, QueriedSearch} from "@/entities/book/api/types";
+import type {GetBooksByIdsRequest, UpdateBookPayload} from "@/entities/book/api/dtos";
 import type {BookDuplicateWithBooksModel} from "@/entities/book/model/BookDuplicateModel";
 
 export type CreateBookResult = BookModel | {skipped: true; existingBook: BookModel};
@@ -42,7 +42,7 @@ export function parseSearchKeywords(raw: string): { query: string; isbn?: string
 
 export const booksApi = homebranchApi.injectEndpoints({
     endpoints: (build) => ({
-        getBooks: build.infiniteQuery<PaginationResult<BookModel[]>, QueriedSearch, number>({
+        getBooks: build.infiniteQuery<PaginationResult<BookModel[]>, LibraryBooksQuery, number>({
             infiniteQueryOptions: {
                 initialPageParam: 0,
                 getNextPageParam: (
@@ -73,6 +73,14 @@ export const booksApi = homebranchApi.injectEndpoints({
                 if (keywords.genre) params.set('genre', keywords.genre);
                 if (keywords.series) params.set('series', keywords.series);
                 if (keywords.author) params.set('author', keywords.author);
+                if (queryArg.genreFilter) params.set('genreFilter', queryArg.genreFilter);
+                if (queryArg.seriesFilter) params.set('seriesFilter', queryArg.seriesFilter);
+                if (queryArg.language) params.set('language', queryArg.language);
+                if (queryArg.publisher) params.set('publisher', queryArg.publisher);
+                if (queryArg.yearFrom) params.set('yearFrom', queryArg.yearFrom);
+                if (queryArg.yearTo) params.set('yearTo', queryArg.yearTo);
+                if (queryArg.sortBy) params.set('sortBy', queryArg.sortBy);
+                if (queryArg.sortDirection) params.set('sortDirection', queryArg.sortDirection);
                 if (queryArg.userId) params.set('userId', queryArg.userId);
                 params.set('limit', String(config.itemsPerPage));
                 params.set('offset', String(pageParam * config.itemsPerPage));
@@ -86,6 +94,10 @@ export const booksApi = homebranchApi.injectEndpoints({
                         'Book'
                     ]
                 ) ?? [{type: 'Book', id: 'LIST'}, 'Book']
+        }),
+        getGenres: build.query<string[], void>({
+            query: () => ({url: '/books/genres'}),
+            providesTags: ['Book'],
         }),
         getBookById:build.query<BookModel, string>({
             query: (id) => ({url: `/books/${id}`}),
@@ -269,8 +281,8 @@ export const booksApi = homebranchApi.injectEndpoints({
                 return {url: '/books/audiobook/preview', method: 'POST', body: formData};
             },
         }),
-        updateBook: build.mutation<BookModel, BookModel>({
-            query: (book: BookModel) => ({url: `/books/${book.id}`, method: 'PUT', body: book}),
+        updateBook: build.mutation<BookModel, UpdateBookPayload>({
+            query: (book) => ({url: `/books/${book.id}`, method: 'PUT', body: book}),
             invalidatesTags: result => result ? [{type: 'Book' as const, id: result.id}] : []
         }),
         linkBooks: build.mutation<BookModel, {targetBookId: string; sourceBookId: string}>({
@@ -352,6 +364,7 @@ export const booksApi = homebranchApi.injectEndpoints({
 
 export const {
     useGetBooksInfiniteQuery,
+    useGetGenresQuery,
     useGetFavoriteBooksInfiniteQuery,
     useGetBookByIdQuery,
     useGetBooksByIdsQuery,

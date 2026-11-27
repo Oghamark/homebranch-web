@@ -32,6 +32,7 @@ describe("collection toolbar", () => {
         renderToolbar();
         fireEvent.change(screen.getByRole("searchbox", {name: "Search library"}), {target: {value: "isbn:9780"}});
         expect(screen.getByLabelText("Location")).toHaveTextContent("sort=title&q=isbn%3A9780");
+        expect(screen.queryByRole("button", {name: "Filter and sort books"})).not.toBeInTheDocument();
         fireEvent.click(screen.getByRole("button", {name: "Clear search"}));
         expect(screen.getByRole("searchbox")).toHaveValue("");
         expect(screen.getByLabelText("Location")).toHaveTextContent("?sort=title");

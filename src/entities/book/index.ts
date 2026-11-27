@@ -11,6 +11,7 @@ export type {BookDuplicateModel, BookDuplicateWithBooksModel} from "./model/Book
 // API
 export {
     useGetBooksInfiniteQuery,
+    useGetGenresQuery,
     useGetFavoriteBooksInfiniteQuery,
     useGetBookByIdQuery,
     useGetBooksByIdsQuery,
@@ -36,4 +37,4 @@ export {
 
 export type {ResolveDuplicateAction, CreateBookResult} from "./api/api";
 export type {BookCoverCandidate} from "./api/api";
-export type {CreateBookRequest} from "./api/dtos";
+export type {CreateBookRequest, UpdateBookPayload} from "./api/dtos";
