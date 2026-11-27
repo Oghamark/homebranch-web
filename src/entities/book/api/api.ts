@@ -254,41 +254,22 @@ export const booksApi = homebranchApi.injectEndpoints({
             },
         }),
         createBook: build.mutation<CreateBookResult, CreateBookRequest & {onUploadProgress?: UploadProgressCallback}>({
-            query: ({onUploadProgress, ...book}) => {
-                const formData = new FormData();
-                Object.entries(book).forEach(([key, value]) => {
-                    switch (typeof value) {
-                        case "boolean":
-                            formData.append(key, value ? "true" : "false");
-                            break;
-                        case "undefined":
-                            break;
-                        default:
-                            formData.append(key, value as string | Blob);
-                            break;
-                    }
-                })
-                return ({url: `/books`, method: 'POST', body: formData, onUploadProgress})
-            },
+            query: ({file, onUploadProgress, ...metadata}) => ({
+                url: "/books/from-upload", method: "POST", body: metadata, uploadFiles: [file], onUploadProgress,
+            }),
             invalidatesTags: [{type: 'Book', id: 'LIST'}]
         }),
         createAudiobook: build.mutation<BookModel, {files: File[]; title: string; author?: string; onUploadProgress?: UploadProgressCallback}>({
-            query: ({files, title, author, onUploadProgress}) => {
-                const formData = new FormData();
-                formData.append('title', title);
-                if (author) formData.append('author', author);
-                files.forEach(file => formData.append('files', file));
-                return {url: '/books/audiobook', method: 'POST', body: formData, onUploadProgress};
-            },
+            query: ({files, title, author, onUploadProgress}) => ({
+                url: "/books/audiobook/from-upload", method: "POST", body: {title, author},
+                uploadFiles: files, onUploadProgress,
+            }),
             invalidatesTags: [{type: 'Book', id: 'LIST'}],
         }),
         previewAudiobook: build.mutation<AudiobookPreview[], {files: File[]; relativePaths: string[]}>({
-            query: ({files, relativePaths}) => {
-                const formData = new FormData();
-                files.forEach(file => formData.append('files', file));
-                formData.append('relativePaths', JSON.stringify(relativePaths));
-                return {url: '/books/audiobook/preview', method: 'POST', body: formData};
-            },
+            query: ({files, relativePaths}) => ({
+                url: "/books/audiobook/preview-from-upload", method: "POST", body: {relativePaths}, uploadFiles: files,
+            }),
         }),
         updateBook: build.mutation<BookModel, UpdateBookPayload>({
             query: (book) => ({url: `/books/${book.id}`, method: 'PUT', body: book}),
