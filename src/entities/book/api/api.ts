@@ -6,6 +6,7 @@ import type {LibraryBooksQuery, QueriedSearch} from "@/entities/book/api/types";
 import type {GetBooksByIdsRequest, UpdateBookPayload} from "@/entities/book/api/dtos";
 import type {BookDuplicateWithBooksModel} from "@/entities/book/model/BookDuplicateModel";
 import {clearDeletedBooksFromLocalStorage} from "@/entities/book/model/bookDeletion";
+import type {UploadProgressCallback} from "@/shared/api/upload";
 
 export type BulkBookAction = "delete" | "favorite" | "unfavorite" | "add-to-shelf" | "remove-from-shelf" | "assign-owner";
 export type BulkBooksRequest = {bookIds: string[]} & (
@@ -252,8 +253,8 @@ export const booksApi = homebranchApi.injectEndpoints({
                 clearDeletedBooksFromLocalStorage(userId, result.succeeded);
             },
         }),
-        createBook: build.mutation<CreateBookResult, CreateBookRequest>({
-            query: (book: CreateBookRequest) => {
+        createBook: build.mutation<CreateBookResult, CreateBookRequest & {onUploadProgress?: UploadProgressCallback}>({
+            query: ({onUploadProgress, ...book}) => {
                 const formData = new FormData();
                 Object.entries(book).forEach(([key, value]) => {
                     switch (typeof value) {
@@ -267,17 +268,17 @@ export const booksApi = homebranchApi.injectEndpoints({
                             break;
                     }
                 })
-                return ({url: `/books`, method: 'POST', body: formData})
+                return ({url: `/books`, method: 'POST', body: formData, onUploadProgress})
             },
             invalidatesTags: [{type: 'Book', id: 'LIST'}]
         }),
-        createAudiobook: build.mutation<BookModel, {files: File[]; title: string; author?: string}>({
-            query: ({files, title, author}) => {
+        createAudiobook: build.mutation<BookModel, {files: File[]; title: string; author?: string; onUploadProgress?: UploadProgressCallback}>({
+            query: ({files, title, author, onUploadProgress}) => {
                 const formData = new FormData();
                 formData.append('title', title);
                 if (author) formData.append('author', author);
                 files.forEach(file => formData.append('files', file));
-                return {url: '/books/audiobook', method: 'POST', body: formData};
+                return {url: '/books/audiobook', method: 'POST', body: formData, onUploadProgress};
             },
             invalidatesTags: [{type: 'Book', id: 'LIST'}],
         }),

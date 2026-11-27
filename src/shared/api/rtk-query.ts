@@ -11,21 +11,33 @@ import {config} from "@/shared";
 import ToastFactory from "@/shared/lib/toast/toast";
 import {Mutex} from "async-mutex";
 import {INACTIVE_MESSAGE, isInactiveAccountResponse, rejectInactiveAccount} from "@/features/authentication/api/cloudAccess";
+import {uploadWithProgress, type UploadProgressCallback} from "./upload";
+
+type RequestArgs = FetchArgs & {onUploadProgress?: UploadProgressCallback};
 
 // Create a mutex to prevent multiple refresh attempts
 const refreshTokenMutex = new Mutex();
 
 const baseQueryWithAuthRefresh: BaseQueryFn<
-    string | FetchArgs,
+    string | RequestArgs,
     unknown,
     FetchBaseQueryError
 > = async (args, api, extraOptions): Promise<QueryReturnValue<unknown, FetchBaseQueryError, FetchBaseQueryMeta>> => {
     // wait until the mutex is available without locking it
     await refreshTokenMutex.waitForUnlock();
-    let result = await fetchBaseQuery({
-        baseUrl: config.apiUrl,
-        credentials: 'include',
-    })(args, api, extraOptions);
+    const request = () => {
+        if (typeof args !== "string" && args.onUploadProgress && args.body instanceof FormData) {
+            return uploadWithProgress(
+                `${config.apiUrl.replace(/\/$/, "")}/${args.url.replace(/^\//, "")}`,
+                args.body, args.onUploadProgress, api.signal,
+            );
+        }
+        return fetchBaseQuery({
+            baseUrl: config.apiUrl,
+            credentials: 'include',
+        })(args, api, extraOptions);
+    };
+    let result = await request();
 
     if (result.error && result.error.status === 401) {
         if (!refreshTokenMutex.isLocked()) {
@@ -39,10 +51,7 @@ const baseQueryWithAuthRefresh: BaseQueryFn<
                 })({url: '/refresh'}, api, extraOptions);
 
                 if (refreshResult.data) {
-                    result = await fetchBaseQuery({
-                        baseUrl: config.apiUrl,
-                        credentials: 'include',
-                    })(args, api, extraOptions);
+                    result = await request();
                 } else {
                     // Refresh failed, log out
                     window.location.href = '/login';
@@ -54,10 +63,7 @@ const baseQueryWithAuthRefresh: BaseQueryFn<
             // Wait for the mutex to be released by the other request
             await refreshTokenMutex.waitForUnlock();
             // Retry the original query (token should be refreshed now)
-            result = await fetchBaseQuery({
-                baseUrl: config.apiUrl,
-                credentials: 'include',
-            })(args, api, extraOptions);
+            result = await request();
         }
     }
 

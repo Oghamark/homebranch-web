@@ -11,7 +11,7 @@ interface UploadProgressDialogProps {
     onRetryWithMetadata?: (index: number, metadata: BookUploadMetadata) => Promise<unknown>;
 }
 
-function StatusBadge({status}: { status: FileUploadStatus["status"] }) {
+function StatusBadge({status, progress}: Pick<FileUploadStatus, "status" | "progress">) {
     switch (status) {
         case "pending":
             return <Badge colorPalette="gray">Pending</Badge>;
@@ -19,7 +19,7 @@ function StatusBadge({status}: { status: FileUploadStatus["status"] }) {
             return (
                 <HStack gap={1}>
                     <Spinner size="xs"/>
-                    <Badge colorPalette="blue">Uploading</Badge>
+                    <Badge colorPalette="blue">{progress === 100 ? "Processing" : `Uploading ${progress ?? 0}%`}</Badge>
                 </HStack>
             );
         case "success":
@@ -73,8 +73,16 @@ export function UploadProgressDialog({statuses, isOpen, isUploading, onClose, on
                                     const content = <>
                                         <HStack justify="space-between">
                                             <Text fontSize="sm" overflowWrap="anywhere" minW={0}>{s.name}</Text>
-                                            <StatusBadge status={s.status}/>
+                                            <StatusBadge status={s.status} progress={s.progress}/>
                                         </HStack>
+                                        {s.status === "uploading" && (
+                                            <Progress.Root value={s.progress ?? 0} max={100} size="xs">
+                                                <Progress.Track><Progress.Range/></Progress.Track>
+                                                <Progress.Label fontSize="xs">
+                                                    {s.progress === 100 ? "100% uploaded. Processing..." : `${s.progress ?? 0}% uploaded`}
+                                                </Progress.Label>
+                                            </Progress.Root>
+                                        )}
                                         {s.status === "failed" && s.error && (
                                             <Text fontSize="xs" color="fg.error">{s.error}</Text>
                                         )}

@@ -1,18 +1,20 @@
 import {useRef, useState} from "react";
 import {useCreateAudiobookMutation, useCreateBookMutation, usePreviewAudiobookMutation} from "@/entities/book";
 import {isFetchBaseQueryError, isErrorWithMessage} from "@/shared/api/rtk-query";
+import type {UploadProgressCallback} from "@/shared/api/upload";
 
 export type FileUploadStatus = {
     name: string;
     status: "pending" | "uploading" | "success" | "skipped" | "failed";
     error?: string;
+    progress?: number;
     metadata?: BookUploadMetadata;
     missingFields?: (keyof BookUploadMetadata)[];
 };
 export type BookUploadMetadata = {title?: string; author?: string};
 type UploadMetadata = BookUploadMetadata | undefined;
 type AudiobookUpload = {title: string; author?: string; files: File[]};
-type UploadJob = {name: string; metadata: BookUploadMetadata; run: (metadata: BookUploadMetadata) => Promise<unknown>};
+type UploadJob = {name: string; metadata: BookUploadMetadata; run: (metadata: BookUploadMetadata, onUploadProgress: UploadProgressCallback) => Promise<unknown>};
 
 function getErrorMessage(error: unknown): string {
     if (isFetchBaseQueryError(error)) {
@@ -62,14 +64,16 @@ export function useBookUpload() {
         setIsDialogOpen(true);
         const selected = new Set(indices);
         failedIndices.current = failedIndices.current.filter(index => !selected.has(index));
-        setUploadStatuses(previous => previous.map((status, index) => selected.has(index) ? {...status, status: "pending", error: undefined, missingFields: undefined} : status));
+        setUploadStatuses(previous => previous.map((status, index) => selected.has(index) ? {...status, status: "pending", progress: 0, error: undefined, missingFields: undefined} : status));
         try {
             for (const index of indices) {
-                setUploadStatuses(previous => previous.map((status, i) => i === index ? {...status, status: "uploading", error: undefined} : status));
+                setUploadStatuses(previous => previous.map((status, i) => i === index ? {...status, status: "uploading", progress: 0, error: undefined} : status));
                 try {
-                    const result = await jobs[index].run(jobs[index].metadata);
+                    const result = await jobs[index].run(jobs[index].metadata, progress => {
+                        setUploadStatuses(previous => previous.map((status, i) => i === index ? {...status, progress} : status));
+                    });
                     const skipped = typeof result === "object" && result !== null && "skipped" in result && result.skipped === true;
-                    setUploadStatuses(previous => previous.map((status, i) => i === index ? {...status, status: skipped ? "skipped" : "success"} : status));
+                    setUploadStatuses(previous => previous.map((status, i) => i === index ? {...status, status: skipped ? "skipped" : "success", progress: 100} : status));
                 } catch (error) {
                     const details = getMissingMetadata(error);
                     jobs[index].metadata = {...jobs[index].metadata, ...details.metadata};
@@ -93,12 +97,12 @@ export function useBookUpload() {
             ...files.map((file, index) => ({
                 name: file.name,
                 metadata: {...metadata[index]},
-                run: (values: BookUploadMetadata) => createBook({file, ...values, isFavorite: false}).unwrap(),
+                run: (values: BookUploadMetadata, onUploadProgress: UploadProgressCallback) => createBook({file, ...values, isFavorite: false, onUploadProgress}).unwrap(),
             })),
             ...audiobooks.map(audiobook => ({
                 name: audiobook.title,
                 metadata: {title: audiobook.title, author: audiobook.author},
-                run: (values: BookUploadMetadata) => createAudiobook({...audiobook, ...values, title: values.title ?? audiobook.title}).unwrap(),
+                run: (values: BookUploadMetadata, onUploadProgress: UploadProgressCallback) => createAudiobook({...audiobook, ...values, title: values.title ?? audiobook.title, onUploadProgress}).unwrap(),
             })),
         ];
         if (!jobs.length) return;
